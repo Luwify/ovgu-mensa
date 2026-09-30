@@ -24,3 +24,21 @@ fun tagLabelRes(key: String): Int? = when (key) {
     "suppe" -> R.string.tag_suppe
     else -> null
 }
+
+/**
+ * Chip text per filter key. Vegan/vegetarian say what they show, the others what they hide
+ * ("No pork"). Null for keys we have no string for: the chip then uses the generic "No <site label>".
+ */
+@StringRes
+fun filterLabelRes(key: String): Int? = when (key) {
+    "vegan" -> R.string.tag_vegan
+    "vegetarisch" -> R.string.tag_vegetarisch
+    "schwein" -> R.string.filter_no_schwein
+    "rind" -> R.string.filter_no_rind
+    "gefluegel" -> R.string.filter_no_gefluegel
+    "fisch" -> R.string.filter_no_fisch
+    "knoblauch" -> R.string.filter_no_knoblauch
+    "alkohol" -> R.string.filter_no_alkohol
+    "suppe" -> R.string.filter_no_suppe
+    else -> null
+}

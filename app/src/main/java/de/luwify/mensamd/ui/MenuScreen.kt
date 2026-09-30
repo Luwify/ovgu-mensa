@@ -2,6 +2,8 @@ package de.luwify.mensamd.ui
 
 import android.text.format.DateUtils
 import androidx.compose.foundation.background
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import de.luwify.mensamd.model.LegendCode
 import de.luwify.mensamd.model.CodeCategory
 import androidx.compose.ui.text.withStyle
@@ -60,8 +62,7 @@ import java.util.Locale
 
 /** The body of one Mensa page: the continuous menu list, or a message when there is none. */
 @Composable
-fun MenuBody(ui: MenuUiState, today: LocalDate, onRetry: () -> Unit) {
-    val days = remember(ui.days, today) { ui.days.upcomingWeekdays(today) }
+fun MenuBody(ui: MenuUiState, days: List<MenuDay>, today: LocalDate, onRetry: () -> Unit) {
     when {
         days.isNotEmpty() -> MenuList(ui, days, today)
         !ui.hasData && ui.refreshFailed -> Message(stringResource(R.string.error_no_data), onRetry)
@@ -73,7 +74,8 @@ fun MenuBody(ui: MenuUiState, today: LocalDate, onRetry: () -> Unit) {
 @Composable
 private fun Message(text: String, onRetry: (() -> Unit)?) {
     Column(
-        Modifier.fillMaxSize().padding(32.dp),
+        // Scrollable so pull-to-refresh also works from the message screens.
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(32.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
@@ -105,6 +107,17 @@ private fun MenuList(ui: MenuUiState, days: List<MenuDay>, today: LocalDate) {
             val keys = dishKeys(day)
             items(day.dishes, key = { keys.getValue(it) }) { dish ->
                 DishCard(dish, ui.legend, codeIndex, locale.language, euro, Modifier.padding(horizontal = 16.dp))
+            }
+            if (day.dishes.isEmpty()) {
+                // Everything on this day is filtered out: keep the day visible and say why.
+                item(key = "empty-${day.date}") {
+                    Text(
+                        stringResource(R.string.no_matching_dishes),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                    )
+                }
             }
             if (index < days.lastIndex) {
                 item(key = "divider-${day.date}") { HorizontalDivider(Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) }

@@ -34,4 +34,13 @@
     <string name="co2_value">%1$d g CO₂e</string>
     <string name="water_value">%1$d l water</string>
     <string name="per_portion">%1$s per portion</string>
+    <string name="filter_no_schwein">No pork</string>
+    <string name="filter_no_rind">No beef</string>
+    <string name="filter_no_gefluegel">No poultry</string>
+    <string name="filter_no_fisch">No fish</string>
+    <string name="filter_no_knoblauch">No garlic</string>
+    <string name="filter_no_alkohol">No alcohol</string>
+    <string name="filter_no_suppe">No soup</string>
+    <string name="filter_no_generic">No %1$s</string>
+    <string name="no_matching_dishes">No matching dishes</string>
 </resources>

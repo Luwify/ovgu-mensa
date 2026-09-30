@@ -36,4 +36,20 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
     suspend fun setMensaOrder(ids: List<String>) {
         store.edit { it[orderKey] = ids.joinToString(",") }
     }
+
+    private val filtersKey = stringPreferencesKey("dish_filters")
+
+    /** Active filter keys (tag keys); shared by all Mensen. Empty when nothing is active. */
+    val activeFilters: Flow<Set<String>> = store.data.map { prefs ->
+        prefs[filtersKey]?.split(',')?.filter { it.isNotEmpty() }?.toSet().orEmpty()
+    }
+
+    /** Atomic read-modify-write so two quick taps never lose one. */
+    suspend fun toggleFilter(key: String) {
+        store.edit { prefs ->
+            val current = prefs[filtersKey]?.split(',')?.filter { it.isNotEmpty() }?.toSet().orEmpty()
+            val next = if (key in current) current - key else current + key
+            prefs[filtersKey] = next.joinToString(",")
+        }
+    }
 }

@@ -7,6 +7,7 @@ import de.luwify.mensamd.model.Mensa
 import de.luwify.mensamd.model.MensaCatalog
 import de.luwify.mensamd.model.resolveOrder
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -23,17 +24,22 @@ sealed interface AppScreen {
     /** No (valid) default Mensa stored: first run. */
     data object Picker : AppScreen
 
-    /** [mensas] is in the user's tab order; [defaultId] is independent of that order. */
-    data class Main(val mensas: List<Mensa>, val defaultId: String) : AppScreen
+    /**
+     * [mensas] is in the user's tab order; [defaultId] is independent of that order; [filters] are
+     * the active filter keys shared by all Mensen. Filters ride along here so the first frame is
+     * already filtered, not unfiltered for a moment.
+     */
+    data class Main(val mensas: List<Mensa>, val defaultId: String, val filters: Set<String>) : AppScreen
 }
 
 class MainViewModel(private val container: AppContainer) : ViewModel() {
     val screen: StateFlow<AppScreen> = combine(
         container.settings.defaultMensaId,
         container.settings.mensaOrder,
-    ) { defaultId, order ->
+        container.settings.activeFilters,
+    ) { defaultId, order, filters ->
         val default = defaultId?.let(MensaCatalog::byId)
-        if (default == null) AppScreen.Picker else AppScreen.Main(resolveOrder(order), default.id)
+        if (default == null) AppScreen.Picker else AppScreen.Main(resolveOrder(order), default.id, filters)
     }.stateIn(viewModelScope, SharingStarted.Eagerly, AppScreen.Loading)
 
     private val menus = ConcurrentHashMap<String, StateFlow<MenuUiState?>>()
@@ -58,8 +64,13 @@ class MainViewModel(private val container: AppContainer) : ViewModel() {
         viewModelScope.launch { container.settings.setMensaOrder(ids) }
     }
 
-    /** For the retry button; pull-to-refresh comes in step B. */
-    fun refresh(id: String) {
-        viewModelScope.launch { container.menuRepository.refresh(id) }
+    fun toggleFilter(key: String) {
+        viewModelScope.launch { container.settings.toggleFilter(key) }
     }
+
+    /**
+     * Forces a fetch (retry button, pull-to-refresh). Runs in the ViewModel scope so leaving the
+     * screen doesn't cancel it; the returned job completes when the attempt is over, success or not.
+     */
+    fun refresh(id: String): Job = viewModelScope.launch { container.menuRepository.refresh(id) }
 }

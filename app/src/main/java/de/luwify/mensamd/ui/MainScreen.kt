@@ -1,6 +1,18 @@
 package de.luwify.mensamd.ui
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.ui.unit.dp
+import de.luwify.mensamd.R
+import androidx.compose.ui.res.stringResource
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.Text
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
@@ -82,7 +94,7 @@ fun MainScreen(vm: MainViewModel, screen: AppScreen.Main) {
                 beyondViewportPageCount = 1,
                 key = { latestMensas.getOrNull(it)?.id ?: it.toString() },
             ) { page ->
-                latestMensas.getOrNull(page)?.let { mensa -> MensaPage(vm, mensa.id, today) }
+                latestMensas.getOrNull(page)?.let { mensa -> MensaPage(vm, mensa.id, today, screen.filters) }
             }
         }
     }
@@ -95,14 +107,56 @@ private fun rememberToday(): LocalDate {
     return today
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun MensaPage(vm: MainViewModel, mensaId: String, today: LocalDate) {
+private fun MensaPage(vm: MainViewModel, mensaId: String, today: LocalDate, filters: Set<String>) {
     val flow = remember(mensaId) { vm.menuFor(mensaId) }
     val ui by flow.collectAsStateWithLifecycle()
-    Box(Modifier.fillMaxSize()) {
-        ui?.let { MenuBody(it, today) { vm.refresh(mensaId) } }
-        if (ui?.isRefreshing == true) {
+    val scope = rememberCoroutineScope()
+    // Only the pull gesture's own spinner; background refreshes get the thin progress bar instead.
+    var pulling by remember { mutableStateOf(false) }
+
+    val current = ui
+    val days = remember(current?.days, today) { current?.days?.upcomingWeekdays(today).orEmpty() }
+    val options = remember(days, filters) { DishFilters.options(days, filters) }
+    val shown = remember(days, filters) { DishFilters.apply(days, filters) }
+
+    PullToRefreshBox(
+        isRefreshing = pulling,
+        onRefresh = {
+            scope.launch {
+                pulling = true
+                try {
+                    vm.refresh(mensaId).join()
+                } finally {
+                    pulling = false
+                }
+            }
+        },
+        modifier = Modifier.fillMaxSize(),
+    ) {
+        Column(Modifier.fillMaxSize()) {
+            if (options.isNotEmpty()) FilterRow(options, filters, vm::toggleFilter)
+            Box(Modifier.weight(1f).fillMaxWidth()) {
+                if (current != null) MenuBody(current, shown, today) { vm.refresh(mensaId) }
+            }
+        }
+        if (current?.isRefreshing == true && !pulling) {
             LinearProgressIndicator(Modifier.fillMaxWidth().align(Alignment.TopCenter))
+        }
+    }
+}
+
+/** Chips built from the tags found on this page (plus active filters); the selection is global. */
+@Composable
+private fun FilterRow(options: List<DishFilters.Option>, active: Set<String>, onToggle: (String) -> Unit) {
+    LazyRow(
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        items(options, key = { it.key }) { option ->
+            val label = filterLabelRes(option.key)?.let { stringResource(it) } ?: stringResource(R.string.filter_no_generic, option.label)
+            FilterChip(selected = option.key in active, onClick = { onToggle(option.key) }, label = { Text(label) })
         }
     }
 }

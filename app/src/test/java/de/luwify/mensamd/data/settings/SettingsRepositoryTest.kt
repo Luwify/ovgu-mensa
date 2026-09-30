@@ -53,4 +53,23 @@ class SettingsRepositoryTest {
             scope.cancel()
         }
     }
+
+    @Test
+    fun filters_toggleOnAndOff_andPersist() = runBlocking {
+        val file = File(tmp.root, "filters.preferences_pb")
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        try {
+            val repo = SettingsRepository(PreferenceDataStoreFactory.create(scope = scope) { file })
+            assertEquals(emptySet<String>(), repo.activeFilters.first())
+            repo.toggleFilter("vegan")
+            repo.toggleFilter("schwein")
+            assertEquals(setOf("vegan", "schwein"), repo.activeFilters.first())
+            repo.toggleFilter("vegan")
+            assertEquals(setOf("schwein"), repo.activeFilters.first())
+            repo.toggleFilter("schwein")
+            assertEquals(emptySet<String>(), repo.activeFilters.first())
+        } finally {
+            scope.cancel()
+        }
+    }
 }
