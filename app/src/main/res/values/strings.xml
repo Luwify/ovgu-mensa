@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name" translatable="false">Mensa MD</string>
+    <string name="hello">Hello! The menu will show up here soon.</string>
+</resources>
