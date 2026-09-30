@@ -47,6 +47,7 @@ dependencies {
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.profileinstaller)
+    implementation(libs.jsoup)
 
     implementation(platform(libs.compose.bom))
     implementation(libs.compose.ui)
