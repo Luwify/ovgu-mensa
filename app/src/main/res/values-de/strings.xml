@@ -25,4 +25,11 @@
     <string name="tomorrow">Morgen</string>
     <string name="default_mensa">Standard-Mensa</string>
     <string name="make_default_mensa">Als Standard-Mensa festlegen</string>
+    <string name="codes_toggle">Zusatzstoffe &amp; Allergene (%1$d)</string>
+    <string name="code_group_additive">Zusatzstoffe</string>
+    <string name="code_group_allergen">Allergene</string>
+    <string name="code_group_other">Sonstiges</string>
+    <string name="co2_value">%1$d g CO₂e</string>
+    <string name="water_value">%1$d l Wasser</string>
+    <string name="per_portion">%1$s pro Portion</string>
 </resources>

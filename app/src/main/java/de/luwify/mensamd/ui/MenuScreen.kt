@@ -2,6 +2,20 @@ package de.luwify.mensamd.ui
 
 import android.text.format.DateUtils
 import androidx.compose.foundation.background
+import de.luwify.mensamd.model.LegendCode
+import de.luwify.mensamd.model.CodeCategory
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.graphics.Color
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -79,6 +93,7 @@ private fun MenuList(ui: MenuUiState, days: List<MenuDay>, today: LocalDate) {
     val locale = LocalConfiguration.current.locales[0]
     val euro = remember(locale) { NumberFormat.getCurrencyInstance(locale).apply { currency = Currency.getInstance("EUR") } }
     val bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    val codeIndex = remember(ui.legend) { ui.legend.codes.associateBy { it.code } }
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         // Horizontal padding lives on the items so sticky headers can span the full width.
@@ -87,14 +102,25 @@ private fun MenuList(ui: MenuUiState, days: List<MenuDay>, today: LocalDate) {
     ) {
         days.forEachIndexed { index, day ->
             stickyHeader(key = "header-${day.date}") { DayHeader(day.date, today, locale) }
-            items(day.dishes) { dish ->
-                DishCard(dish, ui.legend, locale.language, euro, Modifier.padding(horizontal = 16.dp))
+            val keys = dishKeys(day)
+            items(day.dishes, key = { keys.getValue(it) }) { dish ->
+                DishCard(dish, ui.legend, codeIndex, locale.language, euro, Modifier.padding(horizontal = 16.dp))
             }
             if (index < days.lastIndex) {
                 item(key = "divider-${day.date}") { HorizontalDivider(Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) }
             }
         }
         if (ui.lastUpdatedMillis != null) item(key = "footer") { UpdatedFooter(ui.lastUpdatedMillis, ui.refreshFailed) }
+    }
+}
+
+/** Stable, unique lazy-list keys per dish: date + German name, numbered when a name repeats that day. */
+private fun dishKeys(day: MenuDay): Map<Dish, String> {
+    val seen = HashMap<String, Int>()
+    return day.dishes.associateWith { dish ->
+        val base = "${day.date}|${dish.name.de}"
+        val n = seen.merge(base, 1, Int::plus)!!
+        if (n == 1) base else "$base#$n"
     }
 }
 
@@ -126,9 +152,21 @@ private fun DayHeader(date: LocalDate, today: LocalDate, locale: Locale) {
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun DishCard(dish: Dish, legend: Legend, language: String, euro: NumberFormat, modifier: Modifier = Modifier) {
+private fun DishCard(
+    dish: Dish,
+    legend: Legend,
+    codeIndex: Map<String, LegendCode>,
+    language: String,
+    euro: NumberFormat,
+    modifier: Modifier = Modifier,
+) {
     Card(modifier.fillMaxWidth()) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Column(Modifier.padding(16.dp).animateContentSize(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            if (dish.badges.isNotEmpty()) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    dish.badges.forEach { BadgeLabel(it.forLanguage(language)) }
+                }
+            }
             Text(dish.name.forLanguage(language), style = MaterialTheme.typography.titleMedium)
             if (dish.tags.isNotEmpty()) {
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -145,6 +183,79 @@ private fun DishCard(dish: Dish, legend: Legend, language: String, euro: NumberF
                             Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             Text(euro.format(cents / 100.0), style = MaterialTheme.typography.titleSmall)
                         }
+                    }
+                }
+            }
+            Footprint(dish)
+            if (dish.codes.isNotEmpty()) CodeMeanings(dish.codes, codeIndex, language)
+        }
+    }
+}
+
+/** Prefix badge ("Save the meal", "Aktionstheke", ...): outlined with the tertiary color, unlike the filled tag chips. */
+@Composable
+private fun BadgeLabel(text: String) {
+    val color = MaterialTheme.colorScheme.tertiary
+    Surface(shape = MaterialTheme.shapes.extraSmall, color = Color.Transparent, border = BorderStroke(1.dp, color)) {
+        Text(
+            text.replaceFirstChar { it.uppercase() }, // the English side is lowercase ("pasta buffet")
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = color,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+        )
+    }
+}
+
+/** CO2e and water per portion; nothing at all when the site has no data ("Keine Daten"). */
+@Composable
+private fun Footprint(dish: Dish) {
+    val parts = listOfNotNull(
+        dish.co2Grams?.let { stringResource(R.string.co2_value, it) },
+        dish.waterLiters?.let { stringResource(R.string.water_value, it) },
+    )
+    if (parts.isEmpty()) return
+    Text(
+        stringResource(R.string.per_portion, parts.joinToString(" · ")),
+        style = MaterialTheme.typography.labelMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+}
+
+/** Collapsed by default; the state is saved per lazy-list key, so it survives scrolling and rotation. */
+@Composable
+private fun CodeMeanings(codes: List<String>, codeIndex: Map<String, LegendCode>, language: String) {
+    var expanded by rememberSaveable { mutableStateOf(false) }
+    Text(
+        stringResource(R.string.codes_toggle, codes.distinct().size) + if (expanded) " ▴" else " ▾",
+        style = MaterialTheme.typography.labelLarge,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.clickable(role = Role.Button) { expanded = !expanded }.padding(vertical = 4.dp),
+    )
+    if (expanded) {
+        val groups = remember(codes, codeIndex, language) { groupCodes(codes, codeIndex, language) }
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            groups.forEach { group ->
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(
+                        stringResource(
+                            when (group.category) {
+                                CodeCategory.ADDITIVE -> R.string.code_group_additive
+                                CodeCategory.ALLERGEN -> R.string.code_group_allergen
+                                CodeCategory.OTHER -> R.string.code_group_other
+                            },
+                        ),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    group.codes.forEach { meaning ->
+                        Text(
+                            buildAnnotatedString {
+                                withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append(meaning.code) }
+                                if (meaning.text != null) append("  ${meaning.text}")
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                        )
                     }
                 }
             }

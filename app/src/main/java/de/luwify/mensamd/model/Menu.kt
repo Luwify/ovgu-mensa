@@ -38,6 +38,13 @@ data class Tag(val key: String, val label: String)
 @Serializable
 enum class CodeCategory { ADDITIVE, ALLERGEN, OTHER }
 
+/** 1-10 additives, a1-n allergens, anything else (A, P, Q, ...) other. Same rule the site's legend follows. */
+fun codeCategory(code: String): CodeCategory = when {
+    code.firstOrNull()?.isDigit() == true -> CodeCategory.ADDITIVE
+    code.firstOrNull()?.isLowerCase() == true -> CodeCategory.ALLERGEN
+    else -> CodeCategory.OTHER
+}
+
 @Serializable
 data class LegendCode(val code: String, val category: CodeCategory, val text: LocalizedText)
 

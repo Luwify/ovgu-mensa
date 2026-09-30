@@ -5,6 +5,7 @@ import de.luwify.mensamd.model.Legend
 import de.luwify.mensamd.model.LegendCode
 import de.luwify.mensamd.model.LegendNote
 import de.luwify.mensamd.model.LocalizedText
+import de.luwify.mensamd.model.codeCategory
 import org.jsoup.nodes.Element
 import org.jsoup.nodes.TextNode
 
@@ -44,7 +45,7 @@ internal object LegendParser {
         // German list misses some English-only codes (h7-h9), so take the union.
         val codes = (deMap.keys + en.keys).map { code ->
             val text = LocalizedText(deMap[code] ?: en.getValue(code), en[code] ?: deMap.getValue(code))
-            LegendCode(code, categoryOf(code), text)
+            LegendCode(code, codeCategory(code), text)
         }.sortedWith(
             compareBy<LegendCode>({ it.category }, { it.code.filter(Char::isLetter) }, { it.code.filter(Char::isDigit).toIntOrNull() ?: 0 }),
         )
@@ -83,11 +84,5 @@ internal object LegendParser {
             start = m.range.last + 1
             m.groupValues[1] to text
         }.toList()
-    }
-
-    private fun categoryOf(code: String) = when {
-        code[0].isDigit() -> CodeCategory.ADDITIVE
-        code[0].isLowerCase() -> CodeCategory.ALLERGEN
-        else -> CodeCategory.OTHER
     }
 }
