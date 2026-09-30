@@ -19,6 +19,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import de.luwify.mensamd.R
@@ -28,6 +29,7 @@ import de.luwify.mensamd.model.MensaCatalog
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MensaPickerScreen(onPick: (String) -> Unit) {
+    val language = LocalConfiguration.current.locales[0].language
     Scaffold(
         topBar = { TopAppBar(title = { Text(stringResource(R.string.picker_title)) }) },
         contentWindowInsets = WindowInsets.systemBars.only(WindowInsetsSides.Horizontal),
@@ -46,7 +48,7 @@ fun MensaPickerScreen(onPick: (String) -> Unit) {
             }
             items(MensaCatalog.all, key = { it.id }) { mensa ->
                 ListItem(
-                    headlineContent = { Text(mensa.name) },
+                    headlineContent = { Text(mensa.name.forLanguage(language)) },
                     supportingContent = mensa.address?.let { address -> { Text(address) } },
                     modifier = Modifier.clickable { onPick(mensa.id) },
                 )

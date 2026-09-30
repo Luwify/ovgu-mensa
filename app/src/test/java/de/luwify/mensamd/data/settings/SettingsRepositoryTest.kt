@@ -39,4 +39,18 @@ class SettingsRepositoryTest {
             scope2.cancel()
         }
     }
+
+    @Test
+    fun mensaOrder_isEmptyUntilSet_thenPersistsInOrder() = runBlocking {
+        val file = File(tmp.root, "order.preferences_pb")
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        try {
+            val repo = SettingsRepository(PreferenceDataStoreFactory.create(scope = scope) { file })
+            assertEquals(emptyList<String>(), repo.mensaOrder.first())
+            repo.setMensaOrder(listOf("stendal", "herrenkrug", "kellercafe"))
+            assertEquals(listOf("stendal", "herrenkrug", "kellercafe"), repo.mensaOrder.first())
+        } finally {
+            scope.cancel()
+        }
+    }
 }

@@ -39,3 +39,12 @@ fun MensaTheme(
     }
     MaterialTheme(colorScheme = colorScheme, content = content)
 }
+
+/** Container/content pair for the vegan chip: light green in light theme, deep green in dark theme. */
+data class ChipColors(val container: Color, val content: Color)
+
+fun veganChipColors(darkTheme: Boolean) = if (darkTheme) {
+    ChipColors(container = Color(0xFF264D2A), content = Color(0xFFC8F0CA))
+} else {
+    ChipColors(container = Color(0xFFCDEBCF), content = Color(0xFF14501A))
+}

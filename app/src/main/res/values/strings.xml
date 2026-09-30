@@ -3,9 +3,6 @@
     <string name="app_name" translatable="false">Mensa MD</string>
 
     <string name="picker_title">Choose your Mensa</string>
-    <string name="picker_hint">This one opens by default. You can switch any time from the top bar.</string>
-    <string name="switch_mensa">Switch Mensa</string>
-    <string name="set_as_default">Set as default</string>
 
     <string name="today">Today</string>
     <string name="price_students">Students</string>
@@ -26,4 +23,8 @@
     <string name="tag_rind">Beef</string>
     <string name="tag_alkohol">Contains alcohol</string>
     <string name="tag_suppe">Soup</string>
+    <string name="picker_hint">Pick the Mensa that opens first. You can reorder and switch Mensen with the tabs later.</string>
+    <string name="tomorrow">Tomorrow</string>
+    <string name="default_mensa">Default Mensa</string>
+    <string name="make_default_mensa">Set as default Mensa</string>
 </resources>

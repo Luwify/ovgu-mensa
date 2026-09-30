@@ -22,4 +22,18 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
     suspend fun setDefaultMensaId(id: String) {
         store.edit { it[defaultMensaKey] = id }
     }
+
+    private val orderKey = stringPreferencesKey("mensa_order")
+
+    /**
+     * The user's custom tab order as Mensa ids, empty if never reordered. May contain ids that no
+     * longer exist or miss new ones: feed it through `resolveOrder`.
+     */
+    val mensaOrder: Flow<List<String>> = store.data.map { prefs ->
+        prefs[orderKey]?.split(',')?.filter { it.isNotEmpty() }.orEmpty()
+    }
+
+    suspend fun setMensaOrder(ids: List<String>) {
+        store.edit { it[orderKey] = ids.joinToString(",") }
+    }
 }

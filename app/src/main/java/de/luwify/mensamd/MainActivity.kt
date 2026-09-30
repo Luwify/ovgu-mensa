@@ -17,7 +17,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import de.luwify.mensamd.ui.AppScreen
 import de.luwify.mensamd.ui.MainViewModel
-import de.luwify.mensamd.ui.MenuScreen
+import de.luwify.mensamd.ui.MainScreen
 import de.luwify.mensamd.ui.MensaPickerScreen
 import de.luwify.mensamd.ui.theme.MensaTheme
 
@@ -42,6 +42,6 @@ private fun MensaRoot(viewModel: MainViewModel) {
         // A few ms while DataStore answers: an empty themed background, not a spinner.
         AppScreen.Loading -> Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background))
         AppScreen.Picker -> MensaPickerScreen(onPick = viewModel::pickDefault)
-        is AppScreen.Menu -> MenuScreen(viewModel, s)
+        is AppScreen.Main -> MainScreen(viewModel, s)
     }
 }
