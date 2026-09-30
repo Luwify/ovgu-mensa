@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.withContext
+import java.io.IOException
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -31,6 +32,8 @@ data class MenuState(
     /** The most recent refresh attempt failed. Cleared when the next attempt starts. */
     val refreshFailed: Boolean = false,
 )
+
+private class EmptyResultException : IOException("page parsed to zero days")
 
 /**
  * Stale-while-revalidate over a JSON cache. The page has no ETag/Last-Modified, so freshness is our
@@ -84,7 +87,13 @@ class MenuRepository(
                 requireNotNull(url) { "unknown Mensa id: $id" }
                 val html = fetcher.fetch(url)
                 withContext(workDispatcher) {
-                    val cached = CachedMenu(fetchedAt = clock(), page = MenuPageParser.parse(html))
+                    val page = MenuPageParser.parse(html)
+                    // Zero days over a cache that has days is more likely a broken page or a changed
+                    // layout than a real change: keep what we have and report a failed refresh.
+                    if (page.days.isEmpty() && e.state.value.page?.days?.isNotEmpty() == true) {
+                        throw EmptyResultException()
+                    }
+                    val cached = CachedMenu(fetchedAt = clock(), page = page)
                     // A failing cache write must not hide a good fetch from the UI.
                     runCatching { cache.write(id, cached) }
                     cached

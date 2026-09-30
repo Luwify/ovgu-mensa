@@ -1,4 +1,27 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="hello">Hallo! Hier erscheint bald der Speiseplan.</string>
+    <string name="picker_title">Mensa auswählen</string>
+    <string name="picker_hint">Diese Mensa wird standardmäßig geöffnet. Du kannst jederzeit oben wechseln.</string>
+    <string name="switch_mensa">Mensa wechseln</string>
+    <string name="set_as_default">Als Standard festlegen</string>
+
+    <string name="today">Heute</string>
+    <string name="price_students">Studenten</string>
+    <string name="price_staff">Bedienstete</string>
+    <string name="price_guests">Gäste</string>
+    <string name="last_updated">Aktualisiert %1$s</string>
+    <string name="update_failed">Aktualisierung fehlgeschlagen</string>
+    <string name="error_no_data">Der Speiseplan konnte nicht geladen werden. Prüfe deine Verbindung.</string>
+    <string name="retry">Erneut versuchen</string>
+    <string name="empty_no_upcoming">Es ist kein kommender Speiseplan veröffentlicht.</string>
+
+    <string name="tag_vegan">Vegan</string>
+    <string name="tag_vegetarisch">Vegetarisch</string>
+    <string name="tag_knoblauch">Knoblauch</string>
+    <string name="tag_gefluegel">Geflügel</string>
+    <string name="tag_schwein">Schwein</string>
+    <string name="tag_fisch">Fisch</string>
+    <string name="tag_rind">Rind</string>
+    <string name="tag_alkohol">Enthält Alkohol</string>
+    <string name="tag_suppe">Suppe</string>
 </resources>

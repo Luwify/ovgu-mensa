@@ -1,5 +1,29 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name" translatable="false">Mensa MD</string>
-    <string name="hello">Hello! The menu will show up here soon.</string>
+
+    <string name="picker_title">Choose your Mensa</string>
+    <string name="picker_hint">This one opens by default. You can switch any time from the top bar.</string>
+    <string name="switch_mensa">Switch Mensa</string>
+    <string name="set_as_default">Set as default</string>
+
+    <string name="today">Today</string>
+    <string name="price_students">Students</string>
+    <string name="price_staff">Staff</string>
+    <string name="price_guests">Guests</string>
+    <string name="last_updated">Updated %1$s</string>
+    <string name="update_failed">Update failed</string>
+    <string name="error_no_data">Couldn\'t load the menu. Check your connection.</string>
+    <string name="retry">Retry</string>
+    <string name="empty_no_upcoming">No upcoming menu has been published.</string>
+
+    <string name="tag_vegan">Vegan</string>
+    <string name="tag_vegetarisch">Vegetarian</string>
+    <string name="tag_knoblauch">Garlic</string>
+    <string name="tag_gefluegel">Poultry</string>
+    <string name="tag_schwein">Pork</string>
+    <string name="tag_fisch">Fish</string>
+    <string name="tag_rind">Beef</string>
+    <string name="tag_alkohol">Contains alcohol</string>
+    <string name="tag_suppe">Soup</string>
 </resources>

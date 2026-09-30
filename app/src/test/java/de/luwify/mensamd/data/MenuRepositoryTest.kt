@@ -218,4 +218,26 @@ class MenuRepositoryTest {
         assertTrue(states.last().refreshFailed)
         assertNull(states.last().page)
     }
+
+    @Test
+    fun zeroDaysFetch_overCacheWithDays_keepsCache() = runTest {
+        val cache = FakeCache(CachedMenu(now - 40 * minute, oldPage))
+        val states = collect(repo(FakeFetcher("<html><body>Wartungsarbeiten</body></html>"), cache))
+
+        val last = states.last()
+        assertEquals(oldPage, last.page)
+        assertEquals(now - 40 * minute, last.fetchedAt)
+        assertTrue(last.refreshFailed)
+        assertEquals(0, cache.writes)
+    }
+
+    @Test
+    fun zeroDaysFetch_withoutCachedDays_isAccepted() = runTest {
+        // A closed Mensa: nothing to protect, and "last updated" should move.
+        val cache = FakeCache()
+        val states = collect(repo(FakeFetcher("<html><body>Geschlossen</body></html>"), cache))
+
+        assertEquals(MenuState(MenuPage(emptyList(), de.luwify.mensamd.model.Legend.EMPTY), now), states.last())
+        assertEquals(1, cache.writes)
+    }
 }

@@ -29,4 +29,24 @@ class MenuUiStateTest {
         assertTrue(MenuState().toUiState().hasNoDays)
         assertTrue(MenuState(MenuPage(listOf(day(5)), Legend.EMPTY)).toUiState().hasNoDays)
     }
+
+    @Test
+    fun hasData_isFalseOnlyWithoutPage() {
+        assertEquals(false, MenuState().toUiState().hasData)
+        assertEquals(true, MenuState(MenuPage(emptyList(), Legend.EMPTY)).toUiState().hasData)
+    }
+
+    @Test
+    fun upcomingWeekdays_hidesPastWeekendAndEmptyDays_keepsToday() {
+        // 2026-10-01 is a Thursday; 03.10. is a Saturday, 04.10. a Sunday.
+        val days = listOf(day(1, dish), day(2, dish), day(3, dish), day(4, dish), day(5), day(6, dish), day(8, dish))
+        val today = LocalDate.of(2026, 10, 2)
+        assertEquals(listOf(2, 6, 8), days.upcomingWeekdays(today).map { it.date.dayOfMonth })
+    }
+
+    @Test
+    fun upcomingWeekdays_onAWeekendOpensOnMonday() {
+        val days = listOf(day(2, dish), day(5, dish))
+        assertEquals(listOf(5), days.upcomingWeekdays(LocalDate.of(2026, 10, 3)).map { it.date.dayOfMonth })
+    }
 }
