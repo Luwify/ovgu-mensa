@@ -163,6 +163,32 @@ object SparkleMath {
 
     const val UNLOCK_TAPS = 5
 
+    /**
+     * The organic outline of the super aura for a jelly state ([jelly] = top shift, bottom shift, side inset in px)
+     * around a card [height] px tall with corner radius [radius]: never a stretched rectangle. The more it stretches,
+     * the rounder it gets (bigger corners, blended toward an ellipse); the trailing side (where the aura lags) gets
+     * extra rounding and a bulge like a comet tail; [breathe] is the amplitude of the slow harmonics along the
+     * outline. At rest it is exactly the card's rounded rectangle (plus the base breathing).
+     */
+    fun auraShape(jelly: FloatArray, height: Float, radius: Float, reach: Float): AuraShape {
+        val shift = (jelly[0] + jelly[1]) / 2f // the whole aura moves by this
+        val stretch = jelly[1] - jelly[0] // taller (+) or squashed (-)
+        val amount = kotlin.math.abs(stretch) + 0.5f * kotlin.math.abs(shift)
+        val round = radius + 0.9f * amount
+        val tail = 1.1f * kotlin.math.abs(shift)
+        return AuraShape(
+            centerShift = shift,
+            halfHeightGrow = stretch / 2f,
+            inset = jelly[2],
+            radiusTop = round + if (shift < 0f) tail else 0f,
+            radiusBottom = round + if (shift > 0f) tail else 0f,
+            tailTop = if (shift < 0f) 0.6f * -shift else 0f,
+            tailBottom = if (shift > 0f) 0.6f * shift else 0f,
+            roundness = (amount / (0.25f * height)).coerceIn(0f, 0.6f),
+            breathe = 0.5f * reach + 0.12f * amount,
+        )
+    }
+
     /** The aura's maximum reach in units of its base reach: 4 x the living factor's maximum (0.55 + 0.75 x 1.1). */
     const val AURA_REACH_FACTOR = 4f * 1.375f
 
@@ -205,6 +231,19 @@ object SparkleMath {
         return lerp(stops[i], stops[(i + 1) % stops.size], f - f.toInt())
     }
 }
+
+/** See [SparkleMath.auraShape]; all lengths in px. */
+data class AuraShape(
+    val centerShift: Float,
+    val halfHeightGrow: Float,
+    val inset: Float,
+    val radiusTop: Float,
+    val radiusBottom: Float,
+    val tailTop: Float,
+    val tailBottom: Float,
+    val roundness: Float,
+    val breathe: Float,
+)
 
 /** Gold for the legendary frame: bright tones on dark pages, deeper ones that still show on light pages. */
 private val GOLD_ON_DARK = listOf(Color(0xFFFFF3B0), Color(0xFFFFD54F), Color(0xFFFFB300), Color(0xFFFF8F00), Color(0xFFFFD54F))
@@ -393,8 +432,11 @@ internal fun DrawScope.drawSuperAura(
     if (shader != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         // The draw area must hold the whole glow: its maximum reach (4 x reach x the living factor's maximum 1.375)
         // plus the jelly's shifts, and a little more.
-        val margin = SparkleMath.AURA_REACH_FACTOR * reach + kotlin.math.abs(jelly[0]) + kotlin.math.abs(jelly[1]) + 4.dp.toPx()
-        shader.update(w, h, r, timeMs / 1000f, jelly, reach, if (animate) 0.85f else 0.7f, fadeTop, fadeBottom, fade)
+        val shape = SparkleMath.auraShape(jelly, h, r, reach)
+        // Room for the maximum reach, the jelly's move and stretch, the tail and the breathing.
+        val margin = SparkleMath.AURA_REACH_FACTOR * reach + kotlin.math.abs(shape.centerShift) + kotlin.math.abs(shape.halfHeightGrow) +
+            shape.tailTop + shape.tailBottom + shape.breathe + 4.dp.toPx()
+        shader.update(w, h, r, timeMs / 1000f, shape, reach, if (animate) 0.85f else 0.7f, fadeTop, fadeBottom, fade)
         drawRect(shader.brush, topLeft = Offset(-margin, -margin), size = Size(w + 2 * margin, h + 2 * margin))
     } else {
         drawFallbackAura(w, h, r, colors, jelly, reach, fadeTop, fadeBottom, fade)
@@ -424,6 +466,7 @@ private fun DrawScope.drawFallbackAura(
 ) {
     val steps = 18
     val maxReach = 4f * reach
+    val shape = SparkleMath.auraShape(jelly, h, r, reach)
     val distances = (0 until steps).map { maxReach * (steps - it) / steps } // outside in
     val alphas = SparkleMath.stackedAlphas(distances.map { 0.85f * SparkleMath.auraFalloff(it / maxReach) })
     val color = colors[0]
@@ -438,11 +481,13 @@ private fun DrawScope.drawFallbackAura(
     val card = Path().apply { addRoundRect(androidx.compose.ui.geometry.RoundRect(0f, 0f, w, h, androidx.compose.ui.geometry.CornerRadius(r))) }
     clipPath(card, androidx.compose.ui.graphics.ClipOp.Difference) {
         distances.forEachIndexed { i, d ->
+            // Moved and stretched as a whole, with the organic shape's (larger) corner radius: never a stretched box.
+            val round = maxOf(shape.radiusTop, shape.radiusBottom) + d
             drawRoundRect(
                 brush,
-                topLeft = Offset(-d + jelly[2], -d + jelly[0]),
-                size = Size(w + 2 * d - 2 * jelly[2], h + 2 * d + jelly[1] - jelly[0]),
-                cornerRadius = androidx.compose.ui.geometry.CornerRadius(r + d),
+                topLeft = Offset(-d + shape.inset, -d + shape.centerShift - shape.halfHeightGrow),
+                size = Size(w + 2 * d - 2 * shape.inset, h + 2 * d + 2 * shape.halfHeightGrow),
+                cornerRadius = androidx.compose.ui.geometry.CornerRadius(round),
                 alpha = alphas[i],
             )
         }

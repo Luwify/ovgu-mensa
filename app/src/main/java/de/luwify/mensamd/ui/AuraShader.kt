@@ -22,9 +22,15 @@ private const val AURA_AGSL = """
 uniform float2 size;
 uniform float radius;
 uniform float time;
-uniform float top;
-uniform float bottom;
+uniform float centerShift;
+uniform float halfGrow;
 uniform float inset;
+uniform float radiusTop;
+uniform float radiusBottom;
+uniform float tailTop;
+uniform float tailBottom;
+uniform float roundness;
+uniform float breathe;
 uniform float reach;
 uniform float strength;
 uniform float fadeTop;
@@ -38,6 +44,17 @@ layout(color) uniform half4 c3;
 float roundBox(float2 p, float2 b, float r) {
     float2 q = abs(p) - b + r;
     return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - r;
+}
+
+// A rounded box with its own corner radius for the top and the bottom half (the trailing side rounder).
+float roundBox2(float2 p, float2 b, float rTop, float rBottom) {
+    float r = min(p.y < 0.0 ? rTop : rBottom, min(b.x, b.y));
+    return roundBox(p, b, r);
+}
+
+// Approximate distance to an ellipse with half axes b (good enough for a glow).
+float ellipse(float2 p, float2 b) {
+    return (length(p / b) - 1.0) * min(b.x, b.y);
 }
 
 half3 palette(float t) {
@@ -54,13 +71,19 @@ float ign(float2 xy) {
 }
 
 half4 main(float2 xy) {
-    // Jelly: rows near the top move by `top`, near the bottom by `bottom` (the trailing edge lags more).
-    float rel = clamp(xy.y / size.y, -0.5, 1.5);
-    float2 p = float2(xy.x, xy.y - mix(top, bottom, rel));
-    float2 c = size * 0.5;
-    float d = max(roundBox(p - c, float2(c.x - inset, c.y), radius), 0.0);
+    // The organic outline (see SparkleMath.auraShape): moved and stretched by the jelly, rounder the more it
+    // stretches (corners grow, blended toward an ellipse), the trailing side rounder still with a comet-tail bulge.
+    float2 c = float2(size.x * 0.5, size.y * 0.5 + centerShift);
+    float2 b = float2(size.x * 0.5 - inset, size.y * 0.5 + halfGrow);
+    float2 p = xy - c;
+    float a = atan(p.y, p.x);
+    float d = mix(roundBox2(p, b, radiusTop, radiusBottom), ellipse(p, b), roundness);
+    float across = exp(-3.0 * (p.x / b.x) * (p.x / b.x)); // strongest in the middle of the edge
+    d -= tailTop * across * smoothstep(0.0, b.y, -p.y) + tailBottom * across * smoothstep(0.0, b.y, p.y);
+    // The outline breathes: low harmonics along the angle with slowly drifting phases.
+    d -= breathe * (0.5 * sin(2.0 * a + time * 0.7) + 0.3 * sin(3.0 * a - time * 0.5 + 1.1) + 0.2 * sin(4.0 * a + time * 0.31 + 2.3));
+    d = max(d, 0.0);
     // A living mass: the reach swells and shrinks around the card, the bulges flowing in both directions.
-    float a = atan(p.y - c.y, p.x - c.x);
     float live = 0.62
         + 0.22 * sin(a * 3.0 + time * 1.1)
         + 0.16 * sin(a * 5.0 - time * 1.7 + 1.3)
@@ -99,18 +122,24 @@ class AuraShader(colors: List<Color>) {
 
     @Suppress("LongParameterList")
     fun update(
-        w: Float, h: Float, radius: Float, timeS: Float, jelly: FloatArray, reach: Float, strength: Float,
+        w: Float, h: Float, radius: Float, timeS: Float, shape: AuraShape, reach: Float, strength: Float,
         fadeTop: Float, fadeBottom: Float, fade: Float,
     ) {
+        shader.setFloatUniform("centerShift", shape.centerShift)
+        shader.setFloatUniform("halfGrow", shape.halfHeightGrow)
+        shader.setFloatUniform("inset", shape.inset)
+        shader.setFloatUniform("radiusTop", shape.radiusTop)
+        shader.setFloatUniform("radiusBottom", shape.radiusBottom)
+        shader.setFloatUniform("tailTop", shape.tailTop)
+        shader.setFloatUniform("tailBottom", shape.tailBottom)
+        shader.setFloatUniform("roundness", shape.roundness)
+        shader.setFloatUniform("breathe", shape.breathe)
         shader.setFloatUniform("fadeTop", fadeTop)
         shader.setFloatUniform("fadeBottom", fadeBottom)
         shader.setFloatUniform("fade", fade)
         shader.setFloatUniform("size", w, h)
         shader.setFloatUniform("radius", radius)
         shader.setFloatUniform("time", timeS)
-        shader.setFloatUniform("top", jelly[0])
-        shader.setFloatUniform("bottom", jelly[1])
-        shader.setFloatUniform("inset", jelly[2])
         shader.setFloatUniform("reach", reach)
         shader.setFloatUniform("strength", strength)
     }

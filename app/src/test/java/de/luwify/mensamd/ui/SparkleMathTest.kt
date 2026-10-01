@@ -168,4 +168,38 @@ class SparkleMathTest {
             assertEquals(targets[i], covered, 0.0001f)
         }
     }
+
+    @Test
+    fun auraShape_atRest_isTheCardItself() {
+        val shape = SparkleMath.auraShape(floatArrayOf(0f, 0f, 0f), height = 300f, radius = 30f, reach = 27f)
+        assertEquals(0f, shape.centerShift, 0f)
+        assertEquals(0f, shape.halfHeightGrow, 0f)
+        assertEquals(30f, shape.radiusTop, 0f)
+        assertEquals(30f, shape.radiusBottom, 0f)
+        assertEquals(0f, shape.roundness, 0f)
+        assertEquals(0f, shape.tailTop + shape.tailBottom, 0f)
+    }
+
+    @Test
+    fun auraShape_stretched_isNeverARectangle_andTheTrailingSideIsRounder() {
+        // scrolling up: the aura lags below (positive drag), stretched by the wobble
+        val jelly = SparkleMath.jelly(drag = 20f, wobble = 10f)
+        val shape = SparkleMath.auraShape(jelly, height = 300f, radius = 30f, reach = 27f)
+        assertTrue("moves with the lag", shape.centerShift > 0f)
+        assertTrue("taller", shape.halfHeightGrow > 0f)
+        assertTrue("rounder than the card", shape.radiusTop > 30f)
+        assertTrue("trailing (bottom) rounder than leading", shape.radiusBottom > shape.radiusTop)
+        assertTrue("comet tail at the bottom only", shape.tailBottom > 0f && shape.tailTop == 0f)
+        assertTrue("blended toward an ellipse", shape.roundness > 0f && shape.roundness <= 0.6f)
+        // the other direction mirrors it
+        val up = SparkleMath.auraShape(SparkleMath.jelly(drag = -20f, wobble = 10f), 300f, 30f, 27f)
+        assertTrue(up.radiusTop > up.radiusBottom && up.tailTop > 0f && up.tailBottom == 0f)
+    }
+
+    @Test
+    fun auraShape_squashed_isRoundToo() {
+        val shape = SparkleMath.auraShape(SparkleMath.jelly(drag = 0f, wobble = -12f), 300f, 30f, 27f)
+        assertTrue(shape.halfHeightGrow < 0f)
+        assertTrue(shape.roundness > 0f && shape.radiusTop > 30f)
+    }
 }
