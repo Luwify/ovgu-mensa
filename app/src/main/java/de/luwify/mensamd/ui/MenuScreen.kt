@@ -2,25 +2,16 @@ package de.luwify.mensamd.ui
 
 import android.text.format.DateUtils
 import androidx.compose.foundation.background
-import kotlinx.coroutines.launch
+import androidx.compose.ui.res.painterResource
+import androidx.compose.material3.Icon
 import de.luwify.mensamd.data.settings.ViewPrefs
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.draw.clip
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.material3.rememberTooltipState
-import androidx.compose.material3.TooltipDefaults
-import androidx.compose.material3.TooltipBox
-import androidx.compose.material3.PlainTooltip
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.foundation.layout.Box
-import de.luwify.mensamd.ui.theme.Sunflower
-import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
@@ -261,7 +252,7 @@ private fun FullCardBody(
     }
 }
 
-/** Name (at most two lines) with the selected price on the same row, then badges and tag markers. */
+/** Name (at most two lines) with the selected price on the same row, then badges and small text tag chips. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun CompactCardBody(dish: Dish, legend: Legend, language: String, euro: NumberFormat, priceGroup: Int) {
@@ -293,44 +284,8 @@ private fun CompactCardBody(dish: Dish, legend: Legend, language: String, euro: 
             }
         }
         if (dish.tags.isNotEmpty()) {
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) { dish.tags.forEach { TagMarker(it) } }
-        }
-    }
-}
-
-/**
- * Icon-only tag marker for compact cards. Tap or long-press shows the tag's name. The sunflower
- * marks vegan; others use an emoji glyph, or the label's first letter when the font lacks it.
- */
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun TagMarker(tag: Tag) {
-    val label = tagLabelRes(tag.key)?.let { stringResource(it) } ?: tag.label
-    val dark = isSystemInDarkTheme()
-    val vegan = if (tag.key == "vegan") veganChipColors(dark) else null
-    val glyph = remember(tag.key, label) {
-        tagMarkerGlyph(tag.key)?.takeIf { android.graphics.Paint().hasGlyph(it) } ?: tagMarkerLetter(label, tag.key)
-    }
-    val tooltip = rememberTooltipState()
-    val scope = rememberCoroutineScope()
-    TooltipBox(
-        positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
-        tooltip = { PlainTooltip { Text(label) } },
-        state = tooltip,
-    ) {
-        Box(
-            Modifier
-                .size(26.dp)
-                .clip(MaterialTheme.shapes.small)
-                .background(vegan?.container ?: MaterialTheme.colorScheme.secondaryContainer)
-                .clickable(role = Role.Button, onClickLabel = label) { scope.launch { tooltip.show() } }
-                .semantics { contentDescription = label },
-            contentAlignment = Alignment.Center,
-        ) {
-            if (vegan != null) {
-                Image(rememberVectorPainter(Sunflower.vector(dark)), contentDescription = null, modifier = Modifier.size(18.dp))
-            } else {
-                Text(glyph, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSecondaryContainer)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                dish.tags.forEach { TagLabel(it, dense = true) }
             }
         }
     }
@@ -482,28 +437,38 @@ private fun CodeMeanings(codes: List<String>, codeIndex: Map<String, LegendCode>
     }
 }
 
+/**
+ * A tag as a text chip; [dense] is the smaller variant for compact cards. Every tag is text only,
+ * except vegan: it has its own light-green pair per theme and the logo, tinted with the chip's text
+ * color so it stays readable on both the light and the deep green chip.
+ */
 @Composable
-private fun TagLabel(tag: Tag) {
+private fun TagLabel(tag: Tag, dense: Boolean = false) {
     val label = tagLabelRes(tag.key)?.let { stringResource(it) } ?: tag.label
-    val dark = isSystemInDarkTheme()
-    // Vegan gets its own light-green pair per theme and a sunflower; every other chip keeps the theme's secondary colors.
-    val vegan = if (tag.key == "vegan") veganChipColors(dark) else null
+    val vegan = if (tag.key == "vegan") veganChipColors(isSystemInDarkTheme()) else null
+    val content = vegan?.content ?: MaterialTheme.colorScheme.onSecondaryContainer
     Surface(
-        shape = MaterialTheme.shapes.small,
+        shape = if (dense) MaterialTheme.shapes.extraSmall else MaterialTheme.shapes.small,
         color = vegan?.container ?: MaterialTheme.colorScheme.secondaryContainer,
     ) {
         Row(
-            Modifier.padding(start = if (vegan != null) 6.dp else 8.dp, end = 8.dp, top = 4.dp, bottom = 4.dp),
+            if (dense) Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+            else Modifier.padding(start = if (vegan != null) 6.dp else 8.dp, end = 8.dp, top = 4.dp, bottom = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             if (vegan != null) {
-                Image(rememberVectorPainter(Sunflower.vector(dark)), contentDescription = null, modifier = Modifier.size(16.dp))
-                Spacer(Modifier.width(4.dp))
+                Icon(
+                    painterResource(R.drawable.ic_vegan_logo),
+                    contentDescription = null,
+                    tint = content,
+                    modifier = Modifier.size(if (dense) 14.dp else 18.dp),
+                )
+                Spacer(Modifier.width(if (dense) 3.dp else 4.dp))
             }
             Text(
                 label,
-                style = MaterialTheme.typography.labelMedium,
-                color = vegan?.content ?: MaterialTheme.colorScheme.onSecondaryContainer,
+                style = if (dense) MaterialTheme.typography.labelSmall else MaterialTheme.typography.labelMedium,
+                color = content,
             )
         }
     }
