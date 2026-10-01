@@ -96,21 +96,21 @@ private fun MenuList(ui: MenuUiState, days: List<MenuDay>, today: LocalDate, pri
     val euro = remember(locale) { NumberFormat.getCurrencyInstance(locale).apply { currency = Currency.getInstance("EUR") } }
     val bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     val codeIndex = remember(ui.legend) { ui.legend.codes.associateBy { it.code } }
+    val rows = remember(days, ui.lastUpdatedMillis, ui.refreshFailed) { buildRows(days, ui.lastUpdatedMillis, ui.refreshFailed) }
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         // Horizontal padding lives on the items so sticky headers can span the full width.
         contentPadding = PaddingValues(bottom = bottom + 16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        days.forEachIndexed { index, day ->
-            stickyHeader(key = "header-${day.date}") { DayHeader(day.date, today, locale) }
-            val keys = dishKeys(day)
-            items(day.dishes, key = { keys.getValue(it) }) { dish ->
-                DishCard(dish, ui.legend, codeIndex, locale.language, euro, priceGroup, Modifier.padding(horizontal = 16.dp))
-            }
-            if (day.dishes.isEmpty()) {
-                // Everything on this day is filtered out: keep the day visible and say why.
-                item(key = "empty-${day.date}") {
+        for (row in rows) {
+            when (row) {
+                is ListRow.Header -> stickyHeader(key = row.key, contentType = "header") { DayHeader(row.date, today, locale) }
+                is ListRow.SubHeader -> item(key = row.key, contentType = "subheader") { SubHeader(row.dinner) }
+                is ListRow.DishRow -> item(key = row.key, contentType = "dish") {
+                    DishCard(row.dish, ui.legend, codeIndex, locale.language, euro, priceGroup, Modifier.padding(horizontal = 16.dp))
+                }
+                is ListRow.NoMatch -> item(key = row.key, contentType = "empty") {
                     Text(
                         stringResource(R.string.no_matching_dishes),
                         style = MaterialTheme.typography.bodyMedium,
@@ -118,23 +118,27 @@ private fun MenuList(ui: MenuUiState, days: List<MenuDay>, today: LocalDate, pri
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
                     )
                 }
-            }
-            if (index < days.lastIndex) {
-                item(key = "divider-${day.date}") { HorizontalDivider(Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) }
+                is ListRow.SubDivider -> item(key = row.key, contentType = "subdivider") {
+                    HorizontalDivider(Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant)
+                }
+                is ListRow.DayDivider -> item(key = row.key, contentType = "divider") {
+                    HorizontalDivider(Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
+                }
+                is ListRow.Footer -> item(key = row.key, contentType = "footer") { UpdatedFooter(row.updatedAt, row.failed) }
             }
         }
-        if (ui.lastUpdatedMillis != null) item(key = "footer") { UpdatedFooter(ui.lastUpdatedMillis, ui.refreshFailed) }
     }
 }
 
-/** Stable, unique lazy-list keys per dish: date + German name, numbered when a name repeats that day. */
-private fun dishKeys(day: MenuDay): Map<Dish, String> {
-    val seen = HashMap<String, Int>()
-    return day.dishes.associateWith { dish ->
-        val base = "${day.date}|${dish.name.de}"
-        val n = seen.merge(base, 1, Int::plus)!!
-        if (n == 1) base else "$base#$n"
-    }
+/** Small label that tells the lunch part from the dinner part of a day. */
+@Composable
+private fun SubHeader(dinner: Boolean) {
+    Text(
+        stringResource(if (dinner) R.string.dinner else R.string.lunch),
+        style = MaterialTheme.typography.labelLarge,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+    )
 }
 
 /** "Heute" / "Morgen" / weekday, with the date on the right. Opaque so cards scroll beneath it. */

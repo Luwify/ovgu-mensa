@@ -31,6 +31,12 @@ data class Dish(
     val waterLiters: Int?,
 )
 
+/**
+ * Dinner dishes carry an "Abendessen im ..." prefix on the site ("Abendessen im Café Latte",
+ * "Abendessen im oberen Speisesaal"; English "Dinner at/in ..."). This is the only place that knows.
+ */
+val Dish.isDinner: Boolean get() = badges.any { it.de.startsWith("Abendessen", ignoreCase = true) }
+
 /** A tag icon. [key] is the icon file name (`mensasym_<key>.png`) and is the only stable identifier. */
 @Serializable
 data class Tag(val key: String, val label: String)
