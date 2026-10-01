@@ -27,6 +27,28 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!--
+          Card popup: started by the system when an ISO-DEP tag is held to the phone. Own task, not in
+          recents, gone as soon as it stops. The main activity has no NFC filter.
+        -->
+        <activity
+            android:name=".CardPopupActivity"
+            android:exported="true"
+            android:theme="@style/Theme.MensaMD.Popup"
+            android:taskAffinity="de.luwify.mensamd.popup"
+            android:launchMode="singleTask"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|uiMode|keyboard|keyboardHidden|density|fontScale|layoutDirection|locale">
+            <intent-filter>
+                <action android:name="android.nfc.action.TECH_DISCOVERED" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <meta-data
+                android:name="android.nfc.action.TECH_DISCOVERED"
+                android:resource="@xml/nfc_tech_filter" />
+        </activity>
     </application>
 
 </manifest>

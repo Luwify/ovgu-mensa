@@ -12,6 +12,8 @@
  * Changes: Android logging removed (card data is never logged); a transport error is passed on
  * instead of being read as "unsupported card".
  *
+ * Verified on a real Intercard (Studentenwerk Magdeburg): balance and last withdrawal match the card.
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or

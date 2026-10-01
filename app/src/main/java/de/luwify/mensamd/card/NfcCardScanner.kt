@@ -7,7 +7,6 @@ import android.nfc.tech.IsoDep
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import java.io.IOException
 
 /**
  * Reads the Mensa card through NFC reader mode, only between [start] and [stop] (i.e. while the
@@ -67,34 +66,11 @@ class NfcCardScanner(private val adapter: NfcAdapter?) {
             return
         }
         publish(CardScanState.Reading)
-        val result = try {
-            isoDep.connect()
-            CardReaders.read(IsoDepSession(isoDep))
-        } catch (e: IOException) {
-            CardReadResult.Failed
-        } catch (e: RuntimeException) {
-            CardReadResult.Failed
-        } finally {
-            try {
-                isoDep.close()
-            } catch (e: IOException) {
-                // already gone
-            }
-        }
-        publish(result.toState())
+        publish(isoDep.readCard().toState())
     }
 
     /** Ignores results that arrive after the screen was left. */
     private fun publish(state: CardScanState) {
         if (active) _state.value = state
-    }
-}
-
-private class IsoDepSession(private val isoDep: IsoDep) : DesfireSession {
-    override fun transceive(command: ByteArray): ByteArray = isoDep.transceive(command)
-
-    override fun reconnect() {
-        isoDep.close()
-        isoDep.connect()
     }
 }

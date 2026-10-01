@@ -4,7 +4,6 @@ import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
@@ -28,7 +27,7 @@ class SettingsRepositoryTest {
             repo.setDefaultMensaId("herrenkrug")
             assertEquals("herrenkrug", repo.defaultMensaId.first())
         } finally {
-            scope.cancel()
+            scope.shutDown()
         }
         // A fresh store on the same file sees the value (it really hit the disk).
         val scope2 = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -36,7 +35,7 @@ class SettingsRepositoryTest {
             val repo2 = SettingsRepository(PreferenceDataStoreFactory.create(scope = scope2) { file })
             assertEquals("herrenkrug", repo2.defaultMensaId.first())
         } finally {
-            scope2.cancel()
+            scope2.shutDown()
         }
     }
 
@@ -50,7 +49,7 @@ class SettingsRepositoryTest {
             repo.setMensaOrder(listOf("stendal", "herrenkrug", "kellercafe"))
             assertEquals(listOf("stendal", "herrenkrug", "kellercafe"), repo.mensaOrder.first())
         } finally {
-            scope.cancel()
+            scope.shutDown()
         }
     }
 
@@ -69,7 +68,7 @@ class SettingsRepositoryTest {
             repo.toggleFilter("schwein")
             assertEquals(emptySet<String>(), repo.activeFilters.first())
         } finally {
-            scope.cancel()
+            scope.shutDown()
         }
     }
 
@@ -92,7 +91,7 @@ class SettingsRepositoryTest {
             assertEquals(emptySet<String>(), repo.excludedCodes.first())
             assertEquals(2, repo.priceGroup.first()) // clearing codes leaves the price group alone
         } finally {
-            scope.cancel()
+            scope.shutDown()
         }
     }
 
@@ -108,7 +107,7 @@ class SettingsRepositoryTest {
             repo.setCompactMode(false)
             assertEquals(false, repo.compactMode.first())
         } finally {
-            scope.cancel()
+            scope.shutDown()
         }
     }
 
@@ -123,7 +122,7 @@ class SettingsRepositoryTest {
             assertEquals(ThemeMode.SOFT, repo.themeMode.first())
             assertEquals(ThemeMode.SYSTEM, ThemeMode.fromKey("garbage")) // unknown stored value falls back
         } finally {
-            scope.cancel()
+            scope.shutDown()
         }
     }
 }

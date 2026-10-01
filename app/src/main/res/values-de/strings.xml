@@ -76,4 +76,6 @@
     <string name="card_nfc_settings">NFC-Einstellungen öffnen</string>
     <string name="card_no_nfc">Dieses Gerät hat kein NFC.</string>
     <string name="card_privacy">Wird nur auf diesem Gerät gelesen. Nichts wird gespeichert oder gesendet.</string>
+    <string name="card_popup_open">App öffnen</string>
+    <string name="card_popup_error">Karte beim Lesen verloren. Halte sie ruhig an die Rückseite des Handys und versuche es erneut.</string>
 </resources>

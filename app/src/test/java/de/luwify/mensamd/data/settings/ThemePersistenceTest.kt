@@ -4,7 +4,8 @@ import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertArrayEquals
@@ -27,7 +28,7 @@ class ThemePersistenceTest {
         try {
             block(SettingsRepository(PreferenceDataStoreFactory.create(scope = scope) { file }))
         } finally {
-            scope.cancel()
+            scope.shutDown()
         }
     }
 
@@ -110,3 +111,10 @@ class ThemePersistenceTest {
         assertEquals("exactly one place writes the theme key", 1, writes)
     }
 }
+
+/**
+ * Cancels the scope and waits until its DataStore released the file. A plain cancel() returns at
+ * once, and the next store opened on the same file could then fail with "There are multiple
+ * DataStores active for the same file" (a flaky test race, not an app bug).
+ */
+internal suspend fun CoroutineScope.shutDown() = coroutineContext[Job]!!.cancelAndJoin()
