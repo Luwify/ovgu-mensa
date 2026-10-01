@@ -2,6 +2,7 @@ package de.luwify.mensamd.ui
 
 import android.content.Context
 import android.os.SystemClock
+import android.os.Build
 import android.provider.Settings
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearOutSlowInEasing
@@ -125,22 +126,33 @@ object SparkleMath {
     }
 
     /**
-     * How far (in units of the aura's amplitude, about -1..1) the super aura bulges out at outline position [s] at
-     * [timeMs]: two waves running in opposite directions, so it flickers like a flame instead of rotating.
+     * The jelly shape of the super aura while scrolling: (top shift, bottom shift, side inset) in px. The edge that
+     * trails the scroll lags more than the leading one, so the aura stretches; [wobble] (a bouncy spring) stretches
+     * and, swinging through negative, squashes it, with the sides moving in and out to match.
      */
-    fun auraWave(s: Float, timeMs: Long): Float {
-        val t = timeMs / 1000f
-        val tau = 2f * PI.toFloat()
-        return 0.6f * sin(tau * (3f * s) + t * 2.1f) + 0.4f * sin(tau * (5f * s) - t * 3.3f)
-    }
+    fun jelly(drag: Float, wobble: Float): FloatArray =
+        floatArrayOf(drag * 0.5f - wobble, drag * 1.5f + wobble, wobble * 0.35f)
 
-    /** A floating mote of the super aura: where along the card (0..1 from the left) and how far up its loop is. */
-    fun mote(timeMs: Long, index: Int): Triple<Float, Float, Float> {
-        val period = 2600L + index * 370L
-        val t = ((timeMs + index * 977L) % period).toFloat() / period // 0..1 rise
-        val x = ((index * 0.173f + 0.08f) % 1f) + 0.03f * sin(2f * PI.toFloat() * (t * 2f + index))
-        val alpha = sin(PI.toFloat() * t) // fades in and out
-        return Triple(x.coerceIn(0f, 1f), t, alpha)
+    /**
+     * The [index]-th sparkle of the aura at [timeMs]: (outline position 0..1, distance out in dp, size in dp, opacity).
+     * Each one flashes at its own pace and then comes back somewhere else.
+     */
+    fun sparkleSpot(index: Int, timeMs: Long): FloatArray {
+        val period = 1500L + index * 290L
+        val shifted = timeMs + index * 733L
+        val cycle = shifted / period
+        val phase = (shifted % period).toFloat() / period
+        fun hash(n: Long): Float {
+            var x = n * 0x9E3779B97F4A7C15uL.toLong() + index * 0x632BE59BD9B4E019L
+            x = x xor (x ushr 31)
+            x *= 0x7FB5D329728EA185L
+            x = x xor (x ushr 27)
+            return ((x ushr 11) and 0xFFFFF).toFloat() / 0xFFFFF
+        }
+        val pos = hash(cycle)
+        val out = 2f + 8f * hash(cycle + 7919)
+        val flash = if (phase < 0.45f) sin(PI.toFloat() * phase / 0.45f) else 0f // on for a moment, then dark
+        return floatArrayOf(pos, out, 3.5f + 2.5f * hash(cycle + 104729), flash)
     }
 
     /**
@@ -153,6 +165,9 @@ object SparkleMath {
 
     /** The aura's trail after a scroll step [dy] (px; the content moved by it): pushed the other way, capped. */
     fun dragAfter(current: Float, dy: Float, max: Float): Float = (current - dy * 0.4f).coerceIn(-max, max)
+
+    /** The jelly's stretch after a scroll step: grows with the speed, either direction, capped. */
+    fun wobbleAfter(current: Float, dy: Float, max: Float): Float = (current + kotlin.math.abs(dy) * 0.12f).coerceIn(-max, max)
 
     /** The color at position [x] (any number, wraps at 1) of a cyclic gradient through [stops]. */
     fun cyclic(stops: List<Color>, x: Float): Color {
@@ -168,9 +183,12 @@ private val GOLD_ON_LIGHT = listOf(Color(0xFFE0A800), Color(0xFFB07800), Color(0
 
 fun goldFor(background: Color): List<Color> = if (background.luminance() < 0.4f) GOLD_ON_DARK else GOLD_ON_LIGHT
 
-/** The super aura: gold into orange, like a 5-star glow. Brighter on dark cards, deeper on light ones. */
-private val AURA_ON_DARK = listOf(Color(0xFFFFF3B0), Color(0xFFFFC233), Color(0xFFFF9800), Color(0xFFFF6D00), Color(0xFFFFB300))
-private val AURA_ON_LIGHT = listOf(Color(0xFFFFB300), Color(0xFFE65100), Color(0xFFFF8F00), Color(0xFFC77700), Color(0xFFFFA000))
+/**
+ * The super aura's iridescent gold, four tones the glow drifts through: warm gold, apricot, rose gold, champagne.
+ * Bright on dark cards, deeper on light ones.
+ */
+private val AURA_ON_DARK = listOf(Color(0xFFFFCF4A), Color(0xFFFFA968), Color(0xFFFF9EC0), Color(0xFFFFF0B3))
+private val AURA_ON_LIGHT = listOf(Color(0xFFE0A000), Color(0xFFE07A30), Color(0xFFD0608F), Color(0xFFC9A227))
 
 fun auraFor(background: Color): List<Color> = if (background.luminance() < 0.4f) AURA_ON_DARK else AURA_ON_LIGHT
 
@@ -181,7 +199,11 @@ fun auraFor(background: Color): List<Color> = if (background.luminance() < 0.4f)
 @Stable
 class ScrollDrag(private val scope: CoroutineScope, private val maxPx: Float) {
     val offset = Animatable(0f)
+
+    /** The jelly's stretch (positive) and squash (negative); a bouncier spring than [offset]. */
+    val wobble = Animatable(0f)
     private var job: Job? = null
+    private var wobbleJob: Job? = null
 
     val connection = object : NestedScrollConnection {
         override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
@@ -194,7 +216,13 @@ class ScrollDrag(private val scope: CoroutineScope, private val maxPx: Float) {
         job?.cancel()
         job = scope.launch {
             offset.snapTo(SparkleMath.dragAfter(offset.value, dy, maxPx))
-            offset.animateTo(0f, spring(dampingRatio = 0.35f, stiffness = 90f))
+            offset.animateTo(0f, spring(dampingRatio = 0.3f, stiffness = 70f))
+        }
+        wobbleJob?.cancel()
+        wobbleJob = scope.launch {
+            wobble.snapTo(SparkleMath.wobbleAfter(wobble.value, dy, maxPx * 0.6f))
+            // Little damping: after the scroll stops it swings through squash and back a few times.
+            wobble.animateTo(0f, spring(dampingRatio = 0.18f, stiffness = 110f))
         }
     }
 }
@@ -249,6 +277,9 @@ fun FavoriteEffects(
     val animate = remember(context) { animationsEnabled(context) }
     val gold = remember(background) { goldFor(background) }
     val aura = remember(background) { auraFor(background) }
+    val auraShader = remember(aura, superAura) {
+        if (superAura && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) AuraShader(aura) else null
+    }
     val drag = LocalScrollDrag.current
     var clock by remember { mutableLongStateOf(0L) }
     if (legendary && animate) {
@@ -266,7 +297,10 @@ fun FavoriteEffects(
     }
     Box(
         modifier.drawWithContent {
-            if (legendary && superAura) drawSuperAura(shape, aura, clock, if (animate) drag?.offset?.value ?: 0f else 0f, animate)
+            if (legendary && superAura) {
+                val jelly = if (animate && drag != null) SparkleMath.jelly(drag.offset.value, drag.wobble.value) else floatArrayOf(0f, 0f, 0f)
+                drawSuperAura(shape, aura, auraShader, clock, jelly, animate)
+            }
             if (legendary) drawLegendaryGlow(shape, gold)
             drawContent()
             if (legendary) drawLegendaryEdge(shape, gold, if (animate) clock else 0L, animate)
@@ -320,49 +354,45 @@ private fun DrawScope.drawLegendaryEdge(shape: Shape, gold: List<Color>, timeMs:
 }
 
 /**
- * The super aura behind the card, built only from shapes the GPU draws cheaply (no free-form paths, which would be
- * re-tessellated every frame): three rounded-rect rings parallel to the card that breathe in and out of phase,
- * ten soft glow blobs (radial gradients) wandering around the outline like flames, flickering in size
- * ([SparkleMath.auraWave]), and motes rising along both sides. Shifted by [dragY]: it trails the scrolling.
+ * The super aura behind the card: one soft, living glow (the [AuraShader] on Android 13+; below that, fine fading
+ * rings as a plain gradient), deformed like jelly by [jelly], plus sparkles that flash up inside it now and then.
  */
-private fun DrawScope.drawSuperAura(shape: Shape, colors: List<Color>, timeMs: Long, dragY: Float, animate: Boolean) {
+private fun DrawScope.drawSuperAura(shape: Shape, colors: List<Color>, shader: AuraShader?, timeMs: Long, jelly: FloatArray, animate: Boolean) {
     val r = cornerRadiusOf(shape)
     val w = size.width
     val h = size.height
-    val t = if (animate) timeMs / 1000f else 0f
-    val turn = if (animate) SparkleMath.turn(timeMs, 5200L) else 0f
-    val brush = Brush.sweepGradient((0..12).map { SparkleMath.cyclic(colors, it / 12f + turn) }, center)
-    translate(0f, dragY) {
-        // width, alpha, distance out, breathing amplitude, speed (all dp / per second)
-        val rings = listOf(
-            floatArrayOf(14f, 0.08f, 9f, 2.5f, 1.3f),
-            floatArrayOf(8f, 0.13f, 6f, 1.6f, 1.9f),
-            floatArrayOf(3f, 0.28f, 3f, 0.8f, 2.6f),
-        )
-        rings.forEachIndexed { i, (width, alpha, out, amp, speed) ->
-            val d = (out + amp * sin(t * speed + i * 1.7f)).dp.toPx()
-            drawParallelRing(r, d, width.dp.toPx(), brush, alpha)
+    val reach = 9.dp.toPx()
+    val margin = 30.dp.toPx() + kotlin.math.abs(jelly[0]) + kotlin.math.abs(jelly[1])
+    if (shader != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        shader.update(w, h, r, timeMs / 1000f, jelly, reach, if (animate) 0.85f else 0.7f)
+        drawRect(shader.brush, topLeft = Offset(-margin, -margin), size = Size(w + 2 * margin, h + 2 * margin))
+    } else {
+        // Fallback gradient: twelve touching rings, each fainter, with the jelly's shift and inset.
+        val turn = if (animate) SparkleMath.turn(timeMs, 9000L) else 0f
+        val brush = Brush.sweepGradient((0..12).map { SparkleMath.cyclic(colors, it / 12f + turn) }, center)
+        val step = 1.6.dp.toPx()
+        for (i in 0 until 12) {
+            val d = i * step + step / 2
+            val fade = 1f - i / 12f
+            drawRoundRect(
+                brush,
+                topLeft = Offset(-d + jelly[2], -d + jelly[0]),
+                size = Size(w + 2 * d - 2 * jelly[2], h + 2 * d + jelly[1] - jelly[0]),
+                cornerRadius = androidx.compose.ui.geometry.CornerRadius(r + d),
+                alpha = 0.32f * fade * fade,
+                style = Stroke(step + 0.6f),
+            )
         }
-        val tau = 2f * PI.toFloat()
-        for (i in 0 until 10) {
-            val direction = if (i % 2 == 0) 1f else -1f
-            val pos = ((i / 10f + direction * t * (0.035f + i * 0.004f)) % 1f + 1f) % 1f
-            val p = SparkleMath.roundedRectPoint(pos, w, h, r)
-            val radius = (11f + 5f * SparkleMath.auraWave(pos, timeMs + i * 211L)).dp.toPx()
-            val at = Offset(p[0] + p[2] * 5.dp.toPx(), p[1] + p[3] * 5.dp.toPx())
-            val color = colors[i % colors.size]
-            val flicker = 0.75f + 0.25f * sin(t * 5.3f + i * tau / 10f)
-            drawCircle(Brush.radialGradient(listOf(color.copy(alpha = 0.32f * flicker), color.copy(alpha = 0f)), at, radius), radius, at)
-        }
-        if (animate) {
-            for (i in 0 until 8) {
-                val (xFrac, rise, a) = SparkleMath.mote(timeMs, i)
-                val left = i % 2 == 0
-                val x = if (left) -(4f + 10f * xFrac).dp.toPx() else w + (4f + 10f * xFrac).dp.toPx()
-                val y = h - rise * (h + 24.dp.toPx())
-                drawCircle(colors[0].copy(alpha = 0.75f * a), (1.4f + 1.2f * xFrac).dp.toPx(), Offset(x, y))
-            }
-        }
+    }
+    if (!animate) return
+    // Sparkles inside the glow: each flashes for a moment somewhere along the card, then elsewhere.
+    for (i in 0 until 6) {
+        val (pos, out, sizeDp, alpha) = SparkleMath.sparkleSpot(i, timeMs).let { listOf(it[0], it[1], it[2], it[3]) }
+        if (alpha < 0.03f) continue
+        val p = SparkleMath.roundedRectPoint(pos, w, h, r)
+        val shift = jelly[0] + (jelly[1] - jelly[0]) * (p[1] / h)
+        val at = Offset(p[0] + p[2] * out.dp.toPx() - p[2] * jelly[2], p[1] + p[3] * out.dp.toPx() + shift)
+        drawStar(at, sizeDp.dp.toPx(), colors[3].copy(alpha = alpha))
     }
 }
 

@@ -111,7 +111,7 @@
     <string name="notify_open_settings">Turn on</string>
     <string name="notify_test">Send test notification</string>
     <string name="notify_permission_title">Notify you about favorites?</string>
-    <string name="notify_permission_text">Mensa MD can let you know once a day (by default around 6 pm for the next day) when one of your favorites is on the menu. Your favorites stay on this phone. You can change this any time in the filter menu.</string>
+    <string name="notify_permission_text">Mensa MD can let you know once a day (by default around 6 pm for the next day) when one of your favorites is on the menu. Your favorites stay on this phone. You can change this any time in the settings.</string>
     <string name="notify_permission_allow">Allow</string>
     <string name="notify_permission_later">Not now</string>
     <string name="settings_title">Settings</string>

@@ -77,18 +77,31 @@ class SparkleMathTest {
     }
 
     @Test
-    fun auraWave_staysInRange_andMovesOverTime() {
-        val values = (0 until 100).flatMap { s -> listOf(0L, 400L, 1300L).map { SparkleMath.auraWave(s / 100f, it) } }
-        assertTrue(values.all { it in -1f..1f })
-        assertTrue(SparkleMath.auraWave(0.2f, 0) != SparkleMath.auraWave(0.2f, 500))
+    fun jelly_trailingEdgeLagsMore_andWobbleStretchesThenSquashes() {
+        val (top, bottom, inset) = SparkleMath.jelly(drag = 20f, wobble = 0f).toList()
+        assertTrue("bottom lags more than top", bottom > top && top > 0f)
+        assertEquals(0f, inset, 0f)
+        val stretched = SparkleMath.jelly(0f, 10f)
+        assertTrue(stretched[1] - stretched[0] > 0f && stretched[2] > 0f) // taller and narrower
+        val squashed = SparkleMath.jelly(0f, -10f)
+        assertTrue(squashed[1] - squashed[0] < 0f && squashed[2] < 0f) // shorter and wider
+        assertTrue(SparkleMath.jelly(0f, 0f).all { it == 0f }) // at rest: the plain card shape
     }
 
     @Test
-    fun motes_fadeInAndOut() {
-        for (i in 0 until 8) for (t in 0L until 6000L step 50) {
-            val (x, rise, a) = SparkleMath.mote(t, i)
-            assertTrue(x in 0f..1f && rise in 0f..1f && a in 0f..1f)
-        }
+    fun wobble_growsWithScrollSpeedEitherWay_andIsCapped() {
+        assertTrue(SparkleMath.wobbleAfter(0f, 30f, 50f) > 0f)
+        assertEquals(SparkleMath.wobbleAfter(0f, 30f, 50f), SparkleMath.wobbleAfter(0f, -30f, 50f), 0f)
+        assertEquals(50f, SparkleMath.wobbleAfter(45f, 500f, 50f), 0f)
+    }
+
+    @Test
+    fun sparkles_flashBriefly_thenComeBackElsewhere() {
+        val samples = (0L until 20000L step 25L).map { SparkleMath.sparkleSpot(0, it) }
+        assertTrue(samples.all { it[0] in 0f..1f && it[1] in 2f..10f && it[3] in 0f..1f })
+        assertTrue("dark most of the time", samples.count { it[3] < 0.05f } > samples.size / 2)
+        assertTrue("bright moments", samples.any { it[3] > 0.95f })
+        assertTrue("different places", samples.map { (it[0] * 100).toInt() }.toSet().size > 5)
     }
 
     @Test

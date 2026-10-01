@@ -108,7 +108,7 @@
     <string name="notify_open_settings">Einschalten</string>
     <string name="notify_test">Testbenachrichtigung senden</string>
     <string name="notify_permission_title">Über Favoriten benachrichtigen?</string>
-    <string name="notify_permission_text">Mensa MD kann dir einmal am Tag Bescheid geben (standardmäßig gegen 18 Uhr für den nächsten Tag), wenn einer deiner Favoriten auf dem Speiseplan steht. Deine Favoriten bleiben auf diesem Gerät. Ändern kannst du das jederzeit im Filter-Menü.</string>
+    <string name="notify_permission_text">Mensa MD kann dir einmal am Tag Bescheid geben (standardmäßig gegen 18 Uhr für den nächsten Tag), wenn einer deiner Favoriten auf dem Speiseplan steht. Deine Favoriten bleiben auf diesem Gerät. Ändern kannst du das jederzeit in den Einstellungen.</string>
     <string name="notify_permission_allow">Erlauben</string>
     <string name="notify_permission_later">Nicht jetzt</string>
     <string name="settings_title">Einstellungen</string>
