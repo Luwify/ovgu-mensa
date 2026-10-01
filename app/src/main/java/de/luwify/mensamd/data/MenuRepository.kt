@@ -3,9 +3,13 @@ package de.luwify.mensamd.data
 import de.luwify.mensamd.data.cache.CachedMenu
 import de.luwify.mensamd.data.cache.MenuCache
 import de.luwify.mensamd.data.remote.MenuFetcher
+import de.luwify.mensamd.model.Legend
+import de.luwify.mensamd.model.Mensa
 import de.luwify.mensamd.model.MenuPage
+import de.luwify.mensamd.model.PageFormat
 import de.luwify.mensamd.model.MensaCatalog
 import de.luwify.mensamd.parser.MenuPageParser
+import de.luwify.mensamd.parser.PierParser
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
@@ -45,6 +49,7 @@ class MenuRepository(
     private val clock: () -> Long = System::currentTimeMillis,
     private val workDispatcher: CoroutineDispatcher = Dispatchers.IO,
     private val staleAfterMillis: Long = 30 * 60 * 1000L,
+    private val catalog: List<Mensa> = MensaCatalog.all,
 ) {
     private class Entry {
         val state = MutableStateFlow(MenuState())
@@ -82,17 +87,19 @@ class MenuRepository(
         if (!e.refreshLock.tryLock()) return // a running fetch serves this request too
         try {
             e.state.update { it.copy(isRefreshing = true, refreshFailed = false) }
-            val url = MensaCatalog.byId(id)?.url
+            val mensa = catalog.firstOrNull { it.id == id }
             val result = runCatching {
-                requireNotNull(url) { "unknown Mensa id: $id" }
-                val html = fetcher.fetch(url)
+                requireNotNull(mensa) { "unknown Mensa id: $id" }
+                val html = fetcher.fetch(mensa.url)
                 withContext(workDispatcher) {
-                    val page = MenuPageParser.parse(html)
-                    // Zero days over a cache that has days is more likely a broken page or a changed
-                    // layout than a real change: keep what we have and report a failed refresh.
-                    if (page.days.isEmpty() && e.state.value.page?.days?.isNotEmpty() == true) {
-                        throw EmptyResultException()
+                    val parsed = when (mensa.format) {
+                        PageFormat.DATED -> MenuPageParser.parse(html)
+                        PageFormat.FIXED -> PierParser.parse(html)
                     }
+                    // No dishes over a cache that has some is more likely a broken page or a changed
+                    // layout than a real change: keep what we have and report a failed refresh.
+                    if (parsed.isBlank && e.state.value.page?.isBlank == false) throw EmptyResultException()
+                    val page = withBorrowedLegend(mensa, parsed)
                     val cached = CachedMenu(fetchedAt = clock(), page = page)
                     // A failing cache write must not hide a good fetch from the UI.
                     runCatching { cache.write(id, cached) }
@@ -120,14 +127,30 @@ class MenuRepository(
         e.loadLock.lock()
         try {
             if (!e.cacheLoaded) {
-                val cached = withContext(workDispatcher) { cache.read(id) }
+                val cached = withContext(workDispatcher) {
+                    cache.read(id)?.let { c -> c.copy(page = withBorrowedLegend(catalog.firstOrNull { it.id == id }, c.page)) }
+                }
                 // A refresh that already finished is newer than anything on disk.
-                if (cached != null) e.state.update { if (it.fetchedAt == null) it.copy(page = cached.page, fetchedAt = cached.fetchedAt) else it }
+                if (cached != null) {
+                    e.state.update { if (it.fetchedAt == null) it.copy(page = cached.page, fetchedAt = cached.fetchedAt) else it }
+                }
                 e.cacheLoaded = true
             }
         } finally {
             e.loadLock.unlock()
         }
         return e.state.value
+    }
+
+    /**
+     * Fixed-format pages (PIER 16) have no legend of their own, but use the same codes. Borrow the
+     * legend of the first dated Mensa that has one cached; without any, the codes show as they are.
+     * Re-done when the cache is loaded, so a legend cached later still reaches the page.
+     */
+    private suspend fun withBorrowedLegend(mensa: Mensa?, page: MenuPage): MenuPage {
+        if (mensa?.format != PageFormat.FIXED || page.legend.codes.isNotEmpty()) return page
+        val donor = catalog.filter { it.format == PageFormat.DATED }
+            .firstNotNullOfOrNull { cache.read(it.id)?.page?.legend?.takeIf { l -> l.codes.isNotEmpty() } }
+        return if (donor != null) page.copy(legend = donor) else page.copy(legend = Legend.EMPTY)
     }
 }

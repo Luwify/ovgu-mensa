@@ -25,4 +25,19 @@ class MensaOrderTest {
         assertEquals(MensaCatalog.all.map { it.id }.sorted(), resolved.map { it.id }.sorted())
         assertEquals(MensaCatalog.all.size, resolved.map { it.id }.toSet().size)
     }
+
+    @Test fun pier16_isInTheCatalog_asAFixedFormatMensa() {
+        val pier = MensaCatalog.byId("pier16")!!
+        assertEquals(PageFormat.FIXED, pier.format)
+        assertEquals("PIER 16", pier.name.de)
+        assertEquals("Gebäude 16, Denhardtstr. 2, 39106 Magdeburg", pier.address)
+        assertEquals("https://www.studentenwerk-magdeburg.de/mensen-cafeterien/pier-16-speiseplan/", pier.url)
+        assertEquals(listOf("pier16"), MensaCatalog.all.filter { it.format == PageFormat.FIXED }.map { it.id })
+    }
+
+    @Test fun orderSavedBeforePier16_getsPierAppendedAtTheEnd() {
+        val saved = listOf("herrenkrug", "stendal", "unicampus-oben", "kellercafe", "wernigerode", "unicampus-unten", "halberstadt", "blub-wernigerode")
+        val resolved = resolveOrder(saved).map { it.id }
+        assertEquals(saved + "pier16", resolved) // exactly the user's order, then the new one
+    }
 }

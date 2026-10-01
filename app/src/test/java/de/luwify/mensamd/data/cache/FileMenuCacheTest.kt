@@ -52,4 +52,23 @@ class FileMenuCacheTest {
         f.writeText(f.readText().replace("\"schema\":1", "\"schema\":0"))
         assertNull(cache.read("old"))
     }
+
+    @Test
+    fun fixedPage_roundTrips_andOldFilesWithoutTheNewFieldsStillRead() = runTest {
+        val cache = FileMenuCache(File(tmp.root, "fixed"))
+        val pier = de.luwify.mensamd.parser.PierParser.parse(
+            checkNotNull(javaClass.getResourceAsStream("/fixtures/2026-10-01/pier16.html")).use { it.readBytes().toString(Charsets.UTF_8) },
+        )
+        val cached = CachedMenu(7L, pier)
+        cache.write("pier16", cached)
+        assertEquals(cached, cache.read("pier16"))
+        assertTrue(cache.read("pier16")!!.page.fixed.flatMap { it.dishes }.any { !it.priceGroupsKnown })
+
+        // a cache file written before PIER 16 existed has no "fixed" and no "priceGroupsKnown"
+        val old = """{"fetchedAt":5,"page":{"days":[{"date":"2026-10-05","dishes":[{"name":{"de":"A","en":"A"},"badges":[],"prices":[100],"tags":[],"codes":[],"co2Grams":null,"waterLiters":null}]}],"legend":{"priceGroups":[],"codes":[],"notes":[]}},"schema":1}"""
+        File(tmp.root, "fixed/menu-old.json").writeText(old)
+        val read = cache.read("old")!!
+        assertEquals(emptyList<de.luwify.mensamd.model.FixedSection>(), read.page.fixed)
+        assertTrue(read.page.days.single().dishes.single().priceGroupsKnown)
+    }
 }
