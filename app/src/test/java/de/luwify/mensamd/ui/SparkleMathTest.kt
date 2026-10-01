@@ -77,18 +77,6 @@ class SparkleMathTest {
     }
 
     @Test
-    fun jelly_trailingEdgeLagsMore_andWobbleStretchesThenSquashes() {
-        val (top, bottom, inset) = SparkleMath.jelly(drag = 20f, wobble = 0f).toList()
-        assertTrue("bottom lags more than top", bottom > top && top > 0f)
-        assertEquals(0f, inset, 0f)
-        val stretched = SparkleMath.jelly(0f, 10f)
-        assertTrue(stretched[1] - stretched[0] > 0f && stretched[2] > 0f) // taller and narrower
-        val squashed = SparkleMath.jelly(0f, -10f)
-        assertTrue(squashed[1] - squashed[0] < 0f && squashed[2] < 0f) // shorter and wider
-        assertTrue(SparkleMath.jelly(0f, 0f).all { it == 0f }) // at rest: the plain card shape
-    }
-
-    @Test
     fun wobble_growsWithScrollSpeedEitherWay_andIsCapped() {
         assertTrue(SparkleMath.wobbleAfter(0f, 30f, 50f) > 0f)
         assertEquals(SparkleMath.wobbleAfter(0f, 30f, 50f), SparkleMath.wobbleAfter(0f, -30f, 50f), 0f)
@@ -170,40 +158,6 @@ class SparkleMathTest {
     }
 
     @Test
-    fun auraShape_atRest_isTheCardItself() {
-        val shape = SparkleMath.auraShape(floatArrayOf(0f, 0f, 0f), height = 300f, radius = 30f, reach = 27f)
-        assertEquals(0f, shape.centerShift, 0f)
-        assertEquals(0f, shape.halfHeightGrow, 0f)
-        assertEquals(30f, shape.radiusTop, 0f)
-        assertEquals(30f, shape.radiusBottom, 0f)
-        assertEquals(0f, shape.roundness, 0f)
-        assertEquals(0f, shape.tailTop + shape.tailBottom, 0f)
-    }
-
-    @Test
-    fun auraShape_stretched_isNeverARectangle_andTheTrailingSideIsRounder() {
-        // scrolling up: the aura lags below (positive drag), stretched by the wobble
-        val jelly = SparkleMath.jelly(drag = 20f, wobble = 10f)
-        val shape = SparkleMath.auraShape(jelly, height = 300f, radius = 30f, reach = 27f)
-        assertTrue("moves with the lag", shape.centerShift > 0f)
-        assertTrue("taller", shape.halfHeightGrow > 0f)
-        assertTrue("rounder than the card", shape.radiusTop > 30f)
-        assertTrue("trailing (bottom) rounder than leading", shape.radiusBottom > shape.radiusTop)
-        assertTrue("comet tail at the bottom only", shape.tailBottom > 0f && shape.tailTop == 0f)
-        assertTrue("blended toward an ellipse", shape.roundness > 0f && shape.roundness <= 0.6f)
-        // the other direction mirrors it
-        val up = SparkleMath.auraShape(SparkleMath.jelly(drag = -20f, wobble = 10f), 300f, 30f, 27f)
-        assertTrue(up.radiusTop > up.radiusBottom && up.tailTop > 0f && up.tailBottom == 0f)
-    }
-
-    @Test
-    fun auraShape_squashed_isRoundToo() {
-        val shape = SparkleMath.auraShape(SparkleMath.jelly(drag = 0f, wobble = -12f), 300f, 30f, 27f)
-        assertTrue(shape.halfHeightGrow < 0f)
-        assertTrue(shape.roundness > 0f && shape.radiusTop > 30f)
-    }
-
-    @Test
     fun edgeGlow_fallsSmoothlyToZero_andTheFallbackStepsAreSmall() {
         assertEquals(1f, edgeGlowFalloff(0f, 2f), 0f)
         assertEquals(0f, edgeGlowFalloff(1f, 2f), 0f)
@@ -216,5 +170,23 @@ class SparkleMathTest {
         val ringAlphas = (0 until n).map { 0.5f * edgeGlowFalloff((it + 0.5f) / n, 2f) }
         assertTrue(ringAlphas.zipWithNext().all { (a, b) -> b <= a })
         assertTrue("largest step ${ringAlphas.zipWithNext().maxOf { (a, b) -> a - b }}", ringAlphas.zipWithNext().all { (a, b) -> a - b < 0.08f })
+    }
+
+    @Test
+    fun trailReach_isOneAtRest_longerBehind_strongestInTheMiddle_shorterAhead() {
+        // at rest: the plain glow everywhere
+        for (n in listOf(0f to 1f, 1f to 0f, 0.7f to 0.7f)) assertEquals(1f, SparkleMath.trailReach(n.first, n.second, 0f, 0f), 0f)
+        val below = SparkleMath.trailReach(0f, 1f, 0f, 1f) // middle of the bottom edge, trailing below
+        val belowNearCorner = SparkleMath.trailReach(0f, 1f, 0.9f, 1f)
+        val side = SparkleMath.trailReach(1f, 0f, 0f, 1f)
+        val above = SparkleMath.trailReach(0f, -1f, 0f, 1f)
+        assertEquals(1f + SparkleMath.TAIL_GAIN, below, 0.001f) // a comet tail in the middle
+        assertTrue(belowNearCorner in side..below) // tapering toward the corners
+        assertEquals(1f, side, 0f) // sides unchanged
+        assertTrue(above < 1f && above >= 0.75f) // a bit shorter ahead
+        // the other direction mirrors it
+        assertEquals(below, SparkleMath.trailReach(0f, -1f, 0f, -1f), 0f)
+        // a small trail gives a small tail
+        assertTrue(SparkleMath.trailReach(0f, 1f, 0f, 0.1f) < 1.2f)
     }
 }

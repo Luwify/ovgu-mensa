@@ -69,7 +69,7 @@ fun SuperAuraOverlay(
         val top = SparkleMath.pinnedHeaderBottom(items.map { it.offset to it.size }, items.map { headerKeys(it.key) }).toFloat()
         val bottom = info.viewportSize.height.toFloat()
         val inset = 16.dp.toPx()
-        val jelly = if (animate && drag != null) SparkleMath.jelly(drag.offset.value, drag.wobble.value) else floatArrayOf(0f, 0f, 0f)
+        val trail = if (animate && drag != null) drag.trail() else 0f
         val visible = HashSet<Any>()
         for (item in items) {
             if (item.key !in favoriteKeys) continue
@@ -79,7 +79,7 @@ fun SuperAuraOverlay(
             val shader = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) shaders.getOrPut(item.key) { AuraShader(colors) } else null
             translate(inset, item.offset.toFloat()) {
                 // The visible band in the card's own coordinates.
-                drawSuperAura(card, radius, colors, shader, clock, jelly, animate, top - item.offset, bottom - item.offset)
+                drawSuperAura(card, radius, colors, shader, clock, trail, animate, top - item.offset, bottom - item.offset)
             }
         }
         shaders.keys.retainAll(visible)

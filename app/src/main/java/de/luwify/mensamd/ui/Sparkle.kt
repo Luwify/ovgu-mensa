@@ -125,13 +125,30 @@ object SparkleMath {
         return corner(rr, rr, 180f, d.coerceAtMost(arc))
     }
 
+    /** How much longer the aura reaches on the trailing side at full trail: up to (1 + TAIL_GAIN) x. */
+    const val TAIL_GAIN = 1.5f
+
     /**
-     * The jelly shape of the super aura while scrolling: (top shift, bottom shift, side inset) in px. The edge that
-     * trails the scroll lags more than the leading one, so the aura stretches; [wobble] (a bouncy spring) stretches
-     * and, swinging through negative, squashes it, with the sides moving in and out to match.
+     * The factor on the aura's reach at a point whose nearest card edge points outward along ([nx], [ny]) and that
+     * lies at [xRel] across the card (-1 left edge .. 1 right edge), for a [trail] of -1..1 (positive: the aura trails
+     * below, as when the content moves up). Longer behind the card, strongest in the middle of that edge (a comet
+     * tail), a little shorter ahead; 1 at rest. Mirrors the shader. It only scales the reach, so the glow at the card's
+     * edge stays at full strength: the aura never leaves the card.
      */
-    fun jelly(drag: Float, wobble: Float): FloatArray =
-        floatArrayOf(drag * 0.5f - wobble, drag * 1.5f + wobble, wobble * 0.35f)
+    fun trailReach(nx: Float, ny: Float, xRel: Float, trail: Float): Float {
+        val dir = if (trail >= 0f) 1f else -1f
+        val behind = (ny * dir).coerceAtLeast(0f)
+        val ahead = (-ny * dir).coerceAtLeast(0f)
+        val across = kotlin.math.exp(-2.5f * xRel * xRel)
+        val t = kotlin.math.abs(trail)
+        return 1f + TAIL_GAIN * t * Math.pow(behind.toDouble(), 1.2).toFloat() * (0.35f + 0.65f * across) - 0.25f * t * ahead
+    }
+
+    /** The trail (-1..1) from the scroll drag's spring values (offset: lag, wobble: stretch), [max] their range. */
+    fun trailFrom(offset: Float, wobble: Float, max: Float): Float {
+        val dir = if (offset >= 0f) 1f else -1f
+        return ((offset + dir * wobble) / max).coerceIn(-1f, 1f)
+    }
 
     /**
      * The [index]-th sparkle of the aura at [timeMs]: (outline position 0..1, distance out in dp, size in dp, opacity).
@@ -162,32 +179,6 @@ object SparkleMath {
     fun recentTaps(taps: List<Long>, now: Long, windowMs: Long = 3000L): List<Long> = taps.filter { now - it in 0..windowMs }
 
     const val UNLOCK_TAPS = 5
-
-    /**
-     * The organic outline of the super aura for a jelly state ([jelly] = top shift, bottom shift, side inset in px)
-     * around a card [height] px tall with corner radius [radius]: never a stretched rectangle. The more it stretches,
-     * the rounder it gets (bigger corners, blended toward an ellipse); the trailing side (where the aura lags) gets
-     * extra rounding and a bulge like a comet tail; [breathe] is the amplitude of the slow harmonics along the
-     * outline. At rest it is exactly the card's rounded rectangle (plus the base breathing).
-     */
-    fun auraShape(jelly: FloatArray, height: Float, radius: Float, reach: Float): AuraShape {
-        val shift = (jelly[0] + jelly[1]) / 2f // the whole aura moves by this
-        val stretch = jelly[1] - jelly[0] // taller (+) or squashed (-)
-        val amount = kotlin.math.abs(stretch) + 0.5f * kotlin.math.abs(shift)
-        val round = radius + 0.9f * amount
-        val tail = 1.1f * kotlin.math.abs(shift)
-        return AuraShape(
-            centerShift = shift,
-            halfHeightGrow = stretch / 2f,
-            inset = jelly[2],
-            radiusTop = round + if (shift < 0f) tail else 0f,
-            radiusBottom = round + if (shift > 0f) tail else 0f,
-            tailTop = if (shift < 0f) 0.6f * -shift else 0f,
-            tailBottom = if (shift > 0f) 0.6f * shift else 0f,
-            roundness = (amount / (0.25f * height)).coerceIn(0f, 0.6f),
-            breathe = 0.5f * reach + 0.12f * amount,
-        )
-    }
 
     /** The aura's maximum reach in units of its base reach: 4 x the living factor's maximum (0.55 + 0.75 x 1.1). */
     const val AURA_REACH_FACTOR = 4f * 1.375f
@@ -232,19 +223,6 @@ object SparkleMath {
     }
 }
 
-/** See [SparkleMath.auraShape]; all lengths in px. */
-data class AuraShape(
-    val centerShift: Float,
-    val halfHeightGrow: Float,
-    val inset: Float,
-    val radiusTop: Float,
-    val radiusBottom: Float,
-    val tailTop: Float,
-    val tailBottom: Float,
-    val roundness: Float,
-    val breathe: Float,
-)
-
 /** Gold for the legendary frame: bright tones on dark pages, deeper ones that still show on light pages. */
 private val GOLD_ON_DARK = listOf(Color(0xFFFFF3B0), Color(0xFFFFD54F), Color(0xFFFFB300), Color(0xFFFF8F00), Color(0xFFFFD54F))
 private val GOLD_ON_LIGHT = listOf(Color(0xFFE0A800), Color(0xFFB07800), Color(0xFF8A5A00), Color(0xFFC68A00), Color(0xFFFFC233))
@@ -272,6 +250,9 @@ class ScrollDrag(private val scope: CoroutineScope, private val maxPx: Float) {
     val wobble = Animatable(0f)
     private var job: Job? = null
     private var wobbleJob: Job? = null
+
+    /** The aura's trail (-1..1) for drawing; read in the draw phase. */
+    fun trail(): Float = SparkleMath.trailFrom(offset.value, wobble.value, maxPx)
 
     val connection = object : NestedScrollConnection {
         override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
@@ -406,7 +387,8 @@ private fun DrawScope.drawLegendaryEdge(shape: Shape, gold: List<Color>, timeMs:
 
 /**
  * The super aura behind the card: one soft, living glow (the [AuraShader] on Android 13+; below that, fine fading
- * rings as a plain gradient), deformed like jelly by [jelly], plus sparkles that flash up inside it now and then.
+ * rings as a plain gradient), reaching further on the trailing side by [trail] but always hugging the card, plus
+ * sparkles that flash up inside it now and then.
  */
 internal fun DrawScope.drawSuperAura(
     cardSize: Size,
@@ -414,7 +396,7 @@ internal fun DrawScope.drawSuperAura(
     colors: List<Color>,
     shader: AuraShader?,
     timeMs: Long,
-    jelly: FloatArray,
+    trail: Float,
     animate: Boolean,
     fadeTop: Float,
     fadeBottom: Float,
@@ -426,15 +408,12 @@ internal fun DrawScope.drawSuperAura(
     val reach = 9.dp.toPx()
     if (shader != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         // The draw area must hold the whole glow: its maximum reach (4 x reach x the living factor's maximum 1.375)
-        // plus the jelly's shifts, and a little more.
-        val shape = SparkleMath.auraShape(jelly, h, r, reach)
-        // Room for the maximum reach, the jelly's move and stretch, the tail and the breathing.
-        val margin = SparkleMath.AURA_REACH_FACTOR * reach + kotlin.math.abs(shape.centerShift) + kotlin.math.abs(shape.halfHeightGrow) +
-            shape.tailTop + shape.tailBottom + shape.breathe + 4.dp.toPx()
-        shader.update(w, h, r, timeMs / 1000f, shape, reach, if (animate) 0.85f else 0.7f, fadeTop, fadeBottom, fade)
+        // plus the trailing tail, and a little more.
+        val margin = SparkleMath.AURA_REACH_FACTOR * reach * (1f + SparkleMath.TAIL_GAIN) + 4.dp.toPx()
+        shader.update(w, h, r, timeMs / 1000f, trail, reach, if (animate) 0.85f else 0.7f, fadeTop, fadeBottom, fade)
         drawRect(shader.brush, topLeft = Offset(-margin, -margin), size = Size(w + 2 * margin, h + 2 * margin))
     } else {
-        drawFallbackAura(w, h, r, colors, jelly, reach, fadeTop, fadeBottom, fade)
+        drawFallbackAura(w, h, r, colors, trail, reach, fadeTop, fadeBottom, fade)
     }
     if (!animate) return
     // Sparkles inside the glow: each flashes for a moment somewhere along the card, then elsewhere.
@@ -443,8 +422,7 @@ internal fun DrawScope.drawSuperAura(
         if (alpha < 0.03f) continue
         val p = SparkleMath.roundedRectPoint(pos, w, h, r)
         if (p[1] < fadeTop + fade || p[1] > fadeBottom - fade) continue // not in the faded edges either
-        val shift = jelly[0] + (jelly[1] - jelly[0]) * (p[1] / h)
-        val at = Offset(p[0] + p[2] * out.dp.toPx() - p[2] * jelly[2], p[1] + p[3] * out.dp.toPx() + shift)
+        val at = Offset(p[0] + p[2] * out.dp.toPx(), p[1] + p[3] * out.dp.toPx())
         drawStar(at, sizeDp.dp.toPx(), colors[3].copy(alpha = alpha))
     }
 }
@@ -453,15 +431,14 @@ internal fun DrawScope.drawSuperAura(
  * The aura below Android 13 (no runtime shaders): nested filled rounded rectangles from the outside in, whose
  * alphas ([SparkleMath.stackedAlphas]) stack up to exactly the shader's fall-off, so there are no seams (strokes
  * side by side would overlap and draw lines). The card is clipped out; a vertical gradient fades it out toward the
- * pinned header and the viewport's end. Plain gold, no iridescence; the jelly shifts and inset still apply.
+ * pinned header and the viewport's end. Plain gold, no iridescence; it trails on the trailing side like the shader.
  */
 private fun DrawScope.drawFallbackAura(
-    w: Float, h: Float, r: Float, colors: List<Color>, jelly: FloatArray, reach: Float,
+    w: Float, h: Float, r: Float, colors: List<Color>, trail: Float, reach: Float,
     fadeTop: Float, fadeBottom: Float, fade: Float,
 ) {
     val steps = 18
     val maxReach = 4f * reach
-    val shape = SparkleMath.auraShape(jelly, h, r, reach)
     val distances = (0 until steps).map { maxReach * (steps - it) / steps } // outside in
     val alphas = SparkleMath.stackedAlphas(distances.map { 0.85f * SparkleMath.auraFalloff(it / maxReach) })
     val color = colors[0]
@@ -476,13 +453,14 @@ private fun DrawScope.drawFallbackAura(
     val card = Path().apply { addRoundRect(androidx.compose.ui.geometry.RoundRect(0f, 0f, w, h, androidx.compose.ui.geometry.CornerRadius(r))) }
     clipPath(card, androidx.compose.ui.graphics.ClipOp.Difference) {
         distances.forEachIndexed { i, d ->
-            // Moved and stretched as a whole, with the organic shape's (larger) corner radius: never a stretched box.
-            val round = maxOf(shape.radiusTop, shape.radiusBottom) + d
+            // Anchored to the card: each fill reaches further on the trailing side in proportion to its distance, so the
+            // edge is unchanged and only the outer glow trails.
+            val extra = d * SparkleMath.TAIL_GAIN * kotlin.math.abs(trail)
             drawRoundRect(
                 brush,
-                topLeft = Offset(-d + shape.inset, -d + shape.centerShift - shape.halfHeightGrow),
-                size = Size(w + 2 * d - 2 * shape.inset, h + 2 * d + 2 * shape.halfHeightGrow),
-                cornerRadius = androidx.compose.ui.geometry.CornerRadius(round),
+                topLeft = Offset(-d, -d - if (trail < 0f) extra else 0f),
+                size = Size(w + 2 * d, h + 2 * d + extra),
+                cornerRadius = androidx.compose.ui.geometry.CornerRadius(r + d),
                 alpha = alphas[i],
             )
         }

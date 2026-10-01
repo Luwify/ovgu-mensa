@@ -10,8 +10,8 @@ import androidx.compose.ui.graphics.toArgb
 /**
  * The super aura as one GPU shader (Android 13+): a smooth glow around the card's rounded rectangle (signed
  * distance, a fall-off that reaches exactly zero smoothly, dithered so 8-bit color shows no bands), whose reach swells and shrinks around the card like a
- * living mass, tinted with a slowly drifting iridescent gold. The jelly deformation (top/bottom shift, side inset)
- * comes in as uniforms. Coordinates are the card's own (0,0 = its top left).
+ * living mass, tinted with a slowly drifting iridescent gold. While scrolling only its reach changes per direction
+ * ([trail]: longer behind the card), never its position: it always hugs the card. Coordinates are the card's own.
  *
  * It is drawn by [SuperAuraOverlay] above the whole list, so it lies over the neighboring cards and headers: the
  * card's own area is masked out (exactly zero inside it), and the glow fades out smoothly over [fade] px before the
@@ -22,15 +22,8 @@ private const val AURA_AGSL = """
 uniform float2 size;
 uniform float radius;
 uniform float time;
-uniform float centerShift;
-uniform float halfGrow;
-uniform float inset;
-uniform float radiusTop;
-uniform float radiusBottom;
-uniform float tailTop;
-uniform float tailBottom;
-uniform float roundness;
-uniform float breathe;
+uniform float trail;
+uniform float tailGain;
 uniform float reach;
 uniform float strength;
 uniform float fadeTop;
@@ -44,17 +37,6 @@ layout(color) uniform half4 c3;
 float roundBox(float2 p, float2 b, float r) {
     float2 q = abs(p) - b + r;
     return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - r;
-}
-
-// A rounded box with its own corner radius for the top and the bottom half (the trailing side rounder).
-float roundBox2(float2 p, float2 b, float rTop, float rBottom) {
-    float r = min(p.y < 0.0 ? rTop : rBottom, min(b.x, b.y));
-    return roundBox(p, b, r);
-}
-
-// Approximate distance to an ellipse with half axes b (good enough for a glow).
-float ellipse(float2 p, float2 b) {
-    return (length(p / b) - 1.0) * min(b.x, b.y);
 }
 
 half3 palette(float t) {
@@ -71,18 +53,22 @@ float ign(float2 xy) {
 }
 
 half4 main(float2 xy) {
-    // The organic outline (see SparkleMath.auraShape): moved and stretched by the jelly, rounder the more it
-    // stretches (corners grow, blended toward an ellipse), the trailing side rounder still with a comet-tail bulge.
-    float2 c = float2(size.x * 0.5, size.y * 0.5 + centerShift);
-    float2 b = float2(size.x * 0.5 - inset, size.y * 0.5 + halfGrow);
+    // The shape is always the card itself: the glow never moves away from it. Only how far it reaches changes
+    // per direction (see SparkleMath.trailReach): longer on the trailing side, strongest in the middle of that
+    // edge (a comet tail), a little shorter on the leading side. At the card's edge (d = 0) it is always at full
+    // strength, so the deformation is zero there and grows with the distance.
+    float2 c = size * 0.5;
     float2 p = xy - c;
+    float2 q = abs(p) - c + radius;
+    float d = max(length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - radius, 0.0);
+    float2 n = sign(p) * max(q, 0.0); // outward direction of the nearest edge / corner
+    n = length(n) > 0.0 ? normalize(n) : float2(0.0, 0.0);
     float a = atan(p.y, p.x);
-    float d = mix(roundBox2(p, b, radiusTop, radiusBottom), ellipse(p, b), roundness);
-    float across = exp(-3.0 * (p.x / b.x) * (p.x / b.x)); // strongest in the middle of the edge
-    d -= tailTop * across * smoothstep(0.0, b.y, -p.y) + tailBottom * across * smoothstep(0.0, b.y, p.y);
-    // The outline breathes: low harmonics along the angle with slowly drifting phases.
-    d -= breathe * (0.5 * sin(2.0 * a + time * 0.7) + 0.3 * sin(3.0 * a - time * 0.5 + 1.1) + 0.2 * sin(4.0 * a + time * 0.31 + 2.3));
-    d = max(d, 0.0);
+    float dir = trail >= 0.0 ? 1.0 : -1.0;
+    float behind = max(n.y * dir, 0.0);
+    float ahead = max(-n.y * dir, 0.0);
+    float across = exp(-2.5 * (p.x / c.x) * (p.x / c.x));
+    float stretch = 1.0 + tailGain * abs(trail) * pow(behind, 1.2) * mix(0.35, 1.0, across) - 0.25 * abs(trail) * ahead;
     // A living mass: the reach swells and shrinks around the card, the bulges flowing in both directions.
     float live = 0.62
         + 0.22 * sin(a * 3.0 + time * 1.1)
@@ -90,7 +76,7 @@ half4 main(float2 xy) {
         + 0.10 * sin(a * 2.0 + time * 0.6 + 4.0);
     // Fall-off (1 - d/R)^4 with R = 4 x the living reach: close to exp(-d/reach) near the card, but exactly zero
     // at R with a zero slope, so the glow has no edge anywhere (the draw area is larger than R).
-    float maxReach = 4.0 * reach * (0.55 + 0.75 * live);
+    float maxReach = 4.0 * reach * (0.55 + 0.75 * live) * stretch;
     float k = pow(max(1.0 - d / maxReach, 0.0), 4.0);
     // Iridescent gold: the hue drifts around the card and shifts a little with distance.
     half3 col = palette(a / 6.2831853 + time * 0.045 + d / (reach * 7.0));
@@ -122,18 +108,11 @@ class AuraShader(colors: List<Color>) {
 
     @Suppress("LongParameterList")
     fun update(
-        w: Float, h: Float, radius: Float, timeS: Float, shape: AuraShape, reach: Float, strength: Float,
+        w: Float, h: Float, radius: Float, timeS: Float, trail: Float, reach: Float, strength: Float,
         fadeTop: Float, fadeBottom: Float, fade: Float,
     ) {
-        shader.setFloatUniform("centerShift", shape.centerShift)
-        shader.setFloatUniform("halfGrow", shape.halfHeightGrow)
-        shader.setFloatUniform("inset", shape.inset)
-        shader.setFloatUniform("radiusTop", shape.radiusTop)
-        shader.setFloatUniform("radiusBottom", shape.radiusBottom)
-        shader.setFloatUniform("tailTop", shape.tailTop)
-        shader.setFloatUniform("tailBottom", shape.tailBottom)
-        shader.setFloatUniform("roundness", shape.roundness)
-        shader.setFloatUniform("breathe", shape.breathe)
+        shader.setFloatUniform("trail", trail)
+        shader.setFloatUniform("tailGain", SparkleMath.TAIL_GAIN)
         shader.setFloatUniform("fadeTop", fadeTop)
         shader.setFloatUniform("fadeBottom", fadeBottom)
         shader.setFloatUniform("fade", fade)
