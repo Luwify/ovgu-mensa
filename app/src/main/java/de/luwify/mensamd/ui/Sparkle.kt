@@ -144,11 +144,6 @@ object SparkleMath {
         return 1f + TAIL_GAIN * t * Math.pow(behind.toDouble(), 1.2).toFloat() * (0.35f + 0.65f * across) - 0.25f * t * ahead
     }
 
-    /** The trail (-1..1) from the scroll drag's spring values (offset: lag, wobble: stretch), [max] their range. */
-    fun trailFrom(offset: Float, wobble: Float, max: Float): Float {
-        val dir = if (offset >= 0f) 1f else -1f
-        return ((offset + dir * wobble) / max).coerceIn(-1f, 1f)
-    }
 
     /**
      * The [index]-th sparkle of the aura at [timeMs]: (outline position 0..1, distance out in dp, size in dp, opacity).
@@ -209,11 +204,29 @@ object SparkleMath {
     fun pinnedHeaderBottom(items: List<Pair<Int, Int>>, isHeader: List<Boolean>): Int =
         items.indices.filter { isHeader[it] && items[it].first <= 0 }.maxOfOrNull { items[it].first + items[it].second }?.coerceAtLeast(0) ?: 0
 
-    /** The aura's trail after a scroll step [dy] (px; the content moved by it): pushed the other way, capped. */
-    fun dragAfter(current: Float, dy: Float, max: Float): Float = (current - dy * 0.4f).coerceIn(-max, max)
+    /** Speed at which the trail is at tanh(1) = 76 % of its maximum; a fast fling (~6000 dp/s) reaches ~96 %. */
+    const val TRAIL_REFERENCE_DP_S = 3000f
 
-    /** The jelly's stretch after a scroll step: grows with the speed, either direction, capped. */
-    fun wobbleAfter(current: Float, dy: Float, max: Float): Float = (current + kotlin.math.abs(dy) * 0.12f).coerceIn(-max, max)
+    /** Time constant of the low-pass filter on the scroll velocity. */
+    const val TRAIL_TAU_MS = 70f
+
+    /** No scroll step for this long: the scroll has stopped and the aura springs back. */
+    const val RELEASE_MS = 60L
+
+    /** A gap longer than this between scroll steps starts a new gesture (velocity from 0). */
+    const val NEW_GESTURE_MS = 150f
+
+    /**
+     * The trail (-1..1) for a scroll velocity in dp/s (sign of the content's movement): tanh(|v| / reference), so
+     * slow drags give a little (300 dp/s: 10 %), normal swipes a moderate amount (1500 dp/s: 46 %) and only fast
+     * flings the maximum. Positive (trailing below) when the content moves up (negative velocity).
+     */
+    fun trailForVelocity(velocityDpS: Float): Float =
+        -kotlin.math.sign(velocityDpS) * kotlin.math.tanh(kotlin.math.abs(velocityDpS) / TRAIL_REFERENCE_DP_S)
+
+    /** One step of an exponential low-pass filter: [previous] moves toward [sample] by 1 - e^(-dt/tau). */
+    fun lowPass(previous: Float, sample: Float, dtMs: Float, tauMs: Float): Float =
+        previous + (sample - previous) * (1f - kotlin.math.exp(-dtMs / tauMs))
 
     /** The color at position [x] (any number, wraps at 1) of a cyclic gradient through [stops]. */
     fun cyclic(stops: List<Color>, x: Float): Color {
@@ -239,39 +252,44 @@ private val AURA_ON_LIGHT = listOf(Color(0xFFE0A000), Color(0xFFE07A30), Color(0
 fun auraFor(background: Color): List<Color> = if (background.luminance() < 0.4f) AURA_ON_DARK else AURA_ON_LIGHT
 
 /**
- * How far the super aura trails the scrolling list: pushed against the scroll direction by each scroll step, then
- * springing back with a little overshoot. One per list; cards read [offset] only while drawing.
+ * How much the super aura trails, from the list's scroll speed: each scroll step gives a velocity (dp/s), low-pass
+ * filtered ([SparkleMath.TRAIL_TAU_MS]) so it doesn't flicker, mapped through a saturating curve
+ * ([SparkleMath.trailForVelocity]) and followed by a critically damped spring. When the steps stop, it springs back to
+ * rest with a little overshoot, so the wobble scales with the stretch it comes from. One per list; [trail] is read
+ * only while drawing.
  */
 @Stable
-class ScrollDrag(private val scope: CoroutineScope, private val maxPx: Float) {
-    val offset = Animatable(0f)
-
-    /** The jelly's stretch (positive) and squash (negative); a bouncier spring than [offset]. */
-    val wobble = Animatable(0f)
+class ScrollDrag(private val scope: CoroutineScope, private val pxPerDp: Float) {
+    /** -1..1: positive when the aura trails below the card (the content moves up). */
+    val trail = Animatable(0f)
+    private var velocity = 0f // dp/s, low-pass filtered
+    private var lastStep = 0L
     private var job: Job? = null
-    private var wobbleJob: Job? = null
-
-    /** The aura's trail (-1..1) for drawing; read in the draw phase. */
-    fun trail(): Float = SparkleMath.trailFrom(offset.value, wobble.value, maxPx)
 
     val connection = object : NestedScrollConnection {
         override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
-            if (consumed.y != 0f) push(consumed.y)
+            if (consumed.y != 0f) onStep(consumed.y)
             return Offset.Zero
         }
     }
 
-    private fun push(dy: Float) {
+    fun trail(): Float = trail.value
+
+    private fun onStep(dyPx: Float) {
+        val now = System.nanoTime()
+        val gapMs = if (lastStep == 0L) Float.MAX_VALUE else (now - lastStep) / 1_000_000f
+        lastStep = now
+        if (gapMs > SparkleMath.NEW_GESTURE_MS) velocity = 0f // a new gesture starts from rest
+        val dtMs = gapMs.coerceIn(4f, 50f)
+        velocity = SparkleMath.lowPass(velocity, (dyPx / pxPerDp) / (dtMs / 1000f), dtMs, SparkleMath.TRAIL_TAU_MS)
+        val target = SparkleMath.trailForVelocity(velocity)
         job?.cancel()
         job = scope.launch {
-            offset.snapTo(SparkleMath.dragAfter(offset.value, dy, maxPx))
-            offset.animateTo(0f, spring(dampingRatio = 0.3f, stiffness = 70f))
-        }
-        wobbleJob?.cancel()
-        wobbleJob = scope.launch {
-            wobble.snapTo(SparkleMath.wobbleAfter(wobble.value, dy, maxPx * 0.6f))
-            // Little damping: after the scroll stops it swings through squash and back a few times.
-            wobble.animateTo(0f, spring(dampingRatio = 0.18f, stiffness = 110f))
+            trail.animateTo(target, spring(dampingRatio = 1f, stiffness = 300f))
+            delay(SparkleMath.RELEASE_MS) // no further step: the scroll stopped
+            velocity = 0f
+            // Underdamped: it swings past rest by about a third of the stretch, then settles.
+            trail.animateTo(0f, spring(dampingRatio = 0.3f, stiffness = 140f))
         }
     }
 }
@@ -280,7 +298,7 @@ class ScrollDrag(private val scope: CoroutineScope, private val maxPx: Float) {
 fun rememberScrollDrag(): ScrollDrag {
     val scope = rememberCoroutineScope()
     val density = LocalDensity.current
-    return remember(scope, density) { ScrollDrag(scope, with(density) { 22.dp.toPx() }) }
+    return remember(scope, density) { ScrollDrag(scope, density.density) }
 }
 
 /** False when the user turned animations off in Android's settings: then no burst and a still frame. */
@@ -407,11 +425,15 @@ internal fun DrawScope.drawSuperAura(
     val fade = 28.dp.toPx()
     val reach = 9.dp.toPx()
     if (shader != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-        // The draw area must hold the whole glow: its maximum reach (4 x reach x the living factor's maximum 1.375)
-        // plus the trailing tail, and a little more.
-        val margin = SparkleMath.AURA_REACH_FACTOR * reach * (1f + SparkleMath.TAIL_GAIN) + 4.dp.toPx()
+        // The draw area must hold the whole glow: its maximum reach (4 x reach x the living factor's maximum 1.375),
+        // on the trailing side times the current tail, and a little more.
+        // Only the trailing side needs the tail's extra room: a smaller area means fewer shader pixels per frame.
+        val base = SparkleMath.AURA_REACH_FACTOR * reach + 4.dp.toPx()
+        val tail = SparkleMath.AURA_REACH_FACTOR * reach * SparkleMath.TAIL_GAIN * kotlin.math.abs(trail)
+        val above = base + if (trail < 0f) tail else 0f
+        val below = base + if (trail > 0f) tail else 0f
         shader.update(w, h, r, timeMs / 1000f, trail, reach, if (animate) 0.85f else 0.7f, fadeTop, fadeBottom, fade)
-        drawRect(shader.brush, topLeft = Offset(-margin, -margin), size = Size(w + 2 * margin, h + 2 * margin))
+        drawRect(shader.brush, topLeft = Offset(-base, -above), size = Size(w + 2 * base, h + above + below))
     } else {
         drawFallbackAura(w, h, r, colors, trail, reach, fadeTop, fadeBottom, fade)
     }

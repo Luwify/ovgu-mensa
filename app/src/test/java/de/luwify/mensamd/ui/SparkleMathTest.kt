@@ -77,13 +77,6 @@ class SparkleMathTest {
     }
 
     @Test
-    fun wobble_growsWithScrollSpeedEitherWay_andIsCapped() {
-        assertTrue(SparkleMath.wobbleAfter(0f, 30f, 50f) > 0f)
-        assertEquals(SparkleMath.wobbleAfter(0f, 30f, 50f), SparkleMath.wobbleAfter(0f, -30f, 50f), 0f)
-        assertEquals(50f, SparkleMath.wobbleAfter(45f, 500f, 50f), 0f)
-    }
-
-    @Test
     fun sparkles_flashBriefly_thenComeBackElsewhere() {
         val samples = (0L until 20000L step 25L).map { SparkleMath.sparkleSpot(0, it) }
         assertTrue(samples.all { it[0] in 0f..1f && it[1] in 2f..10f && it[3] in 0f..1f })
@@ -103,13 +96,6 @@ class SparkleMathTest {
         var slow = emptyList<Long>()
         for (t in listOf(0L, 1000L, 2000L, 3000L, 4000L, 5000L)) slow = SparkleMath.recentTaps(slow + t, t)
         assertTrue(slow.size < SparkleMath.UNLOCK_TAPS)
-    }
-
-    @Test
-    fun scrollDrag_trailsAgainstTheScroll_andIsCapped() {
-        assertTrue(SparkleMath.dragAfter(0f, -10f, 50f) > 0f) // content moved up: the aura stays lower
-        assertEquals(50f, SparkleMath.dragAfter(40f, -100f, 50f), 0f)
-        assertEquals(-50f, SparkleMath.dragAfter(0f, 1000f, 50f), 0f)
     }
 
     @Test
@@ -188,5 +174,36 @@ class SparkleMathTest {
         assertEquals(below, SparkleMath.trailReach(0f, -1f, 0f, -1f), 0f)
         // a small trail gives a small tail
         assertTrue(SparkleMath.trailReach(0f, 1f, 0f, 0.1f) < 1.2f)
+    }
+
+    @Test
+    fun trail_growsWithScrollSpeed_saturating_slowIsSmall_flingIsMax() {
+        fun t(v: Float) = kotlin.math.abs(SparkleMath.trailForVelocity(v))
+        assertEquals(0f, t(0f), 0f)
+        assertTrue("slow drag 300 dp/s: ${t(300f)}", t(300f) in 0.05f..0.2f)
+        assertTrue("slow drag 500 dp/s: ${t(500f)}", t(500f) in 0.05f..0.2f)
+        assertTrue("normal swipe 1500 dp/s: ${t(1500f)}", t(1500f) in 0.3f..0.6f)
+        assertTrue("fast fling 6000 dp/s: ${t(6000f)}", t(6000f) > 0.95f)
+        assertTrue(t(20000f) <= 1f)
+        val curve = (0..100).map { t(it * 100f) }
+        assertTrue(curve.zipWithNext().all { (a, b) -> b >= a })
+        // content moving up (negative velocity): trailing below (positive); and mirrored
+        assertTrue(SparkleMath.trailForVelocity(-2000f) > 0f)
+        assertEquals(-SparkleMath.trailForVelocity(-2000f), SparkleMath.trailForVelocity(2000f), 0f)
+    }
+
+    @Test
+    fun velocityLowPass_smoothsSpikes_andConvergesOnSteadySpeed() {
+        // one spike of 5000 dp/s between steady 1000 dp/s steps moves the filtered value only partly
+        var v = 1000f
+        repeat(20) { v = SparkleMath.lowPass(v, 1000f, 8f, SparkleMath.TRAIL_TAU_MS) }
+        val spiked = SparkleMath.lowPass(v, 5000f, 8f, SparkleMath.TRAIL_TAU_MS)
+        assertTrue("spike damped: $spiked", spiked < 1600f)
+        // a steady speed is reached after a few time constants
+        var w = 0f
+        repeat(60) { w = SparkleMath.lowPass(w, 3000f, 8f, SparkleMath.TRAIL_TAU_MS) } // 480 ms
+        assertEquals(3000f, w, 30f)
+        // a long step moves further than a short one
+        assertTrue(SparkleMath.lowPass(0f, 100f, 50f, 70f) > SparkleMath.lowPass(0f, 100f, 8f, 70f))
     }
 }
