@@ -62,4 +62,18 @@
     <string name="theme_soft">Soft</string>
     <string name="theme_amoled">AMOLED</string>
     <string name="fixed_offer">Festes Angebot</string>
+
+    <string name="card_title">Karte</string>
+    <string name="card_back">Zurück</string>
+    <string name="card_hold">Halte deine Karte an die Rückseite des Handys</string>
+    <string name="card_reading">Karte wird gelesen … Nicht bewegen.</string>
+    <string name="card_balance">Guthaben</string>
+    <string name="card_last_transaction">Letzte Abbuchung: %1$s</string>
+    <string name="card_rescan">Halte die Karte erneut an, um sie noch einmal zu lesen.</string>
+    <string name="card_unsupported">Diese Karte wird nicht unterstützt.</string>
+    <string name="card_error">Die Karte konnte nicht gelesen werden. Halte sie ruhig an die Rückseite des Handys und versuche es erneut.</string>
+    <string name="card_nfc_off">NFC ist ausgeschaltet.</string>
+    <string name="card_nfc_settings">NFC-Einstellungen öffnen</string>
+    <string name="card_no_nfc">Dieses Gerät hat kein NFC.</string>
+    <string name="card_privacy">Wird nur auf diesem Gerät gelesen. Nichts wird gespeichert oder gesendet.</string>
 </resources>

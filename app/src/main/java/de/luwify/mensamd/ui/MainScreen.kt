@@ -7,6 +7,8 @@ import de.luwify.mensamd.ui.theme.MensaFilterChip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import de.luwify.mensamd.ui.theme.CardIcon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.width
@@ -60,7 +62,7 @@ import java.time.LocalDate
 
 /** Tab row of Mensen on top, one horizontally swipeable page per Mensa below. */
 @Composable
-fun MainScreen(vm: MainViewModel, screen: AppScreen.Main) {
+fun MainScreen(vm: MainViewModel, screen: AppScreen.Main, showCardIcon: Boolean, onOpenCard: () -> Unit) {
     val mensas = screen.mensas
     val latestMensas by rememberUpdatedState(mensas)
     val today = rememberToday()
@@ -83,19 +85,29 @@ fun MainScreen(vm: MainViewModel, screen: AppScreen.Main) {
     Scaffold(
         topBar = {
             Surface {
-                MensaTabRow(
-                    mensas = mensas,
-                    selectedId = mensas.getOrNull(pager.currentPage)?.id,
-                    defaultId = screen.defaultId,
-                    onSelect = { id ->
-                        val index = mensas.indexOfFirst { it.id == id }
-                        if (index >= 0) scope.launch { pager.animateScrollToPage(index) }
-                    },
-                    onMakeDefault = vm::pickDefault,
-                    onReorder = vm::setOrder,
-                    // Status bar + display cutout sides; the bottom inset is handled by the lists.
-                    modifier = Modifier.windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)),
-                )
+                // Status bar + display cutout sides; the bottom inset is handled by the lists.
+                Row(
+                    Modifier.windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    MensaTabRow(
+                        mensas = mensas,
+                        selectedId = mensas.getOrNull(pager.currentPage)?.id,
+                        defaultId = screen.defaultId,
+                        onSelect = { id ->
+                            val index = mensas.indexOfFirst { it.id == id }
+                            if (index >= 0) scope.launch { pager.animateScrollToPage(index) }
+                        },
+                        onMakeDefault = vm::pickDefault,
+                        onReorder = vm::setOrder,
+                        modifier = Modifier.weight(1f),
+                    )
+                    if (showCardIcon) {
+                        IconButton(onClick = onOpenCard) {
+                            Icon(CardIcon, contentDescription = stringResource(R.string.card_title))
+                        }
+                    }
+                }
             }
         },
         contentWindowInsets = WindowInsets.systemBars.only(WindowInsetsSides.Horizontal),

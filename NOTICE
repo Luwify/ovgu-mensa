@@ -14,3 +14,31 @@ Sprout icon
             app can tint it per theme. The path data is unchanged.
 
 Only this one icon is included; the app has no dependency on any icon library.
+
+
+Mensa card balance reader (derived code, GPL)
+=============================================
+
+The code in app/src/main/java/de/luwify/mensamd/card/ listed below is translated from Java to
+Kotlin and modified from other GPL-3.0-or-later software. Because of this the whole app is
+distributed under GPL-3.0-or-later (see LICENSE and README.md).
+
+MensaGuthaben
+  Copyright (C) 2014 Jakob Wenzel <jakobwenzel92@gmail.com>
+  https://github.com/jakobwenzel/MensaGuthaben
+  License: GNU GPL, version 3 or (at your option) any later version
+  Derived files:
+    IntercardReader.kt    <- cardreader/IntercardReader.java
+    MagnaCartaReader.kt   <- cardreader/MagnaCartaReader.java
+    CardReaders.kt        <- cardreader/Readers.java, cardreader/ICardReader.java,
+                             cardreader/ValueData.java (incl. the Broadcom workaround)
+
+FareBot (as bundled in MensaGuthaben, com.codebutler.farebot)
+  Copyright (C) 2011 Eric Butler <eric@codebutler.com>
+  https://github.com/codebutler/farebot
+  License: GNU GPL, version 3 or (at your option) any later version
+  Derived files:
+    DesfireProtocol.kt     <- card/desfire/DesfireProtocol.java, and byteArrayToInt from Utils.java
+    DesfireFileSettings.kt <- card/desfire/DesfireFileSettings.java
+
+Each derived file keeps the original copyright lines and states that it was translated and modified.

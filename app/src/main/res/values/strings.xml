@@ -64,4 +64,18 @@
     <string name="theme_soft">Soft</string>
     <string name="theme_amoled">AMOLED</string>
     <string name="fixed_offer">Fixed menu</string>
+
+    <string name="card_title">Card</string>
+    <string name="card_back">Back</string>
+    <string name="card_hold">Hold your card against the back of your phone</string>
+    <string name="card_reading">Reading card… Keep it still.</string>
+    <string name="card_balance">Balance</string>
+    <string name="card_last_transaction">Last withdrawal: %1$s</string>
+    <string name="card_rescan">Hold the card there again to read it again.</string>
+    <string name="card_unsupported">This card isn\'t supported.</string>
+    <string name="card_error">Couldn\'t read the card. Hold it still against the back of your phone and try again.</string>
+    <string name="card_nfc_off">NFC is turned off.</string>
+    <string name="card_nfc_settings">Open NFC settings</string>
+    <string name="card_no_nfc">This device has no NFC.</string>
+    <string name="card_privacy">Read on this device only. Nothing is stored or sent.</string>
 </resources>
