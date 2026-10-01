@@ -1,6 +1,7 @@
 package de.luwify.mensamd.data.settings
 
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
+import androidx.datastore.preferences.core.edit
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -218,10 +219,29 @@ class SettingsRepositoryTest {
         try {
             val repo = SettingsRepository(PreferenceDataStoreFactory.create(scope = scope) { file })
             assertEquals(CustomThemeSpec(), repo.customTheme.first())
-            repo.setCustomTheme(CustomThemeSpec(CustomBase.BLACK, 140, glow = true))
-            assertEquals(CustomThemeSpec(CustomBase.BLACK, 140, glow = true), repo.customTheme.first())
+            repo.setCustomTheme(CustomThemeSpec(CustomBase.BLACK, 0x12AB34, glow = true))
+            assertEquals(CustomThemeSpec(CustomBase.BLACK, 0x12AB34, glow = true), repo.customTheme.first())
             repo.setThemeMode(ThemeMode.CUSTOM)
             assertEquals(ThemeMode.CUSTOM, repo.themeMode.first())
+        } finally {
+            scope.shutDown()
+        }
+    }
+
+    @Test
+    fun customTheme_oldHueOnlySetting_becomesThatSwatchColor() = runBlocking {
+        val file = File(tmp.root, "legacy.preferences_pb")
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        try {
+            val store = PreferenceDataStoreFactory.create(scope = scope) { file }
+            store.edit { it[androidx.datastore.preferences.core.intPreferencesKey("custom_theme_hue")] = 265 }
+            val repo = SettingsRepository(store)
+            assertEquals(CustomThemeSpec.DEFAULT_ACCENT, repo.customTheme.first().accent) // 265 = the violet default
+            store.edit { it[androidx.datastore.preferences.core.intPreferencesKey("custom_theme_hue")] = 0 }
+            assertEquals(0xD03939, repo.customTheme.first().accent) // red swatch
+            // saving the new format drops the old key
+            repo.setCustomTheme(CustomThemeSpec(accent = 0x112233))
+            assertEquals(null, store.data.first()[androidx.datastore.preferences.core.intPreferencesKey("custom_theme_hue")])
         } finally {
             scope.shutDown()
         }

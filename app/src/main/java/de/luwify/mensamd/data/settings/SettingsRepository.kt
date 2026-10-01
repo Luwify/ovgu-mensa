@@ -122,14 +122,19 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
     }
 
     private val customBaseKey = stringPreferencesKey("custom_theme_base")
-    private val customHueKey = intPreferencesKey("custom_theme_hue")
+    private val customAccentKey = intPreferencesKey("custom_theme_accent")
+
+    /** Before the accent could be typed as a color only a hue was stored; still read, so nobody loses theirs. */
+    private val legacyCustomHueKey = intPreferencesKey("custom_theme_hue")
     private val customGlowKey = booleanPreferencesKey("custom_theme_glow")
 
     /** The user's own theme (used when the theme mode is CUSTOM). */
     val customTheme: Flow<CustomThemeSpec> = store.data.map { prefs ->
         CustomThemeSpec(
             base = CustomBase.fromKey(prefs[customBaseKey]),
-            hue = (prefs[customHueKey] ?: CustomThemeSpec.DEFAULT_HUE).mod(360),
+            accent = prefs[customAccentKey]?.and(0xFFFFFF)
+                ?: prefs[legacyCustomHueKey]?.let { hueToAccent(it) }
+                ?: CustomThemeSpec.DEFAULT_ACCENT,
             glow = prefs[customGlowKey] ?: false,
         )
     }
@@ -137,7 +142,8 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
     suspend fun setCustomTheme(spec: CustomThemeSpec) {
         store.edit {
             it[customBaseKey] = spec.base.key
-            it[customHueKey] = spec.hue.mod(360)
+            it[customAccentKey] = spec.accent and 0xFFFFFF
+            it.remove(legacyCustomHueKey)
             it[customGlowKey] = spec.glow
         }
     }
@@ -223,4 +229,22 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
     suspend fun setNotificationPermissionRequested() {
         store.edit { it[permissionRequestedKey] = true }
     }
+}
+
+/** The color the old hue-only setting meant: the swatch tone of that hue (HSL saturation 62 %, lightness 52 %). */
+internal fun hueToAccent(hue: Int): Int {
+    val h = hue.mod(360) / 60.0
+    val c = (1 - kotlin.math.abs(2 * 0.52 - 1)) * 0.62
+    val x = c * (1 - kotlin.math.abs(h % 2 - 1))
+    val (r, g, b) = when (h.toInt().coerceIn(0, 5)) {
+        0 -> Triple(c, x, 0.0)
+        1 -> Triple(x, c, 0.0)
+        2 -> Triple(0.0, c, x)
+        3 -> Triple(0.0, x, c)
+        4 -> Triple(x, 0.0, c)
+        else -> Triple(c, 0.0, x)
+    }
+    val m = 0.52 - c / 2
+    fun ch(v: Double) = ((v + m) * 255 + 0.5).toInt().coerceIn(0, 255)
+    return (ch(r) shl 16) or (ch(g) shl 8) or ch(b)
 }

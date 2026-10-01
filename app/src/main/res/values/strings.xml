@@ -58,7 +58,6 @@
     <string name="hide_other_prices">Hide other prices</string>
     <string name="lunch">Lunch</string>
     <string name="dinner">Dinner</string>
-    <string name="display_title">Layout</string>
     <string name="display_normal">Normal</string>
     <string name="display_compact">Compact</string>
     <string name="theme_system">System colors</string>
@@ -137,4 +136,12 @@
     <string name="hue_violet">Violet</string>
     <string name="hue_magenta">Magenta</string>
     <string name="hue_pink">Pink</string>
+    <string name="layout_title">Card layout</string>
+    <string name="theme_title">Theme</string>
+    <string name="theme_label">Color scheme</string>
+    <string name="custom_hex" translatable="false">Hex</string>
+    <string name="custom_red" translatable="false">R</string>
+    <string name="custom_green" translatable="false">G</string>
+    <string name="custom_blue" translatable="false">B</string>
+    <string name="custom_accent_adjusted">Adjusted slightly so text stays readable on this background.</string>
 </resources>

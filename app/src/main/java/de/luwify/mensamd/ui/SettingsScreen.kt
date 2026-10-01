@@ -122,20 +122,30 @@ fun SettingsScreen(vm: MainViewModel, mensas: List<Mensa>, defaultId: String, pr
                     }
                 }
 
-                item(key = "display-title") { SheetHeading(stringResource(R.string.display_title)) }
-                item(key = "display-picker") {
+                item(key = "layout-title") { SheetHeading(stringResource(R.string.layout_title)) }
+                item(key = "layout-picker") {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        MensaFilterChip(selected = !prefs.compact, onClick = { vm.setCompactMode(false) }, label = { Text(stringResource(R.string.display_normal)) })
+                        MensaFilterChip(selected = prefs.compact, onClick = { vm.setCompactMode(true) }, label = { Text(stringResource(R.string.display_compact)) })
+                    }
+                }
+
+                item(key = "theme-title") { SheetHeading(stringResource(R.string.theme_title)) }
+                item(key = "theme-picker") {
                     val theme = LocalThemeMode.current
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            MensaFilterChip(selected = !prefs.compact, onClick = { vm.setCompactMode(false) }, label = { Text(stringResource(R.string.display_normal)) })
-                            MensaFilterChip(selected = prefs.compact, onClick = { vm.setCompactMode(true) }, label = { Text(stringResource(R.string.display_compact)) })
-                        }
-                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            MensaFilterChip(selected = theme == ThemeMode.SYSTEM, onClick = { vm.setThemeMode(ThemeMode.SYSTEM) }, label = { Text(stringResource(R.string.theme_system)) })
-                            MensaFilterChip(selected = theme == ThemeMode.SOFT, onClick = { vm.setThemeMode(ThemeMode.SOFT) }, label = { Text(stringResource(R.string.theme_soft)) })
-                            MensaFilterChip(selected = theme == ThemeMode.AMOLED, onClick = { vm.setThemeMode(ThemeMode.AMOLED) }, label = { Text(stringResource(R.string.theme_amoled)) })
-                            MensaFilterChip(selected = theme == ThemeMode.CUSTOM, onClick = { vm.setThemeMode(ThemeMode.CUSTOM) }, label = { Text(stringResource(R.string.theme_custom)) })
-                        }
+                    Column {
+                        SettingsDropdown(
+                            label = stringResource(R.string.theme_label),
+                            options = listOf(
+                                ThemeMode.SYSTEM to stringResource(R.string.theme_system),
+                                ThemeMode.SOFT to stringResource(R.string.theme_soft),
+                                ThemeMode.AMOLED to stringResource(R.string.theme_amoled),
+                                ThemeMode.CUSTOM to stringResource(R.string.theme_custom),
+                            ),
+                            selected = theme,
+                            onSelect = vm::setThemeMode,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
                         if (theme == ThemeMode.CUSTOM) {
                             val choice by vm.theme.collectAsStateWithLifecycle()
                             choice?.let { CustomThemeEditor(it.custom, vm::setCustomTheme) }

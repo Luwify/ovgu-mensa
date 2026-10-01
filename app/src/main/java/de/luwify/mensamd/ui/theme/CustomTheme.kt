@@ -21,120 +21,133 @@ object CustomTheme {
     private const val TEXT = 4.5
     private const val BORDER = 3.0
 
-    fun scheme(spec: CustomThemeSpec, dark: Boolean): ColorScheme {
-        val h = spec.hue.mod(360).toFloat()
-        val t = (h + 40f) % 360f // tertiary (badges): a neighbor of the accent
-        val black = spec.base == CustomBase.BLACK
-        return if (!dark) light(h, t) else dark(h, t, black)
+    /** The accent as typed/picked, opaque. */
+    fun accentColor(spec: CustomThemeSpec): Color = Color(0xFF000000.toInt() or (spec.accent and 0xFFFFFF))
+
+    /**
+     * Hue of the accent, and how far its saturation scales the built-in tones (the tones were tuned for a swatch
+     * with 62 % saturation): a gray accent gives a neutral theme, a vivid one a more colorful one.
+     */
+    private fun hueAndScale(spec: CustomThemeSpec): Pair<Float, Float> {
+        val (h, s, _) = accentColor(spec).toHsl()
+        return h to (s / 0.62f).coerceIn(0f, 1.4f)
     }
 
-    private fun light(h: Float, t: Float): ColorScheme {
+    fun scheme(spec: CustomThemeSpec, dark: Boolean): ColorScheme {
+        val (h, k) = hueAndScale(spec)
+        val t = (h + 40f) % 360f // tertiary (badges): a neighbor of the accent
+        val black = spec.base == CustomBase.BLACK
+        return if (!dark) light(h, t, k, accentColor(spec)) else dark(h, t, k, accentColor(spec), black)
+    }
+
+    private fun light(h: Float, t: Float, k: Float, accent: Color): ColorScheme {
         // Page one step below the cards, like the System theme: cards stand out by their fill.
-        val card = hsl(h, 0.30f, 0.995f)
+        val card = tone(h, 0.30f, 0.995f, k)
         // Yellow is brighter than blue at the same HSL lightness: darken the page until it reads against the card.
-        val page = hsl(h, 0.18f, 0.93f).withContrast(1.17, listOf(card))
-        val sheet = hsl(h, 0.20f, 0.97f)
+        val page = tone(h, 0.18f, 0.93f, k).withContrast(1.17, listOf(card))
+        val sheet = tone(h, 0.20f, 0.97f, k)
         val surfaces = listOf(page, card, sheet)
-        val primary = hsl(h, 0.60f, 0.38f).withContrast(TEXT, surfaces)
-        val primaryContainer = hsl(h, 0.65f, 0.87f)
-        val secondaryContainer = hsl(h, 0.28f, 0.88f)
-        val tertiaryContainer = hsl(t, 0.60f, 0.89f)
+        // The user's exact color wherever it is readable; otherwise darkened just enough.
+        val primary = accent.withContrast(TEXT, surfaces)
+        val primaryContainer = tone(h, 0.65f, 0.87f, k)
+        val secondaryContainer = tone(h, 0.28f, 0.88f, k)
+        val tertiaryContainer = tone(t, 0.60f, 0.89f, k)
         return lightColorScheme(
             primary = primary,
             onPrimary = Color.White.withContrast(TEXT, listOf(primary)),
             primaryContainer = primaryContainer,
-            onPrimaryContainer = hsl(h, 0.60f, 0.16f).withContrast(TEXT, listOf(primaryContainer)),
-            inversePrimary = hsl(h, 0.60f, 0.78f),
-            secondary = hsl(h, 0.20f, 0.36f).withContrast(TEXT, surfaces),
+            onPrimaryContainer = tone(h, 0.60f, 0.16f, k).withContrast(TEXT, listOf(primaryContainer)),
+            inversePrimary = tone(h, 0.60f, 0.78f, k),
+            secondary = tone(h, 0.20f, 0.36f, k).withContrast(TEXT, surfaces),
             onSecondary = Color.White,
             secondaryContainer = secondaryContainer,
-            onSecondaryContainer = hsl(h, 0.25f, 0.18f).withContrast(TEXT, listOf(secondaryContainer)),
-            tertiary = hsl(t, 0.55f, 0.36f).withContrast(TEXT, surfaces),
+            onSecondaryContainer = tone(h, 0.25f, 0.18f, k).withContrast(TEXT, listOf(secondaryContainer)),
+            tertiary = tone(t, 0.55f, 0.36f, k).withContrast(TEXT, surfaces),
             onTertiary = Color.White,
             tertiaryContainer = tertiaryContainer,
-            onTertiaryContainer = hsl(t, 0.60f, 0.16f).withContrast(TEXT, listOf(tertiaryContainer)),
+            onTertiaryContainer = tone(t, 0.60f, 0.16f, k).withContrast(TEXT, listOf(tertiaryContainer)),
             background = page,
-            onBackground = hsl(h, 0.15f, 0.12f).withContrast(TEXT, surfaces),
+            onBackground = tone(h, 0.15f, 0.12f, k).withContrast(TEXT, surfaces),
             surface = page,
-            onSurface = hsl(h, 0.15f, 0.12f).withContrast(TEXT, surfaces),
-            surfaceVariant = hsl(h, 0.16f, 0.88f),
-            onSurfaceVariant = hsl(h, 0.10f, 0.34f).withContrast(TEXT, surfaces + secondaryContainer),
+            onSurface = tone(h, 0.15f, 0.12f, k).withContrast(TEXT, surfaces),
+            surfaceVariant = tone(h, 0.16f, 0.88f, k),
+            onSurfaceVariant = tone(h, 0.10f, 0.34f, k).withContrast(TEXT, surfaces + secondaryContainer),
             surfaceTint = Color.Transparent,
-            inverseSurface = hsl(h, 0.12f, 0.20f),
-            inverseOnSurface = hsl(h, 0.20f, 0.95f),
+            inverseSurface = tone(h, 0.12f, 0.20f, k),
+            inverseOnSurface = tone(h, 0.20f, 0.95f, k),
             error = Color(0xFFB3261E),
             onError = Color.White,
             errorContainer = Color(0xFFF9DEDC),
             onErrorContainer = Color(0xFF410E0B),
-            outline = hsl(h, 0.08f, 0.48f).withContrast(BORDER, surfaces),
-            outlineVariant = hsl(h, 0.14f, 0.82f),
+            outline = tone(h, 0.08f, 0.48f, k).withContrast(BORDER, surfaces),
+            outlineVariant = tone(h, 0.14f, 0.82f, k),
             scrim = Color.Black,
             surfaceBright = sheet,
-            surfaceDim = hsl(h, 0.16f, 0.87f),
+            surfaceDim = tone(h, 0.16f, 0.87f, k),
             surfaceContainerLowest = card,
             surfaceContainerLow = sheet,
             surfaceContainer = page,
-            surfaceContainerHigh = hsl(h, 0.16f, 0.90f),
-            surfaceContainerHighest = hsl(h, 0.14f, 0.87f),
+            surfaceContainerHigh = tone(h, 0.16f, 0.90f, k),
+            surfaceContainerHighest = tone(h, 0.14f, 0.87f, k),
         )
     }
 
-    private fun dark(h: Float, t: Float, black: Boolean): ColorScheme {
+    private fun dark(h: Float, t: Float, k: Float, accent: Color, black: Boolean): ColorScheme {
         // Black: pure black page and a barely lifted card, like AMOLED. Dark: a tinted near-black page.
-        val page = if (black) Color.Black else hsl(h, 0.15f, 0.05f)
+        val page = if (black) Color.Black else tone(h, 0.15f, 0.05f, k)
         // Blue is darker than yellow at the same HSL lightness: lift the card until it reads against the page.
-        val card = if (black) hsl(h, 0.08f, 0.065f) else hsl(h, 0.14f, 0.12f).withContrast(1.2, listOf(page))
-        val sheet = if (black) hsl(h, 0.08f, 0.08f) else hsl(h, 0.14f, 0.09f)
-        val chip = if (black) hsl(h, 0.12f, 0.15f) else hsl(h, 0.16f, 0.21f)
+        val card = if (black) tone(h, 0.08f, 0.065f, k) else tone(h, 0.14f, 0.12f, k).withContrast(1.2, listOf(page))
+        val sheet = if (black) tone(h, 0.08f, 0.08f, k) else tone(h, 0.14f, 0.09f, k)
+        val chip = if (black) tone(h, 0.12f, 0.15f, k) else tone(h, 0.16f, 0.21f, k)
         val surfaces = listOf(page, card, sheet)
-        val primary = hsl(h, 0.70f, 0.76f).withContrast(TEXT, surfaces)
-        val primaryContainer = hsl(h, 0.45f, 0.28f)
-        val tertiaryContainer = hsl(t, 0.35f, 0.28f)
+        // The user's exact color wherever it is readable; otherwise lightened just enough.
+        val primary = accent.withContrast(TEXT, surfaces)
+        val primaryContainer = tone(h, 0.45f, 0.28f, k)
+        val tertiaryContainer = tone(t, 0.35f, 0.28f, k)
         return darkColorScheme(
             primary = primary,
-            onPrimary = hsl(h, 0.70f, 0.14f).withContrast(TEXT, listOf(primary)),
+            onPrimary = tone(h, 0.70f, 0.14f, k).withContrast(TEXT, listOf(primary)),
             primaryContainer = primaryContainer,
-            onPrimaryContainer = hsl(h, 0.70f, 0.90f).withContrast(TEXT, listOf(primaryContainer)),
-            inversePrimary = hsl(h, 0.55f, 0.42f),
-            secondary = hsl(h, 0.25f, 0.76f).withContrast(TEXT, surfaces),
-            onSecondary = hsl(h, 0.25f, 0.15f),
+            onPrimaryContainer = tone(h, 0.70f, 0.90f, k).withContrast(TEXT, listOf(primaryContainer)),
+            inversePrimary = tone(h, 0.55f, 0.42f, k),
+            secondary = tone(h, 0.25f, 0.76f, k).withContrast(TEXT, surfaces),
+            onSecondary = tone(h, 0.25f, 0.15f, k),
             secondaryContainer = chip,
-            onSecondaryContainer = hsl(h, 0.18f, 0.84f).withContrast(TEXT, listOf(chip)),
-            tertiary = hsl(t, 0.60f, 0.79f).withContrast(TEXT, surfaces),
-            onTertiary = hsl(t, 0.60f, 0.15f),
+            onSecondaryContainer = tone(h, 0.18f, 0.84f, k).withContrast(TEXT, listOf(chip)),
+            tertiary = tone(t, 0.60f, 0.79f, k).withContrast(TEXT, surfaces),
+            onTertiary = tone(t, 0.60f, 0.15f, k),
             tertiaryContainer = tertiaryContainer,
-            onTertiaryContainer = hsl(t, 0.70f, 0.90f).withContrast(TEXT, listOf(tertiaryContainer)),
+            onTertiaryContainer = tone(t, 0.70f, 0.90f, k).withContrast(TEXT, listOf(tertiaryContainer)),
             background = page,
-            onBackground = hsl(h, 0.12f, 0.90f).withContrast(TEXT, surfaces),
+            onBackground = tone(h, 0.12f, 0.90f, k).withContrast(TEXT, surfaces),
             surface = page,
-            onSurface = hsl(h, 0.12f, 0.90f).withContrast(TEXT, surfaces),
-            surfaceVariant = hsl(h, 0.10f, 0.20f),
-            onSurfaceVariant = hsl(h, 0.10f, 0.72f).withContrast(TEXT, surfaces + chip),
+            onSurface = tone(h, 0.12f, 0.90f, k).withContrast(TEXT, surfaces),
+            surfaceVariant = tone(h, 0.10f, 0.20f, k),
+            onSurfaceVariant = tone(h, 0.10f, 0.72f, k).withContrast(TEXT, surfaces + chip),
             surfaceTint = Color.Transparent,
-            inverseSurface = hsl(h, 0.12f, 0.90f),
-            inverseOnSurface = hsl(h, 0.12f, 0.12f),
+            inverseSurface = tone(h, 0.12f, 0.90f, k),
+            inverseOnSurface = tone(h, 0.12f, 0.12f, k),
             error = Color(0xFFFFB4A9),
             onError = Color(0xFF561E18),
             errorContainer = Color(0xFF73332B),
             onErrorContainer = Color(0xFFFFDAD5),
-            outline = hsl(h, 0.08f, 0.55f).withContrast(BORDER, surfaces),
-            outlineVariant = hsl(h, 0.10f, 0.27f),
+            outline = tone(h, 0.08f, 0.55f, k).withContrast(BORDER, surfaces),
+            outlineVariant = tone(h, 0.10f, 0.27f, k),
             scrim = Color.Black,
-            surfaceBright = hsl(h, 0.10f, 0.20f),
+            surfaceBright = tone(h, 0.10f, 0.20f, k),
             surfaceDim = page,
-            surfaceContainerLowest = if (black) Color.Black else hsl(h, 0.15f, 0.03f),
+            surfaceContainerLowest = if (black) Color.Black else tone(h, 0.15f, 0.03f, k),
             surfaceContainerLow = sheet,
             surfaceContainer = card,
             surfaceContainerHigh = chip,
-            surfaceContainerHighest = hsl(h, 0.12f, if (black) 0.18f else 0.25f),
+            surfaceContainerHighest = tone(h, 0.12f, if (black) 0.18f else 0.25f, k),
         )
     }
 
     fun mensaColors(spec: CustomThemeSpec, dark: Boolean, scheme: ColorScheme): MensaColors {
-        val h = spec.hue.mod(360).toFloat()
         val card = if (dark) scheme.surfaceContainer else scheme.surfaceContainerLowest
-        // Glow: an accent edge that is a real 3:1 border, plus a faint halo (the AMOLED look, in the user's hue).
-        val glowEdge = (if (dark) hsl(h, 0.65f, 0.58f) else scheme.primary).withContrast(BORDER, listOf(scheme.background, card))
+        // Glow: the accent as a real 3:1 border, plus a faint halo (the AMOLED look, in the user's color).
+        val glowEdge = accentColor(spec).withContrast(BORDER, listOf(scheme.background, card))
         return MensaColors(
             cardContainer = card,
             cardBorder = if (spec.glow) glowEdge else scheme.outlineVariant,
@@ -154,6 +167,25 @@ object CustomTheme {
             cardGlow = if (spec.glow) glowEdge.copy(alpha = if (dark) 0.22f else 0.16f) else null,
         )
     }
+}
+
+/** A tone of the palette: [s] scaled by the accent's saturation [k], so gray accents give neutral themes. */
+private fun tone(h: Float, s: Float, l: Float, k: Float): Color = hsl(h, (s * k).coerceIn(0f, 1f), l)
+
+/** Color to HSL: hue in degrees 0..360, saturation and lightness 0..1. */
+internal fun Color.toHsl(): Triple<Float, Float, Float> {
+    val maxC = maxOf(red, green, blue)
+    val minC = minOf(red, green, blue)
+    val l = (maxC + minC) / 2f
+    val d = maxC - minC
+    if (d == 0f) return Triple(0f, 0f, l)
+    val s = if (l > 0.5f) d / (2f - maxC - minC) else d / (maxC + minC)
+    val h = when (maxC) {
+        red -> ((green - blue) / d + (if (green < blue) 6f else 0f)) * 60f
+        green -> ((blue - red) / d + 2f) * 60f
+        else -> ((red - green) / d + 4f) * 60f
+    }
+    return Triple(h, s, l)
 }
 
 /** HSL to color; [h] in degrees, [s] and [l] 0..1. */

@@ -18,11 +18,11 @@ enum class CustomBase(val key: String) {
 
 /**
  * The user's own theme (ThemeMode.CUSTOM): everything else is generated from these, with contrast guaranteed
- * (see `CustomTheme`). [hue] is the accent hue in degrees, 0..359.
+ * (see `CustomTheme`). [accent] is the chosen accent color as 0xRRGGBB (swatch, hue slider, or typed as hex/RGB).
  */
 data class CustomThemeSpec(
     val base: CustomBase = CustomBase.SYSTEM,
-    val hue: Int = DEFAULT_HUE,
+    val accent: Int = DEFAULT_ACCENT,
     /** The AMOLED-style glowing card border, in the accent color. */
     val glow: Boolean = false,
 ) {
@@ -34,7 +34,8 @@ data class CustomThemeSpec(
     }
 
     companion object {
-        const val DEFAULT_HUE = 265 // violet: unlike every built-in theme
+        /** Violet (the violet swatch: hue 265, HSL saturation 62 %, lightness 52 %): unlike every built-in theme. */
+        const val DEFAULT_ACCENT = 0x7839D0
     }
 }
 

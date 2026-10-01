@@ -124,13 +124,17 @@ class ThemeContrastTest {
         }
     }
 
-    /** The user's own theme: every hue (5° steps) on every base, with and without the glow border, must pass. */
+    /**
+     * The user's own theme: every swatch-tone hue (5° steps) plus extreme typed colors (black, white, grays, pure
+     * primaries, pastels, navy) on every base, with and without the glow border, must pass.
+     */
     @Test
     fun customThemePassesAA_forEveryHueAndBase() {
         val failures = mutableListOf<String>()
         for (base in de.luwify.mensamd.data.settings.CustomBase.entries) for (dark in listOf(false, true)) for (glow in listOf(false, true)) {
-            for (hue in 0 until 360 step 5) {
-                val spec = de.luwify.mensamd.data.settings.CustomThemeSpec(base, hue, glow)
+            val typed = listOf(0x000000, 0xFFFFFF, 0x808080, 0x101010, 0xF0F0F0, 0xFFFF00, 0x0000FF, 0x00FF00, 0xFF0000, 0xFF00FF, 0x00FFFF, 0xFFE0F0, 0x000080, 0x3D2B1F)
+            for (accent in (0 until 360 step 5).map { de.luwify.mensamd.data.settings.hueToAccent(it) } + typed) {
+                val spec = de.luwify.mensamd.data.settings.CustomThemeSpec(base, accent, glow)
                 val isDark = spec.isDark(systemDark = dark)
                 val s = CustomTheme.scheme(spec, isDark)
                 val m = CustomTheme.mensaColors(spec, isDark, s)
@@ -140,7 +144,7 @@ class ThemeContrastTest {
                 check("tag chip/card (visible)", m.tag.container, m.cardContainer!!, 1.1, local)
                 check("card/page (cards stand out)", m.cardContainer!!, s.background, if (base == de.luwify.mensamd.data.settings.CustomBase.BLACK) 1.08 else 1.15, local)
                 if (glow) check("glow edge/card", m.cardBorder!!, m.cardContainer!!, 3.0, local)
-                local.forEach { failures += "$base dark=$isDark glow=$glow hue=$hue: $it" }
+                local.forEach { failures += "$base dark=$isDark glow=$glow accent=%06X: $it".format(accent) }
             }
         }
         val kinds = failures.groupBy { it.substringAfter(": ").substringBefore(":") }.mapValues { it.value.size }
@@ -149,12 +153,30 @@ class ThemeContrastTest {
 
     @Test
     fun customBlackBase_isPureBlackLikeAmoled_andGlowIsTranslucentEdge() {
-        val spec = de.luwify.mensamd.data.settings.CustomThemeSpec(de.luwify.mensamd.data.settings.CustomBase.BLACK, 220, glow = true)
+        val spec = de.luwify.mensamd.data.settings.CustomThemeSpec(de.luwify.mensamd.data.settings.CustomBase.BLACK, 0x4F7FD9, glow = true)
         val s = CustomTheme.scheme(spec, dark = true)
         assertTrue(s.background == Color.Black && s.surface == Color.Black)
         val m = CustomTheme.mensaColors(spec, true, s)
         assertTrue(m.cardGlow!!.alpha < 0.5f && m.cardGlow!!.copy(alpha = 1f) == m.cardBorder)
         val plain = CustomTheme.mensaColors(spec.copy(glow = false), true, s)
         assertTrue(plain.cardGlow == null && plain.cardBorder == s.outlineVariant)
+    }
+
+    @Test
+    fun customAccent_isUsedExactlyWhereReadable_andOnlyAdjustedWhereNot() {
+        val dark = de.luwify.mensamd.data.settings.CustomThemeSpec(de.luwify.mensamd.data.settings.CustomBase.DARK, 0x8AB4F8)
+        assertTrue("light blue on dark stays exact", CustomTheme.scheme(dark, true).primary == Color(0xFF8AB4F8))
+        val light = de.luwify.mensamd.data.settings.CustomThemeSpec(de.luwify.mensamd.data.settings.CustomBase.LIGHT, 0x1D4ED8)
+        assertTrue("strong blue on light stays exact", CustomTheme.scheme(light, false).primary == Color(0xFF1D4ED8))
+        val yellow = light.copy(accent = 0xFFFF00)
+        assertTrue("yellow on light is darkened", CustomTheme.scheme(yellow, false).primary != Color(0xFFFFFF00))
+    }
+
+    @Test
+    fun customGrayAccent_givesANeutralTheme() {
+        val s = CustomTheme.scheme(de.luwify.mensamd.data.settings.CustomThemeSpec(de.luwify.mensamd.data.settings.CustomBase.LIGHT, 0x808080), false)
+        for (c in listOf(s.background, s.surfaceContainerLowest, s.secondaryContainer)) {
+            assertTrue("gray: $c", kotlin.math.abs(c.red - c.green) < 0.01f && kotlin.math.abs(c.green - c.blue) < 0.01f)
+        }
     }
 }

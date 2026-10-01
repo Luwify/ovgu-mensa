@@ -56,7 +56,6 @@
     <string name="hide_other_prices">Andere Preise ausblenden</string>
     <string name="lunch">Mittagessen</string>
     <string name="dinner">Abendessen</string>
-    <string name="display_title">Darstellung</string>
     <string name="display_normal">Normal</string>
     <string name="display_compact">Kompakt</string>
     <string name="theme_system">Systemfarben</string>
@@ -134,4 +133,8 @@
     <string name="hue_violet">Violett</string>
     <string name="hue_magenta">Magenta</string>
     <string name="hue_pink">Pink</string>
+    <string name="layout_title">Kartenansicht</string>
+    <string name="theme_title">Design</string>
+    <string name="theme_label">Farbschema</string>
+    <string name="custom_accent_adjusted">Leicht angepasst, damit Text auf diesem Hintergrund lesbar bleibt.</string>
 </resources>
