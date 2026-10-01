@@ -49,35 +49,17 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Switch
 
-/** The "Benachrichtigungen" section: favorites notifications, which Mensen they check, a test button. */
-class NotifySheet(
-    val settings: NotifySettings,
-    /** Mensen that can be watched (dated menus only), in tab order. */
-    val mensas: List<Mensa>,
-    /** False when the system permission is missing or the user blocked the app's notifications. */
-    val allowed: Boolean,
-    val onEnabled: (Boolean) -> Unit,
-    val onWatch: (String, Boolean) -> Unit,
-    val onAllow: () -> Unit,
-    val onTest: () -> Unit,
-)
-
 /**
- * Bottom sheet with the settings that apply to all Mensen: the price group to highlight, the layout and
- * theme, favorites notifications and the additives/allergens to exclude. Names and meanings come from the
- * parsed legend.
+ * Bottom sheet with the additives/allergens to exclude (global for all Mensen). Names and meanings come from
+ * the parsed legend. Everything that is a preference rather than a filter lives in [SettingsScreen].
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun FilterSheet(
     legend: Legend,
     prefs: ViewPrefs,
-    onPriceGroup: (Int) -> Unit,
-    onCompact: (Boolean) -> Unit,
-    onThemeMode: (ThemeMode) -> Unit,
     onSetCodes: (Set<String>, Boolean) -> Unit,
     onClearCodes: () -> Unit,
-    notify: NotifySheet?,
     onDismiss: () -> Unit,
 ) {
     val language = LocalConfiguration.current.locales[0].language
@@ -90,37 +72,6 @@ fun FilterSheet(
             item(key = "title") {
                 Text(stringResource(R.string.sheet_title), style = MaterialTheme.typography.titleLarge)
             }
-            item(key = "price-title") { SheetHeading(stringResource(R.string.price_group_title)) }
-            item(key = "price-picker") {
-                val fallback = listOf(R.string.price_students, R.string.price_staff, R.string.price_guests)
-                val count = if (legend.priceGroups.isEmpty()) fallback.size else legend.priceGroups.size
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    for (index in 0 until count) {
-                        val label = legend.priceGroups.getOrNull(index)?.forLanguage(language)
-                            ?: fallback.getOrNull(index)?.let { stringResource(it) }.orEmpty()
-                        MensaFilterChip(selected = prefs.priceGroup == index, onClick = { onPriceGroup(index) }, label = { Text(label) })
-                    }
-                }
-            }
-
-            item(key = "display-title") { SheetHeading(stringResource(R.string.display_title)) }
-            item(key = "display-picker") {
-                val theme = LocalThemeMode.current
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        MensaFilterChip(selected = !prefs.compact, onClick = { onCompact(false) }, label = { Text(stringResource(R.string.display_normal)) })
-                        MensaFilterChip(selected = prefs.compact, onClick = { onCompact(true) }, label = { Text(stringResource(R.string.display_compact)) })
-                    }
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        MensaFilterChip(selected = theme == ThemeMode.SYSTEM, onClick = { onThemeMode(ThemeMode.SYSTEM) }, label = { Text(stringResource(R.string.theme_system)) })
-                        MensaFilterChip(selected = theme == ThemeMode.SOFT, onClick = { onThemeMode(ThemeMode.SOFT) }, label = { Text(stringResource(R.string.theme_soft)) })
-                        MensaFilterChip(selected = theme == ThemeMode.AMOLED, onClick = { onThemeMode(ThemeMode.AMOLED) }, label = { Text(stringResource(R.string.theme_amoled)) })
-                    }
-                }
-            }
-
-            if (notify != null) notifySection(notify, language)
-
             item(key = "exclude-title") { SheetHeading(stringResource(R.string.exclude_title)) }
             item(key = "exclude-hint") {
                 Text(
@@ -178,81 +129,8 @@ fun FilterSheet(
     }
 }
 
-private fun androidx.compose.foundation.lazy.LazyListScope.notifySection(notify: NotifySheet, language: String) {
-    val enabled = notify.settings.enabled
-    item(key = "notify-title") { SheetHeading(stringResource(R.string.notify_section_title)) }
-    item(key = "notify-toggle") {
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .toggleable(value = enabled, role = Role.Switch, onValueChange = notify.onEnabled)
-                .padding(vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(Modifier.weight(1f)) {
-                Text(stringResource(R.string.notify_toggle), style = MaterialTheme.typography.bodyLarge)
-                Text(
-                    stringResource(R.string.notify_toggle_hint),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            Spacer(Modifier.width(16.dp))
-            Switch(checked = enabled, onCheckedChange = null)
-        }
-    }
-    if (!enabled) return
-    if (!notify.allowed) {
-        item(key = "notify-blocked") {
-            Surface(
-                shape = MaterialTheme.shapes.small,
-                color = MaterialTheme.colorScheme.tertiaryContainer,
-                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-            ) {
-                Row(Modifier.padding(start = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        stringResource(R.string.notify_blocked),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onTertiaryContainer,
-                        modifier = Modifier.weight(1f).padding(vertical = 8.dp),
-                    )
-                    TextButton(onClick = notify.onAllow) {
-                        Text(stringResource(R.string.notify_open_settings), color = MaterialTheme.colorScheme.onTertiaryContainer)
-                    }
-                }
-            }
-        }
-    }
-    item(key = "notify-mensen-title") {
-        Text(
-            stringResource(R.string.notify_mensen_title),
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(top = 12.dp, bottom = 2.dp),
-        )
-    }
-    items(notify.mensas, key = { "notify-${it.id}" }) { mensa ->
-        val watched = mensa.id in notify.settings.watched
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .toggleable(value = watched, role = Role.Checkbox, onValueChange = { notify.onWatch(mensa.id, it) })
-                .padding(vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Checkbox(checked = watched, onCheckedChange = null)
-            Text(mensa.name.forLanguage(language), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(start = 12.dp))
-        }
-    }
-    item(key = "notify-test") {
-        OutlinedButton(onClick = notify.onTest, modifier = Modifier.padding(top = 8.dp)) {
-            Text(stringResource(R.string.notify_test))
-        }
-    }
-}
-
 @Composable
-private fun SheetHeading(text: String) {
+internal fun SheetHeading(text: String) {
     Text(
         text,
         style = MaterialTheme.typography.titleMedium,

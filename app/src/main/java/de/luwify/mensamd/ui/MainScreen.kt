@@ -57,13 +57,19 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import de.luwify.mensamd.model.PageFormat
+import androidx.compose.ui.res.painterResource
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 
 /** Tab row of Mensen on top, one horizontally swipeable page per Mensa below. */
 @Composable
-fun MainScreen(vm: MainViewModel, screen: AppScreen.Main, showCardIcon: Boolean, onOpenCard: () -> Unit) {
+fun MainScreen(
+    vm: MainViewModel,
+    screen: AppScreen.Main,
+    showCardIcon: Boolean,
+    onOpenCard: () -> Unit,
+    onOpenSettings: () -> Unit,
+) {
     val mensas = screen.mensas
     val latestMensas by rememberUpdatedState(mensas)
     val today = rememberToday()
@@ -109,7 +115,6 @@ fun MainScreen(vm: MainViewModel, screen: AppScreen.Main, showCardIcon: Boolean,
             },
         )
     }
-    val notifyMensas = remember(mensas) { mensas.filter { it.format == PageFormat.DATED } }
 
     // Track the active Mensa by id so a reorder (which changes indices) keeps you on the same one.
     var activeId by rememberSaveable { mutableStateOf<String?>(null) }
@@ -146,6 +151,9 @@ fun MainScreen(vm: MainViewModel, screen: AppScreen.Main, showCardIcon: Boolean,
                             Icon(CardIcon, contentDescription = stringResource(R.string.card_title))
                         }
                     }
+                    IconButton(onClick = onOpenSettings) {
+                        Icon(painterResource(R.drawable.ic_settings), contentDescription = stringResource(R.string.settings_title))
+                    }
                 }
             }
         },
@@ -159,21 +167,7 @@ fun MainScreen(vm: MainViewModel, screen: AppScreen.Main, showCardIcon: Boolean,
                 beyondViewportPageCount = 1,
                 key = { latestMensas.getOrNull(it)?.id ?: it.toString() },
             ) { page ->
-                latestMensas.getOrNull(page)?.let { mensa ->
-                    MensaPage(vm, mensa.id, today, screen.prefs, onToggleFavorite) { mensaId ->
-                        notify?.let { settings ->
-                            NotifySheet(
-                                settings = settings,
-                                mensas = notifyMensas,
-                                allowed = access.allowed,
-                                onEnabled = vm::setNotificationsEnabled,
-                                onWatch = vm::setNotifyMensa,
-                                onAllow = access.request,
-                                onTest = { if (access.allowed) vm.postTestNotification(mensaId) else access.request() },
-                            )
-                        }
-                    }
-                }
+                latestMensas.getOrNull(page)?.let { mensa -> MensaPage(vm, mensa.id, today, screen.prefs, onToggleFavorite) }
             }
         }
     }
@@ -194,7 +188,6 @@ private fun MensaPage(
     today: LocalDate,
     prefs: ViewPrefs,
     onToggleFavorite: (String) -> Unit,
-    notifySheet: (mensaId: String) -> NotifySheet?,
 ) {
     val flow = remember(mensaId) { vm.menuFor(mensaId) }
     val ui by flow.collectAsStateWithLifecycle()
@@ -242,12 +235,8 @@ private fun MensaPage(
             FilterSheet(
                 legend = current.legend,
                 prefs = prefs,
-                onPriceGroup = vm::setPriceGroup,
-                onCompact = vm::setCompactMode,
-                onThemeMode = vm::setThemeMode,
                 onSetCodes = vm::setCodesExcluded,
                 onClearCodes = vm::clearExcludedCodes,
-                notify = notifySheet(mensaId),
                 onDismiss = { showSheet = false },
             )
         }

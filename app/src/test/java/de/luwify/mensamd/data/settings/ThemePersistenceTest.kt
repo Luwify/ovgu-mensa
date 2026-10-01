@@ -103,8 +103,8 @@ class ThemePersistenceTest {
         val root = src("src/main/java", "app/src/main/java")
         val users = root.walkTopDown().filter { it.extension == "kt" && it.readText().contains("setThemeMode") }
             .map { it.name }.toSortedSet()
-        // repository (the single writer), the ViewModel wrapper, and the screen wiring of the sheet's chips
-        assertEquals(sortedSetOf("MainScreen.kt", "MainViewModel.kt", "SettingsRepository.kt"), users)
+        // repository (the single writer), the ViewModel wrapper, and the theme chips of the settings page
+        assertEquals(sortedSetOf("MainViewModel.kt", "SettingsRepository.kt", "SettingsScreen.kt"), users)
 
         val repoText = File(root, "de/luwify/mensamd/data/settings/SettingsRepository.kt").readText()
         val writes = Regex("""\[themeKey\]\s*=""").findAll(repoText).count()

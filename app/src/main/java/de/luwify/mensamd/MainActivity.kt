@@ -32,6 +32,7 @@ import de.luwify.mensamd.ui.AppScreen
 import de.luwify.mensamd.ui.MainViewModel
 import de.luwify.mensamd.ui.MainScreen
 import de.luwify.mensamd.ui.MensaPickerScreen
+import de.luwify.mensamd.ui.SettingsScreen
 import de.luwify.mensamd.ui.theme.MensaTheme
 
 class MainActivity : ComponentActivity() {
@@ -89,9 +90,19 @@ private fun MensaRoot(viewModel: MainViewModel, cardScanner: NfcCardScanner) {
             var showCard by rememberSaveable { mutableStateOf(false) }
             // A notification tap goes to the menu, also from the card screen.
             val openRequest by viewModel.openRequest.collectAsStateWithLifecycle()
-            LaunchedEffect(openRequest) { if (openRequest != null) showCard = false }
+            var showSettings by rememberSaveable { mutableStateOf(false) }
+            LaunchedEffect(openRequest) {
+                if (openRequest != null) {
+                    showCard = false
+                    showSettings = false
+                }
+            }
             Box(Modifier.fillMaxSize()) {
-                MainScreen(viewModel, s, showCardIcon = cardScanner.available, onOpenCard = { showCard = true })
+                MainScreen(
+                    viewModel, s, showCardIcon = cardScanner.available,
+                    onOpenCard = { showCard = true }, onOpenSettings = { showSettings = true },
+                )
+                if (showSettings) SettingsScreen(viewModel, s.mensas, s.defaultId, s.prefs, onBack = { showSettings = false })
                 if (showCard) CardScreen(cardScanner, onBack = { showCard = false })
             }
         }

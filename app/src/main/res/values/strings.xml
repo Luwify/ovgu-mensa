@@ -107,4 +107,5 @@
     <string name="notify_permission_text">Mensa MD can let you know around 6 pm when one of your favorites is on tomorrow\'s menu. Your favorites stay on this phone. You can change this any time in the filter menu.</string>
     <string name="notify_permission_allow">Allow</string>
     <string name="notify_permission_later">Not now</string>
+    <string name="settings_title">Settings</string>
 </resources>

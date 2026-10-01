@@ -104,4 +104,5 @@
     <string name="notify_permission_text">Mensa MD kann dir gegen 18 Uhr Bescheid geben, wenn einer deiner Favoriten morgen auf dem Speiseplan steht. Deine Favoriten bleiben auf diesem Gerät. Ändern kannst du das jederzeit im Filter-Menü.</string>
     <string name="notify_permission_allow">Erlauben</string>
     <string name="notify_permission_later">Nicht jetzt</string>
+    <string name="settings_title">Einstellungen</string>
 </resources>
