@@ -4,6 +4,7 @@ import de.luwify.mensamd.model.Dish
 import de.luwify.mensamd.model.LocalizedText
 import de.luwify.mensamd.model.MenuDay
 import de.luwify.mensamd.parser.MenuPageParser
+import de.luwify.mensamd.ui.theme.FootprintStops
 import de.luwify.mensamd.ui.theme.footprintColor
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
@@ -62,16 +63,16 @@ class FootprintScaleTest {
     }
 
     @Test fun colors_runGreenToRed_andDifferPerTheme() {
-        for (dark in listOf(false, true)) {
-            val low = footprintColor(0f, dark)
-            val mid = footprintColor(0.5f, dark)
-            val high = footprintColor(1f, dark)
+        for (stops in listOf(FootprintStops.light, FootprintStops.dark)) {
+            val low = footprintColor(0f, stops)
+            val mid = footprintColor(0.5f, stops)
+            val high = footprintColor(1f, stops)
             assertNotEquals(low, mid)
             assertNotEquals(mid, high)
             assert(low.green > low.red) { "low is greenish" }
             assert(high.red > high.green) { "high is reddish" }
         }
-        assertNotEquals(footprintColor(0f, false), footprintColor(0f, true))
-        assertEquals(footprintColor(0f, false), footprintColor(-3f, false)) // clamped
+        assertNotEquals(footprintColor(0f, FootprintStops.light), footprintColor(0f, FootprintStops.dark))
+        assertEquals(footprintColor(0f, FootprintStops.light), footprintColor(-3f, FootprintStops.light)) // clamped
     }
 }

@@ -58,4 +58,6 @@
     <string name="display_title">Darstellung</string>
     <string name="display_normal">Normal</string>
     <string name="display_compact">Kompakt</string>
+    <string name="theme_system">Systemfarben</string>
+    <string name="theme_soft">Soft</string>
 </resources>

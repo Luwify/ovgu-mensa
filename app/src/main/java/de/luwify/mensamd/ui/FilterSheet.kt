@@ -1,6 +1,9 @@
 package de.luwify.mensamd.ui
 
 import androidx.compose.foundation.layout.Arrangement
+import de.luwify.mensamd.ui.theme.LocalThemeMode
+import de.luwify.mensamd.data.settings.ThemeMode
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -51,6 +54,7 @@ fun FilterSheet(
     prefs: ViewPrefs,
     onPriceGroup: (Int) -> Unit,
     onCompact: (Boolean) -> Unit,
+    onThemeMode: (ThemeMode) -> Unit,
     onSetCodes: (Set<String>, Boolean) -> Unit,
     onClearCodes: () -> Unit,
     onDismiss: () -> Unit,
@@ -80,9 +84,16 @@ fun FilterSheet(
 
             item(key = "display-title") { SheetHeading(stringResource(R.string.display_title)) }
             item(key = "display-picker") {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilterChip(selected = !prefs.compact, onClick = { onCompact(false) }, label = { Text(stringResource(R.string.display_normal)) })
-                    FilterChip(selected = prefs.compact, onClick = { onCompact(true) }, label = { Text(stringResource(R.string.display_compact)) })
+                val theme = LocalThemeMode.current
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FilterChip(selected = !prefs.compact, onClick = { onCompact(false) }, label = { Text(stringResource(R.string.display_normal)) })
+                        FilterChip(selected = prefs.compact, onClick = { onCompact(true) }, label = { Text(stringResource(R.string.display_compact)) })
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FilterChip(selected = theme == ThemeMode.SYSTEM, onClick = { onThemeMode(ThemeMode.SYSTEM) }, label = { Text(stringResource(R.string.theme_system)) })
+                        FilterChip(selected = theme == ThemeMode.SOFT, onClick = { onThemeMode(ThemeMode.SOFT) }, label = { Text(stringResource(R.string.theme_soft)) })
+                    }
                 }
             }
 

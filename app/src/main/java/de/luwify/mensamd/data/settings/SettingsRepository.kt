@@ -91,4 +91,13 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
     suspend fun setCompactMode(compact: Boolean) {
         store.edit { it[compactKey] = compact }
     }
+
+    private val themeKey = stringPreferencesKey("theme_mode")
+
+    /** System colors (default) or the own Soft palette. */
+    val themeMode: Flow<ThemeMode> = store.data.map { ThemeMode.fromKey(it[themeKey]) }
+
+    suspend fun setThemeMode(mode: ThemeMode) {
+        store.edit { it[themeKey] = mode.key }
+    }
 }

@@ -60,4 +60,6 @@
     <string name="display_title">Layout</string>
     <string name="display_normal">Normal</string>
     <string name="display_compact">Compact</string>
+    <string name="theme_system">System colors</string>
+    <string name="theme_soft">Soft</string>
 </resources>

@@ -2,6 +2,8 @@ package de.luwify.mensamd.ui
 
 import android.text.format.DateUtils
 import androidx.compose.foundation.background
+import androidx.compose.ui.unit.Dp
+import androidx.compose.material3.CardDefaults
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Constraints
@@ -33,7 +35,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.animation.animateContentSize
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -70,7 +71,7 @@ import de.luwify.mensamd.model.Legend
 import de.luwify.mensamd.model.MenuDay
 import de.luwify.mensamd.model.Tag
 import de.luwify.mensamd.ui.theme.footprintColor
-import de.luwify.mensamd.ui.theme.veganChipColors
+import de.luwify.mensamd.ui.theme.LocalMensaColors
 import java.text.NumberFormat
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -220,10 +221,15 @@ private fun DishCard(
             CompactCardBody(dish, legend, language, euro, priceGroup)
         }
     }
+    val theme = LocalMensaColors.current
+    val colors = theme.cardContainer?.let { CardDefaults.cardColors(containerColor = it) } ?: CardDefaults.cardColors()
+    val elevation = CardDefaults.cardElevation(defaultElevation = theme.cardElevation)
+    // Hairline border (one physical pixel) so the card edge doesn't depend on the shadow.
+    val border = theme.cardBorder?.let { BorderStroke(Dp.Hairline, it) }
     if (compact) {
-        Card(onClick = { open = !open }, modifier = modifier.fillMaxWidth()) { body() }
+        Card(onClick = { open = !open }, modifier = modifier.fillMaxWidth(), colors = colors, elevation = elevation, border = border) { body() }
     } else {
-        Card(modifier.fillMaxWidth()) { body() }
+        Card(modifier.fillMaxWidth(), colors = colors, elevation = elevation, border = border) { body() }
     }
 }
 
@@ -319,12 +325,12 @@ private fun CompactCardBody(dish: Dish, legend: Legend, language: String, euro: 
                 modifier = Modifier.weight(1f),
             )
             if (split != null) {
-                Surface(shape = MaterialTheme.shapes.extraSmall, color = MaterialTheme.colorScheme.primaryContainer) {
+                Surface(shape = MaterialTheme.shapes.extraSmall, color = LocalMensaColors.current.priceContainer) {
                     Text(
                         euro.format(dish.prices[split.selected] / 100.0),
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        color = LocalMensaColors.current.onPriceContainer,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
                     )
                 }
@@ -367,16 +373,16 @@ private fun Prices(
     // One row: [selected price] [arrow] [other prices...]. If it is too wide for a narrow screen
     // it scrolls sideways instead of wrapping below.
     Row(Modifier.horizontalScroll(rememberScrollState()), verticalAlignment = Alignment.CenterVertically) {
-        Surface(shape = MaterialTheme.shapes.small, color = MaterialTheme.colorScheme.primaryContainer) {
+        Surface(shape = MaterialTheme.shapes.small, color = LocalMensaColors.current.priceContainer) {
             Column(Modifier.padding(horizontal = 10.dp, vertical = 4.dp)) {
                 if (expanded) {
-                    Text(label(split.selected), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                    Text(label(split.selected), style = MaterialTheme.typography.labelSmall, color = LocalMensaColors.current.onPriceContainer)
                 }
                 Text(
                     euro.format(prices[split.selected] / 100.0),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    color = LocalMensaColors.current.onPriceContainer,
                 )
             }
         }
@@ -429,7 +435,7 @@ private fun Footprint(dish: Dish, scale: DayFootprint?) {
     val co2 = dish.co2Grams
     val water = dish.waterLiters
     if (co2 == null && water == null) return
-    val dark = isSystemInDarkTheme()
+    val stops = LocalMensaColors.current.footprint
     val neutral = MaterialTheme.colorScheme.onSurfaceVariant
     val parts = buildList {
         if (co2 != null) add(stringResource(R.string.co2_value, co2) to scale?.co2?.level(co2))
@@ -443,7 +449,7 @@ private fun Footprint(dish: Dish, scale: DayFootprint?) {
             parts.forEachIndexed { index, (text, level) ->
                 if (index > 0) append(" · ")
                 if (level != null) {
-                    withStyle(SpanStyle(color = footprintColor(level, dark), fontWeight = FontWeight.SemiBold)) { append(text) }
+                    withStyle(SpanStyle(color = footprintColor(level, stops), fontWeight = FontWeight.SemiBold)) { append(text) }
                 } else {
                     append(text)
                 }
@@ -504,18 +510,19 @@ private fun CodeMeanings(codes: List<String>, codeIndex: Map<String, LegendCode>
 @Composable
 private fun TagLabel(tag: Tag, dense: Boolean = false) {
     val label = tagLabelRes(tag.key)?.let { stringResource(it) } ?: tag.label
-    val vegan = if (tag.key == "vegan") veganChipColors(isSystemInDarkTheme()) else null
-    val content = vegan?.content ?: MaterialTheme.colorScheme.onSecondaryContainer
+    val colors = LocalMensaColors.current
+    val isVegan = tag.key == "vegan"
+    val content = if (isVegan) colors.veganContent else MaterialTheme.colorScheme.onSecondaryContainer
     Surface(
         shape = if (dense) MaterialTheme.shapes.extraSmall else MaterialTheme.shapes.small,
-        color = vegan?.container ?: MaterialTheme.colorScheme.secondaryContainer,
+        color = if (isVegan) colors.veganContainer else MaterialTheme.colorScheme.secondaryContainer,
     ) {
         Row(
             if (dense) Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-            else Modifier.padding(start = if (vegan != null) 6.dp else 8.dp, end = 8.dp, top = 4.dp, bottom = 4.dp),
+            else Modifier.padding(start = if (isVegan) 6.dp else 8.dp, end = 8.dp, top = 4.dp, bottom = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            if (vegan != null) {
+            if (isVegan) {
                 Icon(
                     painterResource(R.drawable.ic_sprout),
                     contentDescription = null,

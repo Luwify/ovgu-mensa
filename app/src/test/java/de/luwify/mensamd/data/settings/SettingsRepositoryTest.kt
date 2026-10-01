@@ -111,4 +111,19 @@ class SettingsRepositoryTest {
             scope.cancel()
         }
     }
+
+    @Test
+    fun themeMode_defaultsToSystem_andPersists() = runBlocking {
+        val file = File(tmp.root, "theme.preferences_pb")
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        try {
+            val repo = SettingsRepository(PreferenceDataStoreFactory.create(scope = scope) { file })
+            assertEquals(ThemeMode.SYSTEM, repo.themeMode.first())
+            repo.setThemeMode(ThemeMode.SOFT)
+            assertEquals(ThemeMode.SOFT, repo.themeMode.first())
+            assertEquals(ThemeMode.SYSTEM, ThemeMode.fromKey("garbage")) // unknown stored value falls back
+        } finally {
+            scope.cancel()
+        }
+    }
 }

@@ -167,6 +167,7 @@ private fun MensaPage(vm: MainViewModel, mensaId: String, today: LocalDate, pref
                 prefs = prefs,
                 onPriceGroup = vm::setPriceGroup,
                 onCompact = vm::setCompactMode,
+                onThemeMode = vm::setThemeMode,
                 onSetCodes = vm::setCodesExcluded,
                 onClearCodes = vm::clearExcludedCodes,
                 onDismiss = { showSheet = false },

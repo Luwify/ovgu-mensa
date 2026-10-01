@@ -30,7 +30,9 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         setContent {
-            MensaTheme { MensaRoot(viewModel) }
+            val mode by viewModel.themeMode.collectAsStateWithLifecycle()
+            // Nothing until the stored theme is known (a few ms), so the wrong theme never flashes.
+            mode?.let { MensaTheme(it) { MensaRoot(viewModel) } }
         }
     }
 }

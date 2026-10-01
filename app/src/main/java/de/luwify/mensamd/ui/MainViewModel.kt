@@ -3,6 +3,7 @@ package de.luwify.mensamd.ui
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import de.luwify.mensamd.AppContainer
+import de.luwify.mensamd.data.settings.ThemeMode
 import de.luwify.mensamd.data.settings.ViewPrefs
 import de.luwify.mensamd.model.Mensa
 import de.luwify.mensamd.model.MensaCatalog
@@ -50,6 +51,10 @@ class MainViewModel(private val container: AppContainer) : ViewModel() {
         if (default == null) AppScreen.Picker else AppScreen.Main(resolveOrder(order), default.id, prefs)
     }.stateIn(viewModelScope, SharingStarted.Eagerly, AppScreen.Loading)
 
+    /** Null until DataStore answered: the activity draws nothing until then, so there is no theme flash. */
+    val themeMode: StateFlow<ThemeMode?> = container.settings.themeMode
+        .stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
     private val menus = ConcurrentHashMap<String, StateFlow<MenuUiState?>>()
 
     /**
@@ -70,6 +75,10 @@ class MainViewModel(private val container: AppContainer) : ViewModel() {
 
     fun setOrder(ids: List<String>) {
         viewModelScope.launch { container.settings.setMensaOrder(ids) }
+    }
+
+    fun setThemeMode(mode: ThemeMode) {
+        viewModelScope.launch { container.settings.setThemeMode(mode) }
     }
 
     fun setCompactMode(compact: Boolean) {
