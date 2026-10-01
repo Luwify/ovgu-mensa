@@ -12,6 +12,11 @@ import androidx.compose.ui.graphics.toArgb
  * distance, exponential fall-off, so there are no lines), whose reach swells and shrinks around the card like a
  * living mass, tinted with a slowly drifting iridescent gold. The jelly deformation (top/bottom shift, side inset)
  * comes in as uniforms. Coordinates are the card's own (0,0 = its top left).
+ *
+ * It is drawn by [SuperAuraOverlay] above the whole list, so it lies over the neighboring cards and headers: the
+ * card's own area is masked out (exactly zero inside it), and the glow fades out smoothly over [fade] px before the
+ * edges of the visible band ([fadeTop] = bottom of the pinned day header, [fadeBottom] = end of the list viewport),
+ * so it never ends in a straight cut.
  */
 private const val AURA_AGSL = """
 uniform float2 size;
@@ -22,6 +27,9 @@ uniform float bottom;
 uniform float inset;
 uniform float reach;
 uniform float strength;
+uniform float fadeTop;
+uniform float fadeBottom;
+uniform float fade;
 layout(color) uniform half4 c0;
 layout(color) uniform half4 c1;
 layout(color) uniform half4 c2;
@@ -55,7 +63,11 @@ half4 main(float2 xy) {
     float k = exp(-d / (reach * (0.55 + 0.75 * live)));
     // Iridescent gold: the hue drifts around the card and shifts a little with distance.
     half3 col = palette(a / 6.2831853 + time * 0.045 + d / (reach * 7.0));
-    float alpha = clamp(k * strength, 0.0, 1.0);
+    // Nothing over the card itself (the overlay lies above it); a 1.5 px soft edge matches the card's anti-aliasing.
+    float card = smoothstep(-0.75, 0.75, roundBox(xy - size * 0.5, size * 0.5, radius));
+    // Fade out before the pinned header and the end of the viewport instead of being cut there.
+    float band = smoothstep(fadeTop, fadeTop + fade, xy.y) * (1.0 - smoothstep(fadeBottom - fade, fadeBottom, xy.y));
+    float alpha = clamp(k * strength, 0.0, 1.0) * card * band;
     return half4(col * half(alpha), half(alpha));
 }
 """
@@ -72,7 +84,13 @@ class AuraShader(colors: List<Color>) {
     val brush = ShaderBrush(shader)
 
     @Suppress("LongParameterList")
-    fun update(w: Float, h: Float, radius: Float, timeS: Float, jelly: FloatArray, reach: Float, strength: Float) {
+    fun update(
+        w: Float, h: Float, radius: Float, timeS: Float, jelly: FloatArray, reach: Float, strength: Float,
+        fadeTop: Float, fadeBottom: Float, fade: Float,
+    ) {
+        shader.setFloatUniform("fadeTop", fadeTop)
+        shader.setFloatUniform("fadeBottom", fadeBottom)
+        shader.setFloatUniform("fade", fade)
         shader.setFloatUniform("size", w, h)
         shader.setFloatUniform("radius", radius)
         shader.setFloatUniform("time", timeS)

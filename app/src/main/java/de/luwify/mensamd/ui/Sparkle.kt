@@ -39,7 +39,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import androidx.compose.animation.core.spring
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.platform.LocalDensity
@@ -163,6 +162,13 @@ object SparkleMath {
 
     const val UNLOCK_TAPS = 5
 
+    /**
+     * Where the visible band for the aura starts: the bottom of the pinned day header if one is stuck at the top
+     * ([items]: offset and size of each visible item, [isHeader] marks headers), else 0 (the viewport's top).
+     */
+    fun pinnedHeaderBottom(items: List<Pair<Int, Int>>, isHeader: List<Boolean>): Int =
+        items.indices.filter { isHeader[it] && items[it].first <= 0 }.maxOfOrNull { items[it].first + items[it].second }?.coerceAtLeast(0) ?: 0
+
     /** The aura's trail after a scroll step [dy] (px; the content moved by it): pushed the other way, capped. */
     fun dragAfter(current: Float, dy: Float, max: Float): Float = (current - dy * 0.4f).coerceIn(-max, max)
 
@@ -227,9 +233,6 @@ class ScrollDrag(private val scope: CoroutineScope, private val maxPx: Float) {
     }
 }
 
-/** The list's [ScrollDrag], when super sparkle is on; null otherwise (no aura drag). */
-val LocalScrollDrag = staticCompositionLocalOf<ScrollDrag?> { null }
-
 @Composable
 fun rememberScrollDrag(): ScrollDrag {
     val scope = rememberCoroutineScope()
@@ -259,12 +262,12 @@ class FavoriteBurst {
  * Wraps a dish card: draws the burst over it (centered on [heartCenter], which knows where the card puts its
  * heart) and, when [legendary], the legendary frame: a gold glow, a gold gradient edge that slowly turns, and three
  * twinkling stars. Everything is drawn in the draw phase from one clock (about 30 fps, only while the app is
- * resumed and the card is composed), with no blur and no offscreen layer, so scrolling stays smooth.
+ * resumed and the card is composed), with no blur and no offscreen layer, so scrolling stays smooth. The super aura
+ * is not drawn here but by [SuperAuraOverlay] above the list (it must lie over the neighboring cards).
  */
 @Composable
 fun FavoriteEffects(
     legendary: Boolean,
-    superAura: Boolean,
     burst: FavoriteBurst,
     shape: Shape,
     favoriteColor: Color,
@@ -276,11 +279,6 @@ fun FavoriteEffects(
     val context = LocalContext.current
     val animate = remember(context) { animationsEnabled(context) }
     val gold = remember(background) { goldFor(background) }
-    val aura = remember(background) { auraFor(background) }
-    val auraShader = remember(aura, superAura) {
-        if (superAura && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) AuraShader(aura) else null
-    }
-    val drag = LocalScrollDrag.current
     var clock by remember { mutableLongStateOf(0L) }
     if (legendary && animate) {
         val lifecycle = LocalLifecycleOwner.current.lifecycle
@@ -297,10 +295,6 @@ fun FavoriteEffects(
     }
     Box(
         modifier.drawWithContent {
-            if (legendary && superAura) {
-                val jelly = if (animate && drag != null) SparkleMath.jelly(drag.offset.value, drag.wobble.value) else floatArrayOf(0f, 0f, 0f)
-                drawSuperAura(shape, aura, auraShader, clock, jelly, animate)
-            }
             if (legendary) drawLegendaryGlow(shape, gold)
             drawContent()
             if (legendary) drawLegendaryEdge(shape, gold, if (animate) clock else 0L, animate)
@@ -357,14 +351,25 @@ private fun DrawScope.drawLegendaryEdge(shape: Shape, gold: List<Color>, timeMs:
  * The super aura behind the card: one soft, living glow (the [AuraShader] on Android 13+; below that, fine fading
  * rings as a plain gradient), deformed like jelly by [jelly], plus sparkles that flash up inside it now and then.
  */
-private fun DrawScope.drawSuperAura(shape: Shape, colors: List<Color>, shader: AuraShader?, timeMs: Long, jelly: FloatArray, animate: Boolean) {
-    val r = cornerRadiusOf(shape)
-    val w = size.width
-    val h = size.height
+internal fun DrawScope.drawSuperAura(
+    cardSize: Size,
+    r: Float,
+    colors: List<Color>,
+    shader: AuraShader?,
+    timeMs: Long,
+    jelly: FloatArray,
+    animate: Boolean,
+    fadeTop: Float,
+    fadeBottom: Float,
+) {
+    val w = cardSize.width
+    val h = cardSize.height
+    val center = Offset(w / 2f, h / 2f)
+    val fade = 28.dp.toPx()
     val reach = 9.dp.toPx()
     val margin = 30.dp.toPx() + kotlin.math.abs(jelly[0]) + kotlin.math.abs(jelly[1])
     if (shader != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-        shader.update(w, h, r, timeMs / 1000f, jelly, reach, if (animate) 0.85f else 0.7f)
+        shader.update(w, h, r, timeMs / 1000f, jelly, reach, if (animate) 0.85f else 0.7f, fadeTop, fadeBottom, fade)
         drawRect(shader.brush, topLeft = Offset(-margin, -margin), size = Size(w + 2 * margin, h + 2 * margin))
     } else {
         // Fallback gradient: twelve touching rings, each fainter, with the jelly's shift and inset.
@@ -390,6 +395,7 @@ private fun DrawScope.drawSuperAura(shape: Shape, colors: List<Color>, shader: A
         val (pos, out, sizeDp, alpha) = SparkleMath.sparkleSpot(i, timeMs).let { listOf(it[0], it[1], it[2], it[3]) }
         if (alpha < 0.03f) continue
         val p = SparkleMath.roundedRectPoint(pos, w, h, r)
+        if (p[1] < fadeTop + fade || p[1] > fadeBottom - fade) continue // not in the faded edges either
         val shift = jelly[0] + (jelly[1] - jelly[0]) * (p[1] / h)
         val at = Offset(p[0] + p[2] * out.dp.toPx() - p[2] * jelly[2], p[1] + p[3] * out.dp.toPx() + shift)
         drawStar(at, sizeDp.dp.toPx(), colors[3].copy(alpha = alpha))

@@ -70,7 +70,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.material3.ripple
 import androidx.compose.ui.layout.layout
-import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.geometry.Offset
@@ -155,8 +155,15 @@ private fun MenuList(
     val codeIndex = remember(ui.legend) { ui.legend.codes.associateBy { it.code } }
     // Super sparkle: the favorites' aura trails the scrolling (see ScrollDrag); nothing installed otherwise.
     val drag = if (prefs.superSparkle) rememberScrollDrag() else null
-    CompositionLocalProvider(LocalScrollDrag provides drag) {
+    val listState = rememberLazyListState()
+    // The super aura is drawn in one layer above the list (see SuperAuraOverlay), not by the cards themselves.
+    val favoriteKeys = remember(rows, prefs.favorites, prefs.superSparkle) {
+        if (!prefs.superSparkle) emptySet()
+        else rows.filterIsInstance<ListRow.DishRow>().filter { it.favoriteKey in prefs.favorites }.mapTo(HashSet()) { it.key }
+    }
+    Box(Modifier.fillMaxSize()) {
         LazyColumn(
+            state = listState,
             modifier = Modifier.fillMaxSize().then(if (drag != null) Modifier.nestedScroll(drag.connection) else Modifier),
             // Horizontal padding lives on the items so sticky headers can span the full width.
             contentPadding = PaddingValues(bottom = bottom + 16.dp),
@@ -174,7 +181,7 @@ private fun MenuList(
                     is ListRow.DishRow -> item(key = row.key, contentType = "dish") {
                         DishCard(
                             row.dish, ui.legend, codeIndex, locale.language, euro, prefs.priceGroup, row.date?.let { footprints[it] },
-                            prefs.compact, row.favoriteKey in prefs.favorites, prefs.legendary, prefs.superSparkle, { onToggleFavorite(row.favoriteKey) },
+                            prefs.compact, row.favoriteKey in prefs.favorites, prefs.legendary, { onToggleFavorite(row.favoriteKey) },
                             Modifier.padding(horizontal = 16.dp),
                         )
                     }
@@ -195,6 +202,9 @@ private fun MenuList(
                     is ListRow.Footer -> item(key = row.key, contentType = "footer") { UpdatedFooter(row.updatedAt, row.failed) }
                 }
             }
+        }
+        if (favoriteKeys.isNotEmpty()) {
+            SuperAuraOverlay(listState, favoriteKeys, headerKeys = { it is String && (it.startsWith("header-") || it == ListRow.FixedHeader.key) }, drag, Modifier.fillMaxSize())
         }
     }
 }
@@ -275,7 +285,6 @@ private fun DishCard(
     compact: Boolean,
     favorite: Boolean,
     legendary: Boolean,
-    superAura: Boolean,
     onToggleFavorite: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -298,7 +307,6 @@ private fun DishCard(
     val cardModifier = theme.cardGlow?.let { glow -> Modifier.cardGlow(glow, shape) } ?: Modifier
     FavoriteEffects(
         legendary = legendary && favorite,
-        superAura = superAura,
         burst = burst,
         shape = shape,
         favoriteColor = theme.favorite,

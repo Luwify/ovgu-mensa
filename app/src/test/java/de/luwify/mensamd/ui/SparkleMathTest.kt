@@ -132,4 +132,15 @@ class SparkleMathTest {
         assertEquals(1.3f, UnlockTimeline.pop(0.6f * 0.28f, 0f), 0.001f) // overshoot
         assertEquals(1f, UnlockTimeline.pop(UnlockTimeline.TOTAL, 0f), 0f)
     }
+
+    @Test
+    fun auraBand_startsBelowThePinnedHeader_orAtTheTop() {
+        // pinned header at the top (offset 0, 48 px), then cards
+        assertEquals(48, SparkleMath.pinnedHeaderBottom(listOf(0 to 48, 60 to 300, 372 to 300), listOf(true, false, false)))
+        // header being pushed out by the next one: only its visible part counts
+        assertEquals(20, SparkleMath.pinnedHeaderBottom(listOf(-28 to 48, 20 to 300), listOf(true, false)))
+        // a header further down the list is not pinned: the band starts at the top
+        assertEquals(0, SparkleMath.pinnedHeaderBottom(listOf(0 to 300, 312 to 48), listOf(false, true)))
+        assertEquals(0, SparkleMath.pinnedHeaderBottom(emptyList(), emptyList()))
+    }
 }
