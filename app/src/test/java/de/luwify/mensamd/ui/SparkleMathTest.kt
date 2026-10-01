@@ -159,31 +159,27 @@ class SparkleMathTest {
     }
 
     @Test
-    fun trailReach_isOneAtRest_longerBehind_strongestInTheMiddle_shorterAhead() {
-        // at rest: the plain glow everywhere
-        for (n in listOf(0f to 1f, 1f to 0f, 0.7f to 0.7f)) assertEquals(1f, SparkleMath.trailReach(n.first, n.second, 0f, 0f), 0f)
-        val below = SparkleMath.trailReach(0f, 1f, 0f, 1f) // middle of the bottom edge, trailing below
-        val belowNearCorner = SparkleMath.trailReach(0f, 1f, 0.9f, 1f)
-        val side = SparkleMath.trailReach(1f, 0f, 0f, 1f)
-        val above = SparkleMath.trailReach(0f, -1f, 0f, 1f)
-        assertEquals(1f + SparkleMath.TAIL_GAIN, below, 0.001f) // a comet tail in the middle
-        assertTrue(belowNearCorner in side..below) // tapering toward the corners
-        assertEquals(1f, side, 0f) // sides unchanged
-        assertTrue(above < 1f && above >= 0.75f) // a bit shorter ahead
-        // the other direction mirrors it
-        assertEquals(below, SparkleMath.trailReach(0f, -1f, 0f, -1f), 0f)
-        // a small trail gives a small tail
-        assertTrue(SparkleMath.trailReach(0f, 1f, 0f, 0.1f) < 1.2f)
+    fun trailReach_baseAtRest_extraBehindStrongestMidEdge_shorterAhead() {
+        val base = 40f
+        val extra = 200f
+        for (n in listOf(0f to 1f, 1f to 0f, 0.7f to 0.7f)) assertEquals(base, SparkleMath.trailReach(n.first, n.second, 0f, 0f, base, extra), 0f)
+        val below = SparkleMath.trailReach(0f, 1f, 0f, 1f, base, extra)
+        val nearCorner = SparkleMath.trailReach(0f, 1f, 0.9f, 1f, base, extra)
+        val side = SparkleMath.trailReach(1f, 0f, 0f, 1f, base, extra)
+        val above = SparkleMath.trailReach(0f, -1f, 0f, 1f, base, extra)
+        assertEquals(base + extra, below, 0.01f) // full absolute extra mid-edge behind the card
+        assertTrue(nearCorner in side..below)
+        assertEquals(base, side, 0f)
+        assertEquals(0.75f * base, above, 0.01f)
+        assertEquals(below, SparkleMath.trailReach(0f, -1f, 0f, -1f, base, extra), 0f) // mirrored
     }
-
     @Test
     fun trail_growsWithScrollSpeed_saturating_slowIsSmall_flingIsMax() {
         fun t(v: Float) = kotlin.math.abs(SparkleMath.trailForVelocity(v))
         assertEquals(0f, t(0f), 0f)
-        assertTrue("slow drag 300 dp/s: ${t(300f)}", t(300f) in 0.05f..0.2f)
-        assertTrue("slow drag 500 dp/s: ${t(500f)}", t(500f) in 0.05f..0.2f)
-        assertTrue("normal swipe 1500 dp/s: ${t(1500f)}", t(1500f) in 0.3f..0.6f)
-        assertTrue("fast fling 6000 dp/s: ${t(6000f)}", t(6000f) > 0.95f)
+        assertEquals(0.30f, t(500f), 0.03f) // slow drag
+        assertEquals(0.70f, t(1500f), 0.05f) // normal swipe
+        assertTrue("fast fling 6000 dp/s: ${t(6000f)}", t(6000f) > 0.99f)
         assertTrue(t(20000f) <= 1f)
         val curve = (0..100).map { t(it * 100f) }
         assertTrue(curve.zipWithNext().all { (a, b) -> b >= a })

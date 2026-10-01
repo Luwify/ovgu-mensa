@@ -23,7 +23,7 @@ uniform float2 size;
 uniform float radius;
 uniform float time;
 uniform float trail;
-uniform float tailGain;
+uniform float tailExtra;
 uniform float reach;
 uniform float strength;
 uniform float fadeTop;
@@ -68,7 +68,9 @@ half4 main(float2 xy) {
     float behind = max(n.y * dir, 0.0);
     float ahead = max(-n.y * dir, 0.0);
     float across = exp(-2.5 * (p.x / c.x) * (p.x / c.x));
-    float stretch = 1.0 + tailGain * abs(trail) * pow(behind, 1.2) * mix(0.35, 1.0, across) - 0.25 * abs(trail) * ahead;
+    // Behind the card an absolute extra reach (up to tailExtra px), strongest mid-edge; ahead up to 25 % shorter.
+    float tail = tailExtra * abs(trail) * pow(behind, 1.2) * mix(0.35, 1.0, across);
+    float shorter = 1.0 - 0.25 * abs(trail) * ahead;
     // A living mass: the reach swells and shrinks around the card, the bulges flowing in both directions.
     float live = 0.62
         + 0.22 * sin(a * 3.0 + time * 1.1)
@@ -76,7 +78,7 @@ half4 main(float2 xy) {
         + 0.10 * sin(a * 2.0 + time * 0.6 + 4.0);
     // Fall-off (1 - d/R)^4 with R = 4 x the living reach: close to exp(-d/reach) near the card, but exactly zero
     // at R with a zero slope, so the glow has no edge anywhere (the draw area is larger than R).
-    float maxReach = 4.0 * reach * (0.55 + 0.75 * live) * stretch;
+    float maxReach = 4.0 * reach * (0.55 + 0.75 * live) * shorter + tail;
     float k = pow(max(1.0 - d / maxReach, 0.0), 4.0);
     // Iridescent gold: the hue drifts around the card and shifts a little with distance.
     half3 col = palette(a / 6.2831853 + time * 0.045 + d / (reach * 7.0));
@@ -108,11 +110,11 @@ class AuraShader(colors: List<Color>) {
 
     @Suppress("LongParameterList")
     fun update(
-        w: Float, h: Float, radius: Float, timeS: Float, trail: Float, reach: Float, strength: Float,
+        w: Float, h: Float, radius: Float, timeS: Float, trail: Float, tailExtraPx: Float, reach: Float, strength: Float,
         fadeTop: Float, fadeBottom: Float, fade: Float,
     ) {
         shader.setFloatUniform("trail", trail)
-        shader.setFloatUniform("tailGain", SparkleMath.TAIL_GAIN)
+        shader.setFloatUniform("tailExtra", tailExtraPx)
         shader.setFloatUniform("fadeTop", fadeTop)
         shader.setFloatUniform("fadeBottom", fadeBottom)
         shader.setFloatUniform("fade", fade)

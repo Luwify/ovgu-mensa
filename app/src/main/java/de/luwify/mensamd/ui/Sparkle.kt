@@ -125,23 +125,23 @@ object SparkleMath {
         return corner(rr, rr, 180f, d.coerceAtMost(arc))
     }
 
-    /** How much longer the aura reaches on the trailing side at full trail: up to (1 + TAIL_GAIN) x. */
-    const val TAIL_GAIN = 1.5f
+    /** Extra reach of the aura behind the card at full trail (absolute, on top of its normal reach of a few dozen dp). */
+    const val TAIL_EXTRA_DP = 70f
 
     /**
-     * The factor on the aura's reach at a point whose nearest card edge points outward along ([nx], [ny]) and that
+     * The aura's reach (px) at a point whose nearest card edge points outward along ([nx], [ny]) and that
      * lies at [xRel] across the card (-1 left edge .. 1 right edge), for a [trail] of -1..1 (positive: the aura trails
-     * below, as when the content moves up). Longer behind the card, strongest in the middle of that edge (a comet
-     * tail), a little shorter ahead; 1 at rest. Mirrors the shader. It only scales the reach, so the glow at the card's
+     * below, as when the content moves up): [baseReach] plus up to [tailExtra] behind the card, strongest in the
+     * middle of that edge (a comet tail), up to 25 % shorter ahead; [baseReach] at rest. Mirrors the shader. It only scales the reach, so the glow at the card's
      * edge stays at full strength: the aura never leaves the card.
      */
-    fun trailReach(nx: Float, ny: Float, xRel: Float, trail: Float): Float {
+    fun trailReach(nx: Float, ny: Float, xRel: Float, trail: Float, baseReach: Float, tailExtra: Float): Float {
         val dir = if (trail >= 0f) 1f else -1f
         val behind = (ny * dir).coerceAtLeast(0f)
         val ahead = (-ny * dir).coerceAtLeast(0f)
         val across = kotlin.math.exp(-2.5f * xRel * xRel)
         val t = kotlin.math.abs(trail)
-        return 1f + TAIL_GAIN * t * Math.pow(behind.toDouble(), 1.2).toFloat() * (0.35f + 0.65f * across) - 0.25f * t * ahead
+        return baseReach * (1f - 0.25f * t * ahead) + tailExtra * t * Math.pow(behind.toDouble(), 1.2).toFloat() * (0.35f + 0.65f * across)
     }
 
 
@@ -204,8 +204,8 @@ object SparkleMath {
     fun pinnedHeaderBottom(items: List<Pair<Int, Int>>, isHeader: List<Boolean>): Int =
         items.indices.filter { isHeader[it] && items[it].first <= 0 }.maxOfOrNull { items[it].first + items[it].second }?.coerceAtLeast(0) ?: 0
 
-    /** Speed at which the trail is at tanh(1) = 76 % of its maximum; a fast fling (~6000 dp/s) reaches ~96 %. */
-    const val TRAIL_REFERENCE_DP_S = 3000f
+    /** Speed at which the trail is at tanh(1) = 76 % of its maximum: 500 dp/s gives 30 %, 1500 dp/s 73 %, a fling ~100 %. */
+    const val TRAIL_REFERENCE_DP_S = 1600f
 
     /** Time constant of the low-pass filter on the scroll velocity. */
     const val TRAIL_TAU_MS = 70f
@@ -218,7 +218,7 @@ object SparkleMath {
 
     /**
      * The trail (-1..1) for a scroll velocity in dp/s (sign of the content's movement): tanh(|v| / reference), so
-     * slow drags give a little (300 dp/s: 10 %), normal swipes a moderate amount (1500 dp/s: 46 %) and only fast
+     * slow drags give a little (500 dp/s: 30 %), normal swipes most (1500 dp/s: 73 %) and only fast
      * flings the maximum. Positive (trailing below) when the content moves up (negative velocity).
      */
     fun trailForVelocity(velocityDpS: Float): Float =
@@ -429,10 +429,11 @@ internal fun DrawScope.drawSuperAura(
         // on the trailing side times the current tail, and a little more.
         // Only the trailing side needs the tail's extra room: a smaller area means fewer shader pixels per frame.
         val base = SparkleMath.AURA_REACH_FACTOR * reach + 4.dp.toPx()
-        val tail = SparkleMath.AURA_REACH_FACTOR * reach * SparkleMath.TAIL_GAIN * kotlin.math.abs(trail)
+        val tailPx = SparkleMath.TAIL_EXTRA_DP.dp.toPx()
+        val tail = tailPx * kotlin.math.abs(trail)
         val above = base + if (trail < 0f) tail else 0f
         val below = base + if (trail > 0f) tail else 0f
-        shader.update(w, h, r, timeMs / 1000f, trail, reach, if (animate) 0.85f else 0.7f, fadeTop, fadeBottom, fade)
+        shader.update(w, h, r, timeMs / 1000f, trail, tailPx, reach, if (animate) 0.85f else 0.7f, fadeTop, fadeBottom, fade)
         drawRect(shader.brush, topLeft = Offset(-base, -above), size = Size(w + 2 * base, h + above + below))
     } else {
         drawFallbackAura(w, h, r, colors, trail, reach, fadeTop, fadeBottom, fade)
@@ -477,7 +478,7 @@ private fun DrawScope.drawFallbackAura(
         distances.forEachIndexed { i, d ->
             // Anchored to the card: each fill reaches further on the trailing side in proportion to its distance, so the
             // edge is unchanged and only the outer glow trails.
-            val extra = d * SparkleMath.TAIL_GAIN * kotlin.math.abs(trail)
+            val extra = SparkleMath.TAIL_EXTRA_DP.dp.toPx() * kotlin.math.abs(trail) * (d / maxReach)
             drawRoundRect(
                 brush,
                 topLeft = Offset(-d, -d - if (trail < 0f) extra else 0f),
