@@ -7,6 +7,9 @@ enum class ThemeMode(val key: String) {
 
     /** Always dark: pure black background, very dark gray cards, blue accent. */
     AMOLED("amoled"),
+
+    /** The user's own theme: base brightness, accent hue, optional glow border (see `CustomThemeSpec`). */
+    CUSTOM("custom"),
     ;
 
     companion object {

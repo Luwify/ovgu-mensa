@@ -21,6 +21,7 @@ import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import de.luwify.mensamd.data.settings.CustomThemeSpec
 import de.luwify.mensamd.data.settings.ThemeMode
 
 internal val LightColors = lightColorScheme(
@@ -147,6 +148,7 @@ val LocalThemeMode = compositionLocalOf { ThemeMode.SYSTEM }
 @Composable
 fun MensaTheme(
     mode: ThemeMode = ThemeMode.SYSTEM,
+    custom: CustomThemeSpec = CustomThemeSpec(),
     darkTheme: Boolean = isSystemInDarkTheme(),
     dynamicColor: Boolean = true,
     content: @Composable () -> Unit,
@@ -166,6 +168,12 @@ fun MensaTheme(
             colorScheme = AmoledTheme.scheme
             shapes = Shapes()
             mensa = remember { AmoledTheme.mensaColors() }
+        }
+        ThemeMode.CUSTOM -> {
+            val dark = custom.isDark(darkTheme)
+            colorScheme = remember(custom, dark) { CustomTheme.scheme(custom, dark) }
+            shapes = Shapes()
+            mensa = remember(custom, dark, colorScheme) { CustomTheme.mensaColors(custom, dark, colorScheme) }
         }
         ThemeMode.SYSTEM -> {
             colorScheme = when {

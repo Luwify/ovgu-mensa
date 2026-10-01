@@ -25,6 +25,7 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import de.luwify.mensamd.card.NfcCardScanner
 import android.content.Intent
 import androidx.compose.runtime.LaunchedEffect
+import de.luwify.mensamd.data.settings.CustomBase
 import de.luwify.mensamd.data.settings.ThemeMode
 import de.luwify.mensamd.notify.FavoriteNotifier
 import de.luwify.mensamd.ui.CardScreen
@@ -48,22 +49,30 @@ class MainActivity : ComponentActivity() {
         // Not after a recreation: that intent was handled already.
         if (savedInstanceState == null) handleOpenIntent(intent)
         setContent {
-            val mode by viewModel.themeMode.collectAsStateWithLifecycle()
-            // AMOLED is always dark: black bars with light icons whatever the system setting is;
-            // the other themes follow the system (auto) again.
-            DisposableEffect(mode) {
-                if (mode == ThemeMode.AMOLED) {
-                    enableEdgeToEdge(
+            val theme by viewModel.theme.collectAsStateWithLifecycle()
+            // AMOLED is always dark: black bars with light icons whatever the system setting is. A custom theme
+            // with a fixed base gets matching bar icons; everything else follows the system (auto).
+            val customBase = theme?.takeIf { it.mode == ThemeMode.CUSTOM }?.custom?.base
+            DisposableEffect(theme?.mode, customBase) {
+                when {
+                    theme?.mode == ThemeMode.AMOLED || customBase == CustomBase.BLACK -> enableEdgeToEdge(
                         statusBarStyle = SystemBarStyle.dark(Color.BLACK),
                         navigationBarStyle = SystemBarStyle.dark(Color.BLACK),
                     )
-                } else {
-                    enableEdgeToEdge()
+                    customBase == CustomBase.DARK -> enableEdgeToEdge(
+                        statusBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
+                        navigationBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
+                    )
+                    customBase == CustomBase.LIGHT -> enableEdgeToEdge(
+                        statusBarStyle = SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT),
+                        navigationBarStyle = SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT),
+                    )
+                    else -> enableEdgeToEdge()
                 }
                 onDispose { }
             }
             // Nothing until the stored theme is known (a few ms), so the wrong theme never flashes.
-            mode?.let { MensaTheme(it) { MensaRoot(viewModel, cardScanner) } }
+            theme?.let { MensaTheme(it.mode, it.custom) { MensaRoot(viewModel, cardScanner) } }
         }
     }
 

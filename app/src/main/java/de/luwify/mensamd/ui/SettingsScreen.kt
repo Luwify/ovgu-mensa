@@ -134,6 +134,11 @@ fun SettingsScreen(vm: MainViewModel, mensas: List<Mensa>, defaultId: String, pr
                             MensaFilterChip(selected = theme == ThemeMode.SYSTEM, onClick = { vm.setThemeMode(ThemeMode.SYSTEM) }, label = { Text(stringResource(R.string.theme_system)) })
                             MensaFilterChip(selected = theme == ThemeMode.SOFT, onClick = { vm.setThemeMode(ThemeMode.SOFT) }, label = { Text(stringResource(R.string.theme_soft)) })
                             MensaFilterChip(selected = theme == ThemeMode.AMOLED, onClick = { vm.setThemeMode(ThemeMode.AMOLED) }, label = { Text(stringResource(R.string.theme_amoled)) })
+                            MensaFilterChip(selected = theme == ThemeMode.CUSTOM, onClick = { vm.setThemeMode(ThemeMode.CUSTOM) }, label = { Text(stringResource(R.string.theme_custom)) })
+                        }
+                        if (theme == ThemeMode.CUSTOM) {
+                            val choice by vm.theme.collectAsStateWithLifecycle()
+                            choice?.let { CustomThemeEditor(it.custom, vm::setCustomTheme) }
                         }
                     }
                 }

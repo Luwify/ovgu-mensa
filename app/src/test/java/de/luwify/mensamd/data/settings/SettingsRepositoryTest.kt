@@ -210,4 +210,20 @@ class SettingsRepositoryTest {
             scope.shutDown()
         }
     }
+
+    @Test
+    fun customTheme_defaults_thenPersists() = runBlocking {
+        val file = File(tmp.root, "custom.preferences_pb")
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        try {
+            val repo = SettingsRepository(PreferenceDataStoreFactory.create(scope = scope) { file })
+            assertEquals(CustomThemeSpec(), repo.customTheme.first())
+            repo.setCustomTheme(CustomThemeSpec(CustomBase.BLACK, 140, glow = true))
+            assertEquals(CustomThemeSpec(CustomBase.BLACK, 140, glow = true), repo.customTheme.first())
+            repo.setThemeMode(ThemeMode.CUSTOM)
+            assertEquals(ThemeMode.CUSTOM, repo.themeMode.first())
+        } finally {
+            scope.shutDown()
+        }
+    }
 }

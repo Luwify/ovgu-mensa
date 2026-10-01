@@ -123,4 +123,38 @@ class ThemeContrastTest {
             assertTrue("$name: $failures", failures.isEmpty())
         }
     }
+
+    /** The user's own theme: every hue (5° steps) on every base, with and without the glow border, must pass. */
+    @Test
+    fun customThemePassesAA_forEveryHueAndBase() {
+        val failures = mutableListOf<String>()
+        for (base in de.luwify.mensamd.data.settings.CustomBase.entries) for (dark in listOf(false, true)) for (glow in listOf(false, true)) {
+            for (hue in 0 until 360 step 5) {
+                val spec = de.luwify.mensamd.data.settings.CustomThemeSpec(base, hue, glow)
+                val isDark = spec.isDark(systemDark = dark)
+                val s = CustomTheme.scheme(spec, isDark)
+                val m = CustomTheme.mensaColors(spec, isDark, s)
+                val local = mutableListOf<String>()
+                pairs(s, m, if (glow) 3.0 else 1.05, local)
+                check("heart/card", m.favorite, m.cardContainer!!, 3.0, local)
+                check("tag chip/card (visible)", m.tag.container, m.cardContainer!!, 1.1, local)
+                check("card/page (cards stand out)", m.cardContainer!!, s.background, if (base == de.luwify.mensamd.data.settings.CustomBase.BLACK) 1.08 else 1.15, local)
+                if (glow) check("glow edge/card", m.cardBorder!!, m.cardContainer!!, 3.0, local)
+                local.forEach { failures += "$base dark=$isDark glow=$glow hue=$hue: $it" }
+            }
+        }
+        val kinds = failures.groupBy { it.substringAfter(": ").substringBefore(":") }.mapValues { it.value.size }
+        assertTrue("${failures.size} failures by kind $kinds, e.g. ${failures.take(6)}", failures.isEmpty())
+    }
+
+    @Test
+    fun customBlackBase_isPureBlackLikeAmoled_andGlowIsTranslucentEdge() {
+        val spec = de.luwify.mensamd.data.settings.CustomThemeSpec(de.luwify.mensamd.data.settings.CustomBase.BLACK, 220, glow = true)
+        val s = CustomTheme.scheme(spec, dark = true)
+        assertTrue(s.background == Color.Black && s.surface == Color.Black)
+        val m = CustomTheme.mensaColors(spec, true, s)
+        assertTrue(m.cardGlow!!.alpha < 0.5f && m.cardGlow!!.copy(alpha = 1f) == m.cardBorder)
+        val plain = CustomTheme.mensaColors(spec.copy(glow = false), true, s)
+        assertTrue(plain.cardGlow == null && plain.cardBorder == s.outlineVariant)
+    }
 }

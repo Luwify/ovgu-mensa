@@ -113,4 +113,25 @@
     <string name="notify_permission_allow">Erlauben</string>
     <string name="notify_permission_later">Nicht jetzt</string>
     <string name="settings_title">Einstellungen</string>
+    <string name="theme_custom">Eigenes</string>
+    <string name="custom_base">Hintergrund</string>
+    <string name="custom_base_system">Wie System</string>
+    <string name="custom_base_light">Hell</string>
+    <string name="custom_base_dark">Dunkel</string>
+    <string name="custom_base_black">Schwarz</string>
+    <string name="custom_accent">Akzentfarbe</string>
+    <string name="custom_hue">Farbton</string>
+    <string name="custom_glow">Leuchtrand</string>
+    <string name="custom_glow_hint">Ein leuchtender Rand um die Karten in der Akzentfarbe, wie beim AMOLED-Design</string>
+    <string name="hue_red">Rot</string>
+    <string name="hue_orange">Orange</string>
+    <string name="hue_yellow">Gelb</string>
+    <string name="hue_lime">Hellgrün</string>
+    <string name="hue_green">Grün</string>
+    <string name="hue_teal">Türkis</string>
+    <string name="hue_cyan">Cyan</string>
+    <string name="hue_blue">Blau</string>
+    <string name="hue_violet">Violett</string>
+    <string name="hue_magenta">Magenta</string>
+    <string name="hue_pink">Pink</string>
 </resources>

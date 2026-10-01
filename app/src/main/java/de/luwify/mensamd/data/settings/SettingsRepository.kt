@@ -121,6 +121,27 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
         store.edit { it[themeKey] = mode.key }
     }
 
+    private val customBaseKey = stringPreferencesKey("custom_theme_base")
+    private val customHueKey = intPreferencesKey("custom_theme_hue")
+    private val customGlowKey = booleanPreferencesKey("custom_theme_glow")
+
+    /** The user's own theme (used when the theme mode is CUSTOM). */
+    val customTheme: Flow<CustomThemeSpec> = store.data.map { prefs ->
+        CustomThemeSpec(
+            base = CustomBase.fromKey(prefs[customBaseKey]),
+            hue = (prefs[customHueKey] ?: CustomThemeSpec.DEFAULT_HUE).mod(360),
+            glow = prefs[customGlowKey] ?: false,
+        )
+    }
+
+    suspend fun setCustomTheme(spec: CustomThemeSpec) {
+        store.edit {
+            it[customBaseKey] = spec.base.key
+            it[customHueKey] = spec.hue.mod(360)
+            it[customGlowKey] = spec.glow
+        }
+    }
+
     private val favoritesKey = stringSetPreferencesKey("favorites")
 
     /**

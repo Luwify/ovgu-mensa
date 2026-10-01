@@ -4,6 +4,8 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import de.luwify.mensamd.AppContainer
+import de.luwify.mensamd.data.settings.CustomThemeSpec
+import de.luwify.mensamd.data.settings.ThemeChoice
 import de.luwify.mensamd.data.settings.ThemeMode
 import de.luwify.mensamd.data.settings.ViewPrefs
 import de.luwify.mensamd.model.Mensa
@@ -62,8 +64,15 @@ class MainViewModel(private val container: AppContainer) : ViewModel() {
         if (default == null) AppScreen.Picker else AppScreen.Main(resolveOrder(order), default.id, prefs)
     }.stateIn(viewModelScope, SharingStarted.Eagerly, AppScreen.Loading)
 
+    /** The custom theme while the user is still dragging the hue slider: shown live, saved on release. */
+    private val customDraft = MutableStateFlow<CustomThemeSpec?>(null)
+
     /** Null until DataStore answered: the activity draws nothing until then, so there is no theme flash. */
-    val themeMode: StateFlow<ThemeMode?> = container.settings.themeMode
+    val theme: StateFlow<ThemeChoice?> = combine(
+        container.settings.themeMode,
+        container.settings.customTheme,
+        customDraft,
+    ) { mode, custom, draft -> ThemeChoice(mode, draft ?: custom) }
         .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
     val notifySettings: StateFlow<NotifySettings?> = combine(
@@ -127,6 +136,20 @@ class MainViewModel(private val container: AppContainer) : ViewModel() {
     fun setThemeMode(mode: ThemeMode) {
         Log.i("MensaTheme", "user selected theme $mode")
         viewModelScope.launch { container.settings.setThemeMode(mode) }
+    }
+
+    /**
+     * Changes the custom theme. [commit] false (slider moving) only updates the live preview; true saves it. The
+     * draft is dropped only after the save, so the theme never jumps back for a frame.
+     */
+    fun setCustomTheme(spec: CustomThemeSpec, commit: Boolean = true) {
+        customDraft.value = spec
+        if (commit) {
+            viewModelScope.launch {
+                container.settings.setCustomTheme(spec)
+                if (customDraft.value == spec) customDraft.value = null
+            }
+        }
     }
 
     fun setCompactMode(compact: Boolean) {
