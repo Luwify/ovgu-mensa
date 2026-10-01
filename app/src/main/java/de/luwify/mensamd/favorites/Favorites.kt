@@ -10,8 +10,11 @@ import java.util.Locale
  * by exact match of that key only (no fuzzy matching). Pure Kotlin.
  */
 object Favorites {
-    /** Unicode-aware: also nbsp, which a plain `\s` misses. */
-    private val WHITESPACE = Regex("""(?U)\s+""")
+    /**
+     * Also the no-break spaces, which a plain `\s` misses on the JVM. Spelled out instead of the `(?U)` flag:
+     * Android's ICU regex engine rejects that flag (crash at class init).
+     */
+    private val WHITESPACE = Regex("""[\s\u00A0\u2007\u202F]+""")
 
     /**
      * Lowercase, whitespace collapsed (incl. nbsp), leading "label:" badges removed (the parser already strips
