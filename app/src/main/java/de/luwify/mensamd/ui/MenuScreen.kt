@@ -62,9 +62,9 @@ import java.util.Locale
 
 /** The body of one Mensa page: the continuous menu list, or a message when there is none. */
 @Composable
-fun MenuBody(ui: MenuUiState, days: List<MenuDay>, today: LocalDate, onRetry: () -> Unit) {
+fun MenuBody(ui: MenuUiState, days: List<MenuDay>, today: LocalDate, priceGroup: Int, onRetry: () -> Unit) {
     when {
-        days.isNotEmpty() -> MenuList(ui, days, today)
+        days.isNotEmpty() -> MenuList(ui, days, today, priceGroup)
         !ui.hasData && ui.refreshFailed -> Message(stringResource(R.string.error_no_data), onRetry)
         ui.hasData && !ui.isRefreshing -> Message(stringResource(R.string.empty_no_upcoming), null)
         // else: nothing cached yet and the first fetch is running. The progress bar says so; no spinner screen.
@@ -91,7 +91,7 @@ private fun Message(text: String, onRetry: (() -> Unit)?) {
  * open day, because past days are already filtered out.
  */
 @Composable
-private fun MenuList(ui: MenuUiState, days: List<MenuDay>, today: LocalDate) {
+private fun MenuList(ui: MenuUiState, days: List<MenuDay>, today: LocalDate, priceGroup: Int) {
     val locale = LocalConfiguration.current.locales[0]
     val euro = remember(locale) { NumberFormat.getCurrencyInstance(locale).apply { currency = Currency.getInstance("EUR") } }
     val bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
@@ -106,7 +106,7 @@ private fun MenuList(ui: MenuUiState, days: List<MenuDay>, today: LocalDate) {
             stickyHeader(key = "header-${day.date}") { DayHeader(day.date, today, locale) }
             val keys = dishKeys(day)
             items(day.dishes, key = { keys.getValue(it) }) { dish ->
-                DishCard(dish, ui.legend, codeIndex, locale.language, euro, Modifier.padding(horizontal = 16.dp))
+                DishCard(dish, ui.legend, codeIndex, locale.language, euro, priceGroup, Modifier.padding(horizontal = 16.dp))
             }
             if (day.dishes.isEmpty()) {
                 // Everything on this day is filtered out: keep the day visible and say why.
@@ -171,6 +171,7 @@ private fun DishCard(
     codeIndex: Map<String, LegendCode>,
     language: String,
     euro: NumberFormat,
+    priceGroup: Int,
     modifier: Modifier = Modifier,
 ) {
     Card(modifier.fillMaxWidth()) {
@@ -186,21 +187,58 @@ private fun DishCard(
                     dish.tags.forEach { TagLabel(it) }
                 }
             }
-            if (dish.prices.isNotEmpty()) {
-                val fallback = listOf(R.string.price_students, R.string.price_staff, R.string.price_guests)
-                Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
-                    dish.prices.forEachIndexed { index, cents ->
-                        val label = legend.priceGroups.getOrNull(index)?.forLanguage(language)
-                            ?: fallback.getOrNull(index)?.let { stringResource(it) }.orEmpty()
-                        Column {
-                            Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Text(euro.format(cents / 100.0), style = MaterialTheme.typography.titleSmall)
-                        }
-                    }
-                }
-            }
+            Prices(dish.prices, priceGroup, legend, language, euro)
             Footprint(dish)
             if (dish.codes.isNotEmpty()) CodeMeanings(dish.codes, codeIndex, language)
+        }
+    }
+}
+
+/**
+ * The selected price group's price is highlighted in a tonal pill; a small arrow expands the other
+ * prices. The expanded state is saved per lazy-list key like the code meanings.
+ */
+@Composable
+private fun Prices(prices: List<Int>, priceGroup: Int, legend: Legend, language: String, euro: NumberFormat) {
+    val split = splitPrices(prices, priceGroup) ?: return
+    val fallback = listOf(R.string.price_students, R.string.price_staff, R.string.price_guests)
+    @Composable
+    fun label(index: Int) = legend.priceGroups.getOrNull(index)?.forLanguage(language)
+        ?: fallback.getOrNull(index)?.let { stringResource(it) }.orEmpty()
+
+    var expanded by rememberSaveable { mutableStateOf(false) }
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Surface(shape = MaterialTheme.shapes.small, color = MaterialTheme.colorScheme.primaryContainer) {
+            Column(Modifier.padding(horizontal = 10.dp, vertical = 4.dp)) {
+                Text(label(split.selected), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                Text(
+                    euro.format(prices[split.selected] / 100.0),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                )
+            }
+        }
+        if (split.others.isNotEmpty()) {
+            val description = stringResource(if (expanded) R.string.hide_other_prices else R.string.show_other_prices)
+            Text(
+                if (expanded) "▴" else "▾",
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier
+                    .clickable(role = Role.Button, onClickLabel = description) { expanded = !expanded }
+                    .padding(horizontal = 14.dp, vertical = 8.dp),
+            )
+        }
+    }
+    if (expanded) {
+        Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+            split.others.forEach { index ->
+                Column {
+                    Text(label(index), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(euro.format(prices[index] / 100.0), style = MaterialTheme.typography.titleSmall)
+                }
+            }
         }
     }
 }

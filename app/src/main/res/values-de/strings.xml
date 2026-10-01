@@ -51,4 +51,6 @@
     <string name="clear_selection">Auswahl löschen</string>
     <string name="code_family_a">Gluten</string>
     <string name="code_family_h">Schalenfrüchte</string>
+    <string name="show_other_prices">Andere Preise anzeigen</string>
+    <string name="hide_other_prices">Andere Preise ausblenden</string>
 </resources>

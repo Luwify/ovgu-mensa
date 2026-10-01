@@ -53,4 +53,6 @@
     <string name="clear_selection">Clear selection</string>
     <string name="code_family_a">Gluten</string>
     <string name="code_family_h">Nuts</string>
+    <string name="show_other_prices">Show other prices</string>
+    <string name="hide_other_prices">Hide other prices</string>
 </resources>
