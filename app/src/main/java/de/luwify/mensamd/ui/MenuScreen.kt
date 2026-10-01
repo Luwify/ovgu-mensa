@@ -325,12 +325,16 @@ private fun CompactCardBody(dish: Dish, legend: Legend, language: String, euro: 
                 modifier = Modifier.weight(1f),
             )
             if (split != null) {
-                Surface(shape = MaterialTheme.shapes.extraSmall, color = LocalMensaColors.current.priceContainer) {
+                Surface(
+                    shape = MaterialTheme.shapes.extraSmall,
+                    color = LocalMensaColors.current.price.container,
+                    border = LocalMensaColors.current.price.border?.let { BorderStroke(1.dp, it) },
+                ) {
                     Text(
                         euro.format(dish.prices[split.selected] / 100.0),
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.Bold,
-                        color = LocalMensaColors.current.onPriceContainer,
+                        color = LocalMensaColors.current.price.content,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
                     )
                 }
@@ -373,16 +377,20 @@ private fun Prices(
     // One row: [selected price] [arrow] [other prices...]. If it is too wide for a narrow screen
     // it scrolls sideways instead of wrapping below.
     Row(Modifier.horizontalScroll(rememberScrollState()), verticalAlignment = Alignment.CenterVertically) {
-        Surface(shape = MaterialTheme.shapes.small, color = LocalMensaColors.current.priceContainer) {
+        Surface(
+            shape = MaterialTheme.shapes.small,
+            color = LocalMensaColors.current.price.container,
+            border = LocalMensaColors.current.price.border?.let { BorderStroke(1.dp, it) },
+        ) {
             Column(Modifier.padding(horizontal = 10.dp, vertical = 4.dp)) {
                 if (expanded) {
-                    Text(label(split.selected), style = MaterialTheme.typography.labelSmall, color = LocalMensaColors.current.onPriceContainer)
+                    Text(label(split.selected), style = MaterialTheme.typography.labelSmall, color = LocalMensaColors.current.price.content)
                 }
                 Text(
                     euro.format(prices[split.selected] / 100.0),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = LocalMensaColors.current.onPriceContainer,
+                    color = LocalMensaColors.current.price.content,
                 )
             }
         }
@@ -391,7 +399,7 @@ private fun Prices(
             Text(
                 if (expanded) "◂" else "▸",
                 style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.primary,
+                color = LocalMensaColors.current.linkText,
                 modifier = Modifier
                     .clickable(role = Role.Button, onClickLabel = description, onClick = onToggle)
                     .padding(horizontal = 12.dp, vertical = 8.dp),
@@ -468,7 +476,7 @@ private fun CodeMeanings(codes: List<String>, codeIndex: Map<String, LegendCode>
     Text(
         stringResource(R.string.codes_toggle, codes.distinct().size) + if (expanded) " ▴" else " ▾",
         style = MaterialTheme.typography.labelLarge,
-        color = MaterialTheme.colorScheme.primary,
+        color = LocalMensaColors.current.linkText,
         modifier = Modifier.clickable(role = Role.Button) { expanded = !expanded }.padding(vertical = 2.dp),
     )
     if (expanded) {
@@ -512,10 +520,10 @@ private fun TagLabel(tag: Tag, dense: Boolean = false) {
     val label = tagLabelRes(tag.key)?.let { stringResource(it) } ?: tag.label
     val colors = LocalMensaColors.current
     val isVegan = tag.key == "vegan"
-    val content = if (isVegan) colors.veganContent else MaterialTheme.colorScheme.onSecondaryContainer
+    val content = if (isVegan) colors.veganContent else colors.tag.content
     Surface(
         shape = if (dense) MaterialTheme.shapes.extraSmall else MaterialTheme.shapes.small,
-        color = if (isVegan) colors.veganContainer else MaterialTheme.colorScheme.secondaryContainer,
+        color = if (isVegan) colors.veganContainer else colors.tag.container,
     ) {
         Row(
             if (dense) Modifier.padding(horizontal = 6.dp, vertical = 2.dp)

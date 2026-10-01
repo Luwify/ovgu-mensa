@@ -1,7 +1,9 @@
 package de.luwify.mensamd.ui
 
 import androidx.compose.foundation.layout.Arrangement
+import de.luwify.mensamd.ui.theme.LocalMensaColors
 import de.luwify.mensamd.ui.theme.LocalThemeMode
+import de.luwify.mensamd.ui.theme.MensaFilterChip
 import de.luwify.mensamd.data.settings.ThemeMode
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Box
@@ -17,7 +19,6 @@ import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.selection.triStateToggleable
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
@@ -77,7 +78,7 @@ fun FilterSheet(
                     for (index in 0 until count) {
                         val label = legend.priceGroups.getOrNull(index)?.forLanguage(language)
                             ?: fallback.getOrNull(index)?.let { stringResource(it) }.orEmpty()
-                        FilterChip(selected = prefs.priceGroup == index, onClick = { onPriceGroup(index) }, label = { Text(label) })
+                        MensaFilterChip(selected = prefs.priceGroup == index, onClick = { onPriceGroup(index) }, label = { Text(label) })
                     }
                 }
             }
@@ -87,12 +88,12 @@ fun FilterSheet(
                 val theme = LocalThemeMode.current
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        FilterChip(selected = !prefs.compact, onClick = { onCompact(false) }, label = { Text(stringResource(R.string.display_normal)) })
-                        FilterChip(selected = prefs.compact, onClick = { onCompact(true) }, label = { Text(stringResource(R.string.display_compact)) })
+                        MensaFilterChip(selected = !prefs.compact, onClick = { onCompact(false) }, label = { Text(stringResource(R.string.display_normal)) })
+                        MensaFilterChip(selected = prefs.compact, onClick = { onCompact(true) }, label = { Text(stringResource(R.string.display_compact)) })
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        FilterChip(selected = theme == ThemeMode.SYSTEM, onClick = { onThemeMode(ThemeMode.SYSTEM) }, label = { Text(stringResource(R.string.theme_system)) })
-                        FilterChip(selected = theme == ThemeMode.SOFT, onClick = { onThemeMode(ThemeMode.SOFT) }, label = { Text(stringResource(R.string.theme_soft)) })
+                        MensaFilterChip(selected = theme == ThemeMode.SYSTEM, onClick = { onThemeMode(ThemeMode.SYSTEM) }, label = { Text(stringResource(R.string.theme_system)) })
+                        MensaFilterChip(selected = theme == ThemeMode.SOFT, onClick = { onThemeMode(ThemeMode.SOFT) }, label = { Text(stringResource(R.string.theme_soft)) })
                     }
                 }
             }
@@ -159,7 +160,7 @@ private fun SheetHeading(text: String) {
     Text(
         text,
         style = MaterialTheme.typography.titleMedium,
-        color = MaterialTheme.colorScheme.primary,
+        color = LocalMensaColors.current.headingText,
         modifier = Modifier.padding(top = 20.dp, bottom = 8.dp),
     )
 }

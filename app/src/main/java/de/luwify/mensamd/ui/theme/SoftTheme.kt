@@ -111,8 +111,13 @@ object SoftTheme {
             veganContainer = if (darkTheme) Color(0xFF264D2A) else Color(0xFFCDEBCF),
             veganContent = if (darkTheme) Color(0xFFC8F0CA) else Color(0xFF14501A),
             footprint = if (darkTheme) FootprintStops.dark else FootprintStops.light,
-            priceContainer = scheme.primaryContainer,
-            onPriceContainer = scheme.onPrimaryContainer,
+            price = ControlColors(scheme.primaryContainer, scheme.onPrimaryContainer, null),
+            tag = ControlColors(scheme.secondaryContainer, scheme.onSecondaryContainer, null),
+            filterButton = ControlColors(scheme.secondaryContainer, scheme.onSecondaryContainer, scheme.primary),
+            filterButtonActive = ControlColors(scheme.secondaryContainer, scheme.onSecondaryContainer, scheme.primary),
+            chipSelected = null,
+            linkText = scheme.primary,
+            headingText = scheme.primary,
         )
     }
 }

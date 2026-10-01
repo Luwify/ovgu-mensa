@@ -2,6 +2,8 @@ package de.luwify.mensamd.ui
 
 import androidx.compose.foundation.layout.Box
 import de.luwify.mensamd.ui.theme.FilterIcon
+import de.luwify.mensamd.ui.theme.LocalMensaColors
+import de.luwify.mensamd.ui.theme.MensaFilterChip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.material3.Icon
@@ -19,7 +21,6 @@ import de.luwify.mensamd.R
 import androidx.compose.ui.res.stringResource
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.Text
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.LazyRow
@@ -201,7 +202,7 @@ private fun FilterRow(
         ) {
             items(options, key = { it.key }) { option ->
                 val label = filterLabelRes(option.key)?.let { stringResource(it) } ?: stringResource(R.string.filter_no_generic, option.label)
-                FilterChip(selected = option.key in active, onClick = { onToggle(option.key) }, label = { Text(label) })
+                MensaFilterChip(selected = option.key in active, onClick = { onToggle(option.key) }, label = { Text(label) })
             }
         }
     }
@@ -213,22 +214,24 @@ private fun FilterRow(
  */
 @Composable
 private fun FilterButton(excludedCodeCount: Int, onClick: () -> Unit) {
+    val colors = LocalMensaColors.current
+    val style = if (excludedCodeCount > 0) colors.filterButtonActive else colors.filterButton
     Surface(
         onClick = onClick,
         shape = RoundedCornerShape(10.dp),
-        color = MaterialTheme.colorScheme.secondaryContainer,
-        border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary),
+        color = style.container,
+        border = style.border?.let { BorderStroke(1.5.dp, it) },
         modifier = Modifier.padding(start = 16.dp).height(36.dp),
     ) {
         Row(Modifier.padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(FilterIcon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+            Icon(FilterIcon, contentDescription = null, tint = style.content, modifier = Modifier.size(18.dp))
             Spacer(Modifier.width(6.dp))
             Text(
                 if (excludedCodeCount > 0) stringResource(R.string.filter_button_count, excludedCodeCount)
                 else stringResource(R.string.filter_button),
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                color = style.content,
             )
         }
     }

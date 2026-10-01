@@ -3,6 +3,8 @@ package de.luwify.mensamd.ui.theme
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.ColorScheme
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
 import androidx.compose.material3.darkColorScheme
@@ -33,9 +35,13 @@ private val DarkColors = darkColorScheme(
     tertiary = Color(0xFFA1CED5),
 )
 
+/** Fill, text and optional outline of a control (price pill, tag chip, filter button, selected chip). */
+@Immutable
+class ControlColors(val container: Color, val content: Color, val border: Color?)
+
 /**
- * The colors that carry meaning or define the card, per theme, so no screen hardcodes a color.
- * [cardContainer] null means the Material default card color.
+ * The colors that carry meaning or define the cards and controls, per theme, so no screen hardcodes
+ * a color. [cardContainer] null means the Material default card color.
  */
 @Immutable
 class MensaColors(
@@ -46,8 +52,18 @@ class MensaColors(
     val veganContent: Color,
     /** Footprint scale: low (green), middle (amber), high (red). */
     val footprint: List<Color>,
-    val priceContainer: Color,
-    val onPriceContainer: Color,
+    /** The selected price group's pill. */
+    val price: ControlColors,
+    val tag: ControlColors,
+    val filterButton: ControlColors,
+    /** Filter button while code exclusions are active. */
+    val filterButtonActive: ControlColors,
+    /** A selected toggle chip; null keeps the Material look. */
+    val chipSelected: ControlColors?,
+    /** Text/icons for secondary actions (code toggle, price arrow). */
+    val linkText: Color,
+    /** Section headings in the filter sheet. */
+    val headingText: Color,
 )
 
 /** Footprint scale stops used by every theme; they already pass AA on the Soft and Material cards. */
@@ -56,16 +72,48 @@ object FootprintStops {
     val dark = listOf(Color(0xFF81C784), Color(0xFFFFCC66), Color(0xFFEF8A8A))
 }
 
+/**
+ * System colors: neutral surfaces and mostly outlined controls, so the wallpaper palette only
+ * shows where it means something (selected tab, selected price, active filters).
+ */
 private fun systemMensaColors(darkTheme: Boolean, scheme: ColorScheme) = MensaColors(
-    cardContainer = null,
-    cardBorder = null,
+    cardContainer = if (darkTheme) scheme.surfaceContainerLow else scheme.surfaceContainerLowest,
+    cardBorder = scheme.outlineVariant,
     cardElevation = 0.dp,
     veganContainer = if (darkTheme) Color(0xFF264D2A) else Color(0xFFCDEBCF),
     veganContent = if (darkTheme) Color(0xFFC8F0CA) else Color(0xFF14501A),
     footprint = if (darkTheme) FootprintStops.dark else FootprintStops.light,
-    priceContainer = scheme.primaryContainer,
-    onPriceContainer = scheme.onPrimaryContainer,
+    price = ControlColors(Color.Transparent, scheme.primary, scheme.primary),
+    tag = ControlColors(scheme.surfaceContainerHigh, scheme.onSurfaceVariant, null),
+    filterButton = ControlColors(Color.Transparent, scheme.onSurface, scheme.outline),
+    filterButtonActive = ControlColors(Color.Transparent, scheme.primary, scheme.primary),
+    chipSelected = ControlColors(Color.Transparent, scheme.primary, scheme.primary),
+    linkText = scheme.onSurfaceVariant,
+    headingText = scheme.onSurface,
 )
+
+/** Fraction of the wallpaper's color kept in accent roles / in surface roles of the System theme. */
+private const val ACCENT_KEPT = 0.7f
+private const val SURFACE_KEPT = 0.5f
+
+/** The dynamic scheme with its colors slightly pulled toward gray: same lightness, less saturation. */
+fun ColorScheme.softened(): ColorScheme {
+    fun a(c: Color) = c.desaturated(ACCENT_KEPT)
+    fun n(c: Color) = c.desaturated(SURFACE_KEPT)
+    return copy(
+        primary = a(primary), primaryContainer = a(primaryContainer), inversePrimary = a(inversePrimary),
+        secondary = a(secondary), secondaryContainer = a(secondaryContainer),
+        tertiary = a(tertiary), tertiaryContainer = a(tertiaryContainer),
+        background = n(background), onBackground = n(onBackground),
+        surface = n(surface), onSurface = n(onSurface), surfaceVariant = n(surfaceVariant), onSurfaceVariant = n(onSurfaceVariant),
+        surfaceBright = n(surfaceBright), surfaceDim = n(surfaceDim),
+        surfaceContainerLowest = n(surfaceContainerLowest), surfaceContainerLow = n(surfaceContainerLow),
+        surfaceContainer = n(surfaceContainer), surfaceContainerHigh = n(surfaceContainerHigh),
+        surfaceContainerHighest = n(surfaceContainerHighest),
+        outline = n(outline), outlineVariant = n(outlineVariant),
+        surfaceTint = Color.Transparent,
+    )
+}
 
 val LocalMensaColors = compositionLocalOf { systemMensaColors(false, LightColors) }
 val LocalThemeMode = compositionLocalOf { ThemeMode.SYSTEM }
@@ -90,9 +138,9 @@ fun MensaTheme(
         ThemeMode.SYSTEM -> {
             colorScheme = when {
                 dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S ->
-                    if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-                darkTheme -> DarkColors
-                else -> LightColors
+                    if (darkTheme) dynamicDarkColorScheme(context).softened() else dynamicLightColorScheme(context).softened()
+                darkTheme -> DarkColors.softened()
+                else -> LightColors.softened()
             }
             shapes = Shapes()
             mensa = remember(darkTheme, colorScheme) { systemMensaColors(darkTheme, colorScheme) }
@@ -110,4 +158,29 @@ fun MensaTheme(
 fun footprintColor(level: Float, stops: List<Color>): Color {
     val t = level.coerceIn(0f, 1f)
     return if (t < 0.5f) lerp(stops[0], stops[1], t * 2f) else lerp(stops[1], stops[2], (t - 0.5f) * 2f)
+}
+
+/** A FilterChip whose selected look comes from the theme (outlined with primary, or the Material tonal fill). */
+@Composable
+fun MensaFilterChip(selected: Boolean, onClick: () -> Unit, label: @Composable () -> Unit) {
+    val style = LocalMensaColors.current.chipSelected
+    if (style == null) {
+        FilterChip(selected = selected, onClick = onClick, label = label)
+    } else {
+        FilterChip(
+            selected = selected,
+            onClick = onClick,
+            label = label,
+            colors = FilterChipDefaults.filterChipColors(
+                selectedContainerColor = style.container,
+                selectedLabelColor = style.content,
+            ),
+            border = FilterChipDefaults.filterChipBorder(
+                enabled = true,
+                selected = selected,
+                selectedBorderColor = style.border ?: style.content,
+                selectedBorderWidth = 1.5.dp,
+            ),
+        )
+    }
 }
