@@ -82,7 +82,7 @@ class CardPopupActivity : ComponentActivity() {
         setContent {
             val current = popup
             if (current != null) {
-                MensaTheme(theme.mode, theme.custom) {
+                MensaTheme(theme.mode, theme.custom, theme.glow) {
                     PopupContent(current, onOpenApp = ::openApp, onDismiss = ::finish)
                 }
             }
@@ -114,7 +114,10 @@ class CardPopupActivity : ComponentActivity() {
         job?.cancel()
         val settings = (application as MensaApp).container.settings
         job = lifecycleScope.launch {
-            val mode = async { ThemeChoice(settings.themeMode.first(), settings.customTheme.first()) }
+            val mode = async { run {
+                    val m = settings.themeMode.first()
+                    ThemeChoice(m, settings.customTheme.first(), settings.cardGlow.first() ?: (m == ThemeMode.AMOLED))
+                } }
             val result = withContext(Dispatchers.IO) { readCardFromTag(tag) }
             when (result) {
                 is CardReadResult.Success -> show(Popup.Success(result.balance), mode.await())

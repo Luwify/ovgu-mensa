@@ -119,6 +119,27 @@ internal fun ColorScheme.withCardContrast(dark: Boolean): ColorScheme {
     return copy(background = page, surface = page)
 }
 
+/**
+ * The glow border of the System, Soft and AMOLED themes: the primary color as a 3:1 edge plus a faint halo (the
+ * custom theme does the same in `CustomTheme.mensaColors`). AMOLED already has its blue glow: [glow] false removes it.
+ */
+internal fun MensaColors.withGlow(glow: Boolean, scheme: ColorScheme, dark: Boolean): MensaColors {
+    if (glow == (cardGlow != null)) return this
+    val plain = scheme.outlineVariant
+    val card = cardContainer ?: scheme.surface
+    val edge = scheme.primary.withContrast(3.0, listOf(scheme.background, card))
+    return MensaColors(
+        cardContainer = cardContainer,
+        cardBorder = if (glow) edge else plain,
+        cardElevation = cardElevation,
+        veganContainer = veganContainer, veganContent = veganContent, footprint = footprint,
+        price = price, tag = tag, filterButton = filterButton, filterButtonActive = filterButtonActive,
+        chipSelected = chipSelected, linkText = linkText, headingText = headingText, favorite = favorite,
+        cardBorderWidth = if (glow) 1.dp else Dp.Hairline,
+        cardGlow = if (glow) edge.copy(alpha = if (dark) 0.22f else 0.16f) else null,
+    )
+}
+
 /** Fraction of the wallpaper's color kept in accent roles / in surface roles of the System theme. */
 private const val ACCENT_KEPT = 0.7f
 private const val SURFACE_KEPT = 0.5f
@@ -149,6 +170,7 @@ val LocalThemeMode = compositionLocalOf { ThemeMode.SYSTEM }
 fun MensaTheme(
     mode: ThemeMode = ThemeMode.SYSTEM,
     custom: CustomThemeSpec = CustomThemeSpec(),
+    glow: Boolean = mode == ThemeMode.AMOLED,
     darkTheme: Boolean = isSystemInDarkTheme(),
     dynamicColor: Boolean = true,
     content: @Composable () -> Unit,
@@ -161,19 +183,20 @@ fun MensaTheme(
         ThemeMode.SOFT -> {
             colorScheme = if (darkTheme) SoftTheme.dark else SoftTheme.light
             shapes = SoftTheme.shapes
-            mensa = remember(darkTheme) { SoftTheme.mensaColors(darkTheme) }
+            mensa = remember(darkTheme, glow) { SoftTheme.mensaColors(darkTheme).withGlow(glow, colorScheme, darkTheme) }
         }
         ThemeMode.AMOLED -> {
             // Always dark, whatever the system setting says.
             colorScheme = AmoledTheme.scheme
             shapes = Shapes()
-            mensa = remember { AmoledTheme.mensaColors() }
+            mensa = remember(glow) { AmoledTheme.mensaColors().withGlow(glow, colorScheme, true) }
         }
         ThemeMode.CUSTOM -> {
-            val dark = CustomTheme.isDark(custom, darkTheme)
-            colorScheme = remember(custom, dark) { CustomTheme.scheme(custom, dark) }
+            val spec = remember(custom, glow) { custom.copy(glow = glow) }
+            val dark = CustomTheme.isDark(spec, darkTheme)
+            colorScheme = remember(spec, dark) { CustomTheme.scheme(spec, dark) }
             shapes = Shapes()
-            mensa = remember(custom, dark, colorScheme) { CustomTheme.mensaColors(custom, dark, colorScheme) }
+            mensa = remember(spec, dark, colorScheme) { CustomTheme.mensaColors(spec, dark, colorScheme) }
         }
         ThemeMode.SYSTEM -> {
             colorScheme = when {
@@ -183,7 +206,7 @@ fun MensaTheme(
                 else -> LightColors.softened()
             }.withCardContrast(darkTheme)
             shapes = Shapes()
-            mensa = remember(darkTheme, colorScheme) { systemMensaColors(darkTheme, colorScheme) }
+            mensa = remember(darkTheme, colorScheme, glow) { systemMensaColors(darkTheme, colorScheme).withGlow(glow, colorScheme, darkTheme) }
         }
     }
     CompositionLocalProvider(LocalMensaColors provides mensa, LocalThemeMode provides mode) {

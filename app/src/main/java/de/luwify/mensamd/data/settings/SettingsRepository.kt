@@ -172,6 +172,13 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
         )
     }
 
+    /** The glow border for every theme; null = never chosen (AMOLED then glows, as before; the others do not). */
+    val cardGlow: Flow<Boolean?> = store.data.map { it[customGlowKey] }
+
+    suspend fun setCardGlow(on: Boolean) {
+        store.edit { it[customGlowKey] = on }
+    }
+
     suspend fun setCustomTheme(spec: CustomThemeSpec) {
         store.edit {
             it[customBaseKey] = spec.base.key

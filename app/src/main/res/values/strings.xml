@@ -124,7 +124,7 @@
     <string name="custom_accent">Accent color</string>
     <string name="custom_hue">Hue</string>
     <string name="custom_glow">Glow border</string>
-    <string name="custom_glow_hint">A glowing edge around the cards in the accent color, like the AMOLED theme</string>
+    <string name="custom_glow_hint">A glowing edge around the cards in the theme\'s accent color</string>
     <string name="layout_title">Card layout</string>
     <string name="theme_title">Theme</string>
     <string name="theme_label">Color scheme</string>

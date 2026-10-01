@@ -125,25 +125,6 @@ fun CustomThemeEditor(spec: CustomThemeSpec, onChange: (CustomThemeSpec, Boolean
             )
         }
         AdvancedRow(spec.overrides.size, onAdvanced)
-
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .toggleable(value = spec.glow, role = Role.Switch, onValueChange = { onChange(latest.copy(glow = it), true) })
-                .padding(vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(Modifier.weight(1f)) {
-                Text(stringResource(R.string.custom_glow), style = MaterialTheme.typography.bodyLarge)
-                Text(
-                    stringResource(R.string.custom_glow_hint),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            Spacer(Modifier.width(16.dp))
-            Switch(checked = spec.glow, onCheckedChange = null)
-        }
     }
 }
 

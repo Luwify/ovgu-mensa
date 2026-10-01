@@ -81,7 +81,7 @@ class MainActivity : ComponentActivity() {
                 onDispose { }
             }
             // Nothing until the stored theme is known (a few ms), so the wrong theme never flashes.
-            theme?.let { MensaTheme(it.mode, it.custom) { MensaRoot(viewModel, cardScanner) } }
+            theme?.let { MensaTheme(it.mode, it.custom, it.glow) { MensaRoot(viewModel, cardScanner) } }
         }
     }
 

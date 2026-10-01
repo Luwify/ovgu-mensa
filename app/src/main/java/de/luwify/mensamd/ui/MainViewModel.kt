@@ -75,7 +75,8 @@ class MainViewModel(private val container: AppContainer) : ViewModel() {
         container.settings.themeMode,
         container.settings.customTheme,
         customDraft,
-    ) { mode, custom, draft -> ThemeChoice(mode, draft ?: custom) }
+        container.settings.cardGlow,
+    ) { mode, custom, draft, glow -> ThemeChoice(mode, draft ?: custom, glow ?: (mode == ThemeMode.AMOLED)) }
         .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
     val notifySettings: StateFlow<NotifySettings?> = combine(
@@ -153,6 +154,10 @@ class MainViewModel(private val container: AppContainer) : ViewModel() {
                 if (customDraft.value == spec) customDraft.value = null
             }
         }
+    }
+
+    fun setCardGlow(on: Boolean) {
+        viewModelScope.launch { container.settings.setCardGlow(on) }
     }
 
     fun unlockSuperSparkle() {

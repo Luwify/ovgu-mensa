@@ -80,4 +80,4 @@ data class CustomThemeSpec(
 }
 
 /** The theme as the UI needs it: the mode plus the custom spec (used only when the mode is CUSTOM). */
-data class ThemeChoice(val mode: ThemeMode, val custom: CustomThemeSpec = CustomThemeSpec())
+data class ThemeChoice(val mode: ThemeMode, val custom: CustomThemeSpec = CustomThemeSpec(), val glow: Boolean = mode == ThemeMode.AMOLED)

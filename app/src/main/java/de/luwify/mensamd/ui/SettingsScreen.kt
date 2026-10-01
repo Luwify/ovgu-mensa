@@ -173,10 +173,11 @@ fun SettingsScreen(vm: MainViewModel, mensas: List<Mensa>, defaultId: String, pr
                                 onSelect = vm::setThemeMode,
                                 modifier = Modifier.fillMaxWidth(),
                             )
+                            val choice by vm.theme.collectAsStateWithLifecycle()
                             if (theme == ThemeMode.CUSTOM) {
-                                val choice by vm.theme.collectAsStateWithLifecycle()
                                 choice?.let { CustomThemeEditor(it.custom, vm::setCustomTheme, onAdvanced = { showColors = true }) }
                             }
+                            SwitchRow(stringResource(R.string.custom_glow), stringResource(R.string.custom_glow_hint), choice?.glow == true, vm::setCardGlow)
                         }
                     }
 

@@ -121,7 +121,7 @@
     <string name="custom_accent">Akzentfarbe</string>
     <string name="custom_hue">Farbton</string>
     <string name="custom_glow">Leuchtrand</string>
-    <string name="custom_glow_hint">Ein leuchtender Rand um die Karten in der Akzentfarbe, wie beim AMOLED-Design</string>
+    <string name="custom_glow_hint">Ein leuchtender Rand um die Karten in der Akzentfarbe des Designs</string>
     <string name="layout_title">Kartenansicht</string>
     <string name="theme_title">Design</string>
     <string name="theme_label">Farbschema</string>
