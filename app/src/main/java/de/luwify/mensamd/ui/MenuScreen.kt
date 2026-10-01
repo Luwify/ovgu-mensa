@@ -2,6 +2,12 @@ package de.luwify.mensamd.ui
 
 import android.text.format.DateUtils
 import androidx.compose.foundation.background
+import de.luwify.mensamd.ui.theme.Sunflower
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
@@ -358,18 +364,27 @@ private fun CodeMeanings(codes: List<String>, codeIndex: Map<String, LegendCode>
 @Composable
 private fun TagLabel(tag: Tag) {
     val label = tagLabelRes(tag.key)?.let { stringResource(it) } ?: tag.label
-    // Vegan gets its own light-green pair per theme; every other chip keeps the theme's secondary colors.
-    val vegan = if (tag.key == "vegan") veganChipColors(isSystemInDarkTheme()) else null
+    val dark = isSystemInDarkTheme()
+    // Vegan gets its own light-green pair per theme and a sunflower; every other chip keeps the theme's secondary colors.
+    val vegan = if (tag.key == "vegan") veganChipColors(dark) else null
     Surface(
         shape = MaterialTheme.shapes.small,
         color = vegan?.container ?: MaterialTheme.colorScheme.secondaryContainer,
     ) {
-        Text(
-            label,
-            style = MaterialTheme.typography.labelMedium,
-            color = vegan?.content ?: MaterialTheme.colorScheme.onSecondaryContainer,
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-        )
+        Row(
+            Modifier.padding(start = if (vegan != null) 6.dp else 8.dp, end = 8.dp, top = 4.dp, bottom = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            if (vegan != null) {
+                Image(rememberVectorPainter(Sunflower.vector(dark)), contentDescription = null, modifier = Modifier.size(16.dp))
+                Spacer(Modifier.width(4.dp))
+            }
+            Text(
+                label,
+                style = MaterialTheme.typography.labelMedium,
+                color = vegan?.content ?: MaterialTheme.colorScheme.onSecondaryContainer,
+            )
+        }
     }
 }
 
