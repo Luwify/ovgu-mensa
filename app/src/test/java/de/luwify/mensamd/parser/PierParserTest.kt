@@ -238,4 +238,19 @@ class PierParserTest {
         val b = dishes(PierParser.parse(page(row("<strong>B</strong> (kno)<br /> 1,00 l 2,00 l 3,00")))).single().tags
         assertEquals(listOf(Tag("knoblauch", "Knoblauch")), b)
     }
+
+    @Test
+    fun handTypedVariants_uppercaseAllergens_trailingDots_andFullWordTags() {
+        val d = dishes(PierParser.parse(page(row("<strong>X</strong> (A1, G1, 3., vegan, kno.)<br /> 1,00 l 2,00 l 3,00")))).single()
+        assertEquals(listOf("a1", "g1", "3"), d.codes)
+        // "vegan" typed out is its own tag key and lands on our vegan filter; "kno." still maps
+        assertEquals(listOf("vegan", "knoblauch"), d.tags.map { it.key })
+    }
+
+    @Test
+    fun anEnglishLineInParentheses_isNotTakenForTheCodeGroup() {
+        val d = dishes(PierParser.parse(page(row("<strong>Wrap</strong> (3, g)<br /> (with a long english remark)<br /> 1,00 l 2,00 l 3,00")))).single()
+        assertEquals(listOf("3", "g"), d.codes)
+        assertEquals("(with a long english remark)", d.name.en)
+    }
 }

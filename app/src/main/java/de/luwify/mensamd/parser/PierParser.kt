@@ -37,7 +37,11 @@ object PierParser {
 
     private val PARENS = Regex("""\(([^()]*)\)""")
     private val CODE = Regex("""^(\d{1,2}|[a-n]\d?|[A-Z])$""")
-    private val SHORT_TOKEN = Regex("""^[A-Za-z0-9]{1,4}$""")
+    /** What may sit in the codes/tags parentheses: short words only, so "(with rice)" in an English line isn't one. */
+    private val SHORT_TOKEN = Regex("""^[A-Za-z0-9]{1,12}$""")
+
+    /** Hand-typed "A1", "G1" etc.: a letter and a digit can only be an allergen code, whatever the case. */
+    private val UPPERCASE_ALLERGEN = Regex("""^[A-Na-n]\d$""")
 
     /** The page's own tag abbreviations, mapped to our tag keys where the meaning is clear. */
     private val KNOWN_TAGS = mapOf(
@@ -114,7 +118,7 @@ object PierParser {
         val group = codeSearch.firstNotNullOfOrNull { text ->
             PARENS.findAll(text).map { it.groupValues[1] }.firstOrNull { g ->
                 val tokens = g.split(',', ';').map { it.trim() }.filter { it.isNotEmpty() }
-                tokens.isNotEmpty() && tokens.all { SHORT_TOKEN.matches(it) }
+                tokens.isNotEmpty() && tokens.all { SHORT_TOKEN.matches(it.trimEnd('.')) }
             }
         }
 
@@ -134,7 +138,8 @@ object PierParser {
 
         val codes = mutableListOf<String>()
         val tags = LinkedHashMap<String, Tag>()
-        for (token in group?.split(',', ';').orEmpty().map { it.trim() }.filter { it.isNotEmpty() }) {
+        for (raw in group?.split(',', ';').orEmpty().map { it.trim().trimEnd('.') }.filter { it.isNotEmpty() }) {
+            val token = if (UPPERCASE_ALLERGEN.matches(raw)) raw.lowercase() else raw
             if (CODE.matches(token)) {
                 if (token !in codes) codes += token
             } else {
