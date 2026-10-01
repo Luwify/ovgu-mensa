@@ -196,4 +196,18 @@ class SettingsRepositoryTest {
             scope.shutDown()
         }
     }
+
+    @Test
+    fun notifyTime_defaultsTo18_thenPersists() = runBlocking {
+        val file = File(tmp.root, "time.preferences_pb")
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        try {
+            val repo = SettingsRepository(PreferenceDataStoreFactory.create(scope = scope) { file })
+            assertEquals(java.time.LocalTime.of(18, 0), repo.notifyTime.first())
+            repo.setNotifyTime(java.time.LocalTime.of(7, 45))
+            assertEquals(java.time.LocalTime.of(7, 45), repo.notifyTime.first())
+        } finally {
+            scope.shutDown()
+        }
+    }
 }

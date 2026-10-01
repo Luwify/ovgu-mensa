@@ -12,7 +12,9 @@ import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import de.luwify.mensamd.favorites.FavoriteNotifications
 import java.time.LocalDate
+import java.time.LocalTime
 
 private val Context.settingsDataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
 
@@ -145,6 +147,18 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
 
     suspend fun setNotificationsEnabled(enabled: Boolean) {
         store.edit { it[notifyEnabledKey] = enabled }
+    }
+
+    private val notifyMinuteKey = intPreferencesKey("notify_minute_of_day")
+
+    /** When the favorites notification comes (default 18:00). Before noon it announces the same day. */
+    val notifyTime: Flow<LocalTime> = store.data.map { prefs ->
+        prefs[notifyMinuteKey]?.takeIf { it in 0 until 24 * 60 }?.let { LocalTime.of(it / 60, it % 60) }
+            ?: FavoriteNotifications.DEFAULT_RUN_AT
+    }
+
+    suspend fun setNotifyTime(time: LocalTime) {
+        store.edit { it[notifyMinuteKey] = time.hour * 60 + time.minute }
     }
 
     private val notifyMensenKey = stringSetPreferencesKey("notify_mensen")

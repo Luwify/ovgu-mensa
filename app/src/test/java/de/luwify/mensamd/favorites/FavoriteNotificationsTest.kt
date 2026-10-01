@@ -148,4 +148,51 @@ class FavoriteNotificationsTest {
         assertTrue(hits.all { it.date == tomorrow })
         assertTrue(today < tomorrow)
     }
+
+    // ---- user-chosen time ----
+
+    private val seven = java.time.LocalTime.of(7, 0)
+
+    @Test
+    fun customTime_nextRunUsesIt_alsoAcrossDst() {
+        assertEquals(Duration.ofHours(1), FavoriteNotifications.delayUntilNextRun(at(2026, 10, 1, 6), seven))
+        assertEquals(Duration.ofHours(24), FavoriteNotifications.delayUntilNextRun(at(2026, 10, 1, 7), seven))
+        // Saturday 07:00 -> Sunday 07:00 spans the clock change (Sunday 03:00 -> 02:00): 25 h
+        assertEquals(Duration.ofHours(25), FavoriteNotifications.delayUntilNextRun(at(2026, 10, 24, 7), seven))
+        assertEquals(Duration.ofMinutes(30), FavoriteNotifications.delayUntilNextRun(at(2026, 10, 1, 12), java.time.LocalTime.of(12, 30)))
+    }
+
+    @Test
+    fun morningTime_announcesTheSameDay_untilLunchIsOver() {
+        assertTrue(FavoriteNotifications.announcesToday(seven))
+        assertTrue(FavoriteNotifications.announcesToday(java.time.LocalTime.of(11, 59)))
+        assertFalse(FavoriteNotifications.announcesToday(java.time.LocalTime.NOON))
+        assertEquals(thu, FavoriteNotifications.targetDate(at(2026, 10, 1, 7), seven))
+        assertEquals(thu, FavoriteNotifications.targetDate(at(2026, 10, 1, 13, 59), seven)) // late, still useful
+        assertNull(FavoriteNotifications.targetDate(at(2026, 10, 1, 14), seven)) // lunch is over
+        // phone off from before 07:00 until the next morning: that morning's menu
+        assertEquals(fri, FavoriteNotifications.targetDate(at(2026, 10, 2, 6, 30), seven))
+    }
+
+    @Test
+    fun eveningTime_otherThan18_stillAnnouncesTomorrow() {
+        val noon = java.time.LocalTime.NOON
+        assertEquals(fri, FavoriteNotifications.targetDate(at(2026, 10, 1, 12), noon))
+        assertEquals(fri, FavoriteNotifications.targetDate(at(2026, 10, 1, 21), java.time.LocalTime.of(21, 0)))
+        assertNull(FavoriteNotifications.targetDate(at(2026, 10, 2, 9), java.time.LocalTime.of(21, 0)))
+    }
+
+    @Test
+    fun morningTime_weekendsAnnounceNothing_mondayMorningAnnouncesMonday() {
+        val menus = listOf("a" to page(sat to listOf("Schnitzel"), mon to listOf("Schnitzel")))
+        assertTrue(FavoriteNotifications.select(menus, fav, FavoriteNotifications.targetDate(at(2026, 10, 3, 7), seven)!!, emptySet()).isEmpty())
+        assertEquals(listOf(mon), FavoriteNotifications.select(menus, fav, FavoriteNotifications.targetDate(at(2026, 10, 5, 7), seven)!!, emptySet()).map { it.date })
+    }
+
+    @Test
+    fun plan_carriesTheTodayWording() {
+        val hits = FavoriteNotifications.select(listOf("a" to page(thu to listOf("Schnitzel"))), fav, thu, emptySet())
+        assertTrue(FavoriteNotifications.plan(hits, today = true)!!.today)
+        assertFalse(FavoriteNotifications.plan(hits)!!.today)
+    }
 }

@@ -9,6 +9,7 @@ import de.luwify.mensamd.data.settings.settingsRepository
 import de.luwify.mensamd.notify.FavoriteNotifier
 import de.luwify.mensamd.notify.FavoriteScheduler
 import java.io.File
+import java.time.LocalTime
 
 /** Manual DI: one instance per process, owned by [MensaApp]. Everything heavy is lazy. */
 class AppContainer(context: Context) {
@@ -23,11 +24,15 @@ class AppContainer(context: Context) {
     }
 
     /** The daily favorites job runs only while notifications are on and there is at least one favorite. */
-    fun syncFavoriteSchedule(active: Boolean) {
-        if (active) FavoriteScheduler.ensureScheduled(app) else FavoriteScheduler.cancel(app)
+    fun syncFavoriteSchedule(active: Boolean, runAt: LocalTime, timeChanged: Boolean) {
+        when {
+            !active -> FavoriteScheduler.cancel(app)
+            timeChanged -> FavoriteScheduler.reschedule(app, runAt)
+            else -> FavoriteScheduler.ensureScheduled(app, runAt)
+        }
     }
 
     fun canPostNotifications(): Boolean = FavoriteNotifier.canPost(app)
 
-    fun postTestNotification(mensaId: String): Boolean = FavoriteNotifier.postTest(app, mensaId)
+    fun postTestNotification(mensaId: String, today: Boolean): Boolean = FavoriteNotifier.postTest(app, mensaId, today)
 }

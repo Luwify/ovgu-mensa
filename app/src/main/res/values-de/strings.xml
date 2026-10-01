@@ -91,17 +91,25 @@
         <item quantity="other">Morgen gibt es %d deiner Favoriten</item>
     </plurals>
     <string name="notify_test_dish">Dein Lieblingsgericht (Test)</string>
-    <string name="notify_channel_name">Favoriten auf dem Speiseplan von morgen</string>
-    <string name="notify_channel_description">Einmal am Tag gegen 18 Uhr, wenn einer deiner Favoriten morgen auf dem Speiseplan steht.</string>
+    <string name="notify_channel_name">Favoriten auf dem Speiseplan</string>
+    <string name="notify_channel_description">Einmal am Tag zur gewählten Uhrzeit, wenn einer deiner Favoriten auf dem Speiseplan steht.</string>
     <string name="notify_section_title">Benachrichtigungen</string>
-    <string name="notify_toggle">Favoriten auf dem Speiseplan von morgen</string>
-    <string name="notify_toggle_hint">Gegen 18 Uhr am Vortag. Wenn das Handy Akku spart, kann es später werden.</string>
+    <string name="notify_toggle">Favoriten auf dem Speiseplan</string>
+    <string name="notify_toggle_hint">Einmal am Tag. Wenn das Handy Akku spart, kann es später werden.</string>
+    <string name="notify_time">Uhrzeit</string>
+    <string name="notify_time_hint_tomorrow">Am Vortag, für den Speiseplan von morgen</string>
+    <string name="notify_time_hint_today">Am Morgen, für den Speiseplan von heute (bis 14 Uhr)</string>
+    <string name="notify_title_single_today">Heute in der Mensa</string>
+    <plurals name="notify_title_many_today">
+        <item quantity="one">Heute gibt es %d deiner Favoriten</item>
+        <item quantity="other">Heute gibt es %d deiner Favoriten</item>
+    </plurals>
     <string name="notify_mensen_title">Diese Mensen prüfen</string>
     <string name="notify_blocked">Benachrichtigungen sind für Mensa MD ausgeschaltet.</string>
     <string name="notify_open_settings">Einschalten</string>
     <string name="notify_test">Testbenachrichtigung senden</string>
     <string name="notify_permission_title">Über Favoriten benachrichtigen?</string>
-    <string name="notify_permission_text">Mensa MD kann dir gegen 18 Uhr Bescheid geben, wenn einer deiner Favoriten morgen auf dem Speiseplan steht. Deine Favoriten bleiben auf diesem Gerät. Ändern kannst du das jederzeit im Filter-Menü.</string>
+    <string name="notify_permission_text">Mensa MD kann dir einmal am Tag Bescheid geben (standardmäßig gegen 18 Uhr für den nächsten Tag), wenn einer deiner Favoriten auf dem Speiseplan steht. Deine Favoriten bleiben auf diesem Gerät. Ändern kannst du das jederzeit im Filter-Menü.</string>
     <string name="notify_permission_allow">Erlauben</string>
     <string name="notify_permission_later">Nicht jetzt</string>
     <string name="settings_title">Einstellungen</string>

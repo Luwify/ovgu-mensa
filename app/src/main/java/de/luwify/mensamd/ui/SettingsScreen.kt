@@ -43,7 +43,21 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import android.text.format.DateFormat
+import androidx.compose.foundation.clickable
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.TimePicker
+import androidx.compose.material3.rememberTimePickerState
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 import de.luwify.mensamd.R
+import de.luwify.mensamd.favorites.FavoriteNotifications
+import java.time.LocalTime
+import java.time.format.DateTimeFormatter
+import java.time.format.FormatStyle
 import de.luwify.mensamd.data.settings.ThemeMode
 import de.luwify.mensamd.data.settings.ViewPrefs
 import de.luwify.mensamd.model.Mensa
@@ -60,6 +74,7 @@ class NotifySheet(
     /** False when the system permission is missing or the user blocked the app's notifications. */
     val allowed: Boolean,
     val onEnabled: (Boolean) -> Unit,
+    val onTime: (LocalTime) -> Unit,
     val onWatch: (String, Boolean) -> Unit,
     val onAllow: () -> Unit,
     val onTest: () -> Unit,
@@ -130,6 +145,7 @@ fun SettingsScreen(vm: MainViewModel, mensas: List<Mensa>, defaultId: String, pr
                             mensas = notifyMensas,
                             allowed = access.allowed,
                             onEnabled = vm::setNotificationsEnabled,
+                            onTime = vm::setNotifyTime,
                             onWatch = vm::setNotifyMensa,
                             onAllow = access.request,
                             onTest = { if (access.allowed) vm.postTestNotification(defaultId) else access.request() },
@@ -166,6 +182,7 @@ private fun LazyListScope.notifySection(notify: NotifySheet, language: String) {
         }
     }
     if (!enabled) return
+    item(key = "notify-time") { NotifyTimeRow(notify.settings.time, notify.onTime) }
     if (!notify.allowed) {
         item(key = "notify-blocked") {
             Surface(
@@ -212,5 +229,53 @@ private fun LazyListScope.notifySection(notify: NotifySheet, language: String) {
         OutlinedButton(onClick = notify.onTest, modifier = Modifier.padding(top = 8.dp)) {
             Text(stringResource(R.string.notify_test))
         }
+    }
+}
+
+/**
+ * "Uhrzeit 18:00" with what that time announces; tap opens the time picker. Before noon the notification is about
+ * the same day's menu, from noon on about the next day's (see `FavoriteNotifications.targetDate`).
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun NotifyTimeRow(time: LocalTime, onTime: (LocalTime) -> Unit) {
+    val context = LocalContext.current
+    val locale = LocalConfiguration.current.locales[0]
+    val formatted = remember(time, locale) { time.format(DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT).withLocale(locale)) }
+    var picking by rememberSaveable { mutableStateOf(false) }
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clickable(role = Role.Button, onClick = { picking = true })
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(stringResource(R.string.notify_time), style = MaterialTheme.typography.bodyLarge)
+            Text(
+                stringResource(
+                    if (FavoriteNotifications.announcesToday(time)) R.string.notify_time_hint_today else R.string.notify_time_hint_tomorrow,
+                ),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Spacer(Modifier.width(16.dp))
+        Text(formatted, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+    }
+    if (picking) {
+        val state = rememberTimePickerState(time.hour, time.minute, is24Hour = DateFormat.is24HourFormat(context))
+        AlertDialog(
+            onDismissRequest = { picking = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    picking = false
+                    onTime(LocalTime.of(state.hour, state.minute))
+                }) { Text(stringResource(android.R.string.ok)) }
+            },
+            dismissButton = { TextButton(onClick = { picking = false }) { Text(stringResource(android.R.string.cancel)) } },
+            title = { Text(stringResource(R.string.notify_time)) },
+            text = { TimePicker(state) },
+        )
     }
 }

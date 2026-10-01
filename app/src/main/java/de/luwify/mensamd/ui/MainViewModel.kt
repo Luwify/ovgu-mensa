@@ -21,6 +21,8 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import de.luwify.mensamd.favorites.FavoriteNotifications
+import java.time.LocalTime
 import java.util.concurrent.ConcurrentHashMap
 
 sealed interface AppScreen {
@@ -39,7 +41,7 @@ sealed interface AppScreen {
 }
 
 /** The "Benachrichtigungen" part of the filter sheet. */
-data class NotifySettings(val enabled: Boolean, val watched: Set<String>)
+data class NotifySettings(val enabled: Boolean, val watched: Set<String>, val time: LocalTime)
 
 class MainViewModel(private val container: AppContainer) : ViewModel() {
     private val prefs = combine(
@@ -67,7 +69,8 @@ class MainViewModel(private val container: AppContainer) : ViewModel() {
     val notifySettings: StateFlow<NotifySettings?> = combine(
         container.settings.notificationsEnabled,
         container.settings.notifyMensen,
-    ) { enabled, watched -> NotifySettings(enabled, watched) }
+        container.settings.notifyTime,
+    ) { enabled, watched, time -> NotifySettings(enabled, watched, time) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     /** Whether the permission explanation was shown already; null until known (then nothing is asked). */
@@ -85,9 +88,16 @@ class MainViewModel(private val container: AppContainer) : ViewModel() {
     init {
         // Off the main thread: the first WorkManager call initializes it.
         viewModelScope.launch(Dispatchers.Default) {
-            combine(container.settings.notificationsEnabled, container.settings.favorites) { on, favorites -> on && favorites.isNotEmpty() }
+            var lastTime: LocalTime? = null
+            combine(container.settings.notificationsEnabled, container.settings.favorites, container.settings.notifyTime) { on, favorites, time ->
+                (on && favorites.isNotEmpty()) to time
+            }
                 .distinctUntilChanged()
-                .collect { container.syncFavoriteSchedule(it) }
+                .collect { (active, time) ->
+                    // App start keeps a pending job; a new time (picked while the app runs) replaces it.
+                    container.syncFavoriteSchedule(active, time, timeChanged = lastTime != null && lastTime != time)
+                    lastTime = time
+                }
         }
     }
 
@@ -158,7 +168,12 @@ class MainViewModel(private val container: AppContainer) : ViewModel() {
     fun canPostNotifications(): Boolean = container.canPostNotifications()
 
     fun postTestNotification(mensaId: String) {
-        container.postTestNotification(mensaId)
+        val today = FavoriteNotifications.announcesToday(notifySettings.value?.time ?: FavoriteNotifications.DEFAULT_RUN_AT)
+        container.postTestNotification(mensaId, today)
+    }
+
+    fun setNotifyTime(time: LocalTime) {
+        viewModelScope.launch { container.settings.setNotifyTime(time) }
     }
 
     fun requestOpen(mensaId: String) {

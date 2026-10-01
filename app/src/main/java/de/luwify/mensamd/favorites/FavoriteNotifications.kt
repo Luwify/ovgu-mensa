@@ -18,6 +18,8 @@ data class FavoriteHit(val mensaId: String, val date: LocalDate, val dish: Dish,
 /** One notification: a single favorite, or several shown as a list. Texts are built by the Android side. */
 data class NotificationPlan(
     val hits: List<FavoriteHit>,
+    /** "Heute" instead of "Morgen" wording (morning run time). */
+    val today: Boolean,
     /** The tab a tap opens: the Mensa of the first hit (hits follow the watched Mensen in tab order). */
     val openMensaId: String,
 ) {
@@ -26,26 +28,41 @@ data class NotificationPlan(
 
 /** The decisions of the daily favorites job, free of Android so they are unit-tested. */
 object FavoriteNotifications {
-    /** The job runs around this time of day. */
-    val RUN_AT: LocalTime = LocalTime.of(18, 0)
+    /** The default time of day the job runs; the user can pick another one in the settings. */
+    val DEFAULT_RUN_AT: LocalTime = LocalTime.of(18, 0)
 
     /**
-     * Before this hour a run is a late catch-up (the phone was off or offline at 18:00 and came back after
-     * midnight): "tomorrow" would already be the day after, so that run notifies nothing; the next evening
-     * run covers it.
+     * A run time before noon announces the same day ("Heute"), from noon on the next day ("Morgen"). A morning
+     * reminder for tomorrow's menu would make no sense.
      */
-    private const val EARLIEST_HOUR = 12
+    private val NOON: LocalTime = LocalTime.NOON
 
-    /** Delay from [now] to the next [RUN_AT] (today if still ahead, else tomorrow), DST-correct. */
-    fun delayUntilNextRun(now: ZonedDateTime): Duration {
-        var next = now.with(RUN_AT).withSecond(0).withNano(0)
-        if (!next.isAfter(now)) next = now.toLocalDate().plusDays(1).atTime(RUN_AT).atZone(now.zone)
+    /** Lunch is over: a same-day reminder that comes later than this (a late catch-up) is pointless. */
+    private val LUNCH_END: LocalTime = LocalTime.of(14, 0)
+
+    fun announcesToday(runAt: LocalTime): Boolean = runAt.isBefore(NOON)
+
+    /** Delay from [now] to the next [runAt] (today if still ahead, else tomorrow), DST-correct. */
+    fun delayUntilNextRun(now: ZonedDateTime, runAt: LocalTime = DEFAULT_RUN_AT): Duration {
+        var next = now.with(runAt).withSecond(0).withNano(0)
+        if (!next.isAfter(now)) next = now.toLocalDate().plusDays(1).atTime(runAt).atZone(now.zone)
         return Duration.between(now, next)
     }
 
-    /** The day a run at [now] announces: the next calendar day, or null for a too-early catch-up run. */
-    fun targetDate(now: ZonedDateTime): LocalDate? =
-        if (now.hour < EARLIEST_HOUR) null else now.toLocalDate().plusDays(1)
+    /**
+     * The day a run at [now] announces, or null for a catch-up that came too late (the phone was off or offline at
+     * [runAt]). Evening times ([runAt] from noon): the next calendar day, but not from runs before noon, when
+     * "tomorrow" would already be the day after (the next evening run covers it). Morning times: the same day,
+     * until lunch is over at 14:00.
+     */
+    fun targetDate(now: ZonedDateTime, runAt: LocalTime = DEFAULT_RUN_AT): LocalDate? {
+        val time = now.toLocalTime()
+        return if (announcesToday(runAt)) {
+            if (time.isBefore(LUNCH_END)) now.toLocalDate() else null
+        } else {
+            if (time.isBefore(NOON)) null else now.toLocalDate().plusDays(1)
+        }
+    }
 
     /**
      * Favorites on the menu of [date], per Mensa in the order of [menus] (the watched Mensen in tab order), each
@@ -70,8 +87,8 @@ object FavoriteNotifications {
     }
 
     /** At most one notification per run; null when there is nothing to say. */
-    fun plan(hits: List<FavoriteHit>): NotificationPlan? =
-        if (hits.isEmpty()) null else NotificationPlan(hits, hits.first().mensaId)
+    fun plan(hits: List<FavoriteHit>, today: Boolean = false): NotificationPlan? =
+        if (hits.isEmpty()) null else NotificationPlan(hits, today, hits.first().mensaId)
 
     /** Drops entries for days before [today], and anything unreadable, so the stored set stays small. */
     fun prune(notified: Set<String>, today: LocalDate): Set<String> = notified.filterTo(HashSet()) { entry ->

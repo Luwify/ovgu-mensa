@@ -7,11 +7,13 @@ import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import de.luwify.mensamd.favorites.FavoriteNotifications
+import java.time.LocalTime
 import java.time.ZonedDateTime
 import java.util.concurrent.TimeUnit
 
 /**
- * The daily favorites check: one unique one-time job for the next 18:00, which schedules its successor when it ends.
+ * The daily favorites check: one unique one-time job for the next run time (the user's choice, default 18:00),
+ * which schedules its successor when it ends.
  * One-time instead of periodic work so the time doesn't drift (a periodic job's next run counts from when the last
  * one actually ran). Needs a network connection; no exact alarm, no wake lock: Android may run it later in Doze.
  */
@@ -19,20 +21,23 @@ object FavoriteScheduler {
     private const val WORK_NAME = "favorite-notifications"
 
     /** Called on every app start while enabled and favorites exist: keeps a pending job, creates one if missing. */
-    fun ensureScheduled(context: Context) = enqueue(context, ExistingWorkPolicy.KEEP)
+    fun ensureScheduled(context: Context, runAt: LocalTime) = enqueue(context, runAt, ExistingWorkPolicy.KEEP)
+
+    /** The user picked another time: the pending job is replaced by one for the new time. */
+    fun reschedule(context: Context, runAt: LocalTime) = enqueue(context, runAt, ExistingWorkPolicy.REPLACE)
 
     /**
      * From the job itself, as its last action: replaces the (running) job with the next one. Replacing cancels
      * the running job, which is harmless at that point and leaves exactly one pending job.
      */
-    fun scheduleNext(context: Context) = enqueue(context, ExistingWorkPolicy.REPLACE)
+    fun scheduleNext(context: Context, runAt: LocalTime) = enqueue(context, runAt, ExistingWorkPolicy.REPLACE)
 
     fun cancel(context: Context) {
         WorkManager.getInstance(context).cancelUniqueWork(WORK_NAME)
     }
 
-    private fun enqueue(context: Context, policy: ExistingWorkPolicy) {
-        val delay = FavoriteNotifications.delayUntilNextRun(ZonedDateTime.now())
+    private fun enqueue(context: Context, runAt: LocalTime, policy: ExistingWorkPolicy) {
+        val delay = FavoriteNotifications.delayUntilNextRun(ZonedDateTime.now(), runAt)
         val request = OneTimeWorkRequestBuilder<FavoriteWorker>()
             .setInitialDelay(delay.toMillis(), TimeUnit.MILLISECONDS)
             .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())

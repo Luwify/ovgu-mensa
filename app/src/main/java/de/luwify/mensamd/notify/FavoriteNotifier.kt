@@ -40,11 +40,13 @@ object FavoriteNotifier {
         }
         val builder = baseBuilder(context, plan.openMensaId)
         if (plan.isSingle) {
-            builder.setContentTitle(context.getString(R.string.notify_title_single))
+            builder.setContentTitle(context.getString(if (plan.today) R.string.notify_title_single_today else R.string.notify_title_single))
                 .setContentText(lines.single())
                 .setStyle(NotificationCompat.BigTextStyle().bigText(lines.single()))
         } else {
-            val title = context.resources.getQuantityString(R.plurals.notify_title_many, lines.size, lines.size)
+            val title = context.resources.getQuantityString(
+                if (plan.today) R.plurals.notify_title_many_today else R.plurals.notify_title_many, lines.size, lines.size,
+            )
             val style = NotificationCompat.InboxStyle().setBigContentTitle(title)
             lines.forEach(style::addLine)
             builder.setContentTitle(title)
@@ -56,12 +58,12 @@ object FavoriteNotifier {
     }
 
     /** The settings button: a sample in the real format, opening [mensaId]. */
-    fun postTest(context: Context, mensaId: String): Boolean {
+    fun postTest(context: Context, mensaId: String, today: Boolean): Boolean {
         val language = context.resources.configuration.locales[0].language
         val mensa = MensaCatalog.byId(mensaId)?.name?.forLanguage(language) ?: mensaId
         val text = context.getString(R.string.notify_line, context.getString(R.string.notify_test_dish), mensa)
         val builder = baseBuilder(context, mensaId)
-            .setContentTitle(context.getString(R.string.notify_title_single))
+            .setContentTitle(context.getString(if (today) R.string.notify_title_single_today else R.string.notify_title_single))
             .setContentText(text)
         return show(context, builder)
     }
