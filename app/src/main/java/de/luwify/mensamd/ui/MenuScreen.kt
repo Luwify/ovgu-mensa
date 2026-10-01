@@ -48,6 +48,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import de.luwify.mensamd.R
 import de.luwify.mensamd.model.Dish
 import de.luwify.mensamd.model.Legend
@@ -188,15 +189,15 @@ private fun DishCard(
     modifier: Modifier = Modifier,
 ) {
     Card(modifier.fillMaxWidth()) {
-        Column(Modifier.padding(16.dp).animateContentSize(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Column(Modifier.padding(horizontal = 16.dp, vertical = 14.dp).animateContentSize(), verticalArrangement = Arrangement.spacedBy(5.dp)) {
             if (dish.badges.isNotEmpty()) {
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     dish.badges.forEach { BadgeLabel(it.forLanguage(language)) }
                 }
             }
-            Text(dish.name.forLanguage(language), style = MaterialTheme.typography.titleMedium)
+            Text(dish.name.forLanguage(language), style = MaterialTheme.typography.titleMedium.copy(lineHeight = 20.sp))
             if (dish.tags.isNotEmpty()) {
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     dish.tags.forEach { TagLabel(it) }
                 }
             }
@@ -315,7 +316,7 @@ private fun CodeMeanings(codes: List<String>, codeIndex: Map<String, LegendCode>
         stringResource(R.string.codes_toggle, codes.distinct().size) + if (expanded) " ▴" else " ▾",
         style = MaterialTheme.typography.labelLarge,
         color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.clickable(role = Role.Button) { expanded = !expanded }.padding(vertical = 4.dp),
+        modifier = Modifier.clickable(role = Role.Button) { expanded = !expanded }.padding(vertical = 2.dp),
     )
     if (expanded) {
         val groups = remember(codes, codeIndex, language) { groupCodes(codes, codeIndex, language) }
