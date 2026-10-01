@@ -1,6 +1,8 @@
 package de.luwify.mensamd.ui
 
 import de.luwify.mensamd.model.Dish
+import de.luwify.mensamd.model.FixedSection
+import de.luwify.mensamd.model.LocalizedText
 import de.luwify.mensamd.model.MenuDay
 import de.luwify.mensamd.model.isDinner
 import java.time.LocalDate
@@ -9,11 +11,17 @@ import java.time.LocalDate
 sealed class ListRow(val key: String) {
     class Header(val date: LocalDate) : ListRow("header-$date")
     class SubHeader(val date: LocalDate, val dinner: Boolean) : ListRow("sub-${if (dinner) "dinner" else "lunch"}-$date")
-    class DishRow(val dish: Dish, val date: LocalDate, key: String) : ListRow(key)
-    class NoMatch(date: LocalDate) : ListRow("empty-$date")
+    /** [date] is null for dishes of a fixed (undated) menu. */
+    class DishRow(val dish: Dish, val date: LocalDate?, key: String) : ListRow(key)
+    class NoMatch(id: String) : ListRow("empty-$id")
     class SubDivider(date: LocalDate) : ListRow("subdivider-$date")
     class DayDivider(date: LocalDate) : ListRow("divider-$date")
     class Footer(val updatedAt: Long, val failed: Boolean) : ListRow("footer")
+
+    /** The single "Festes Angebot" label that replaces the day headers of a fixed menu. */
+    data object FixedHeader : ListRow("fixed-header")
+    class SectionTitle(index: Int, val title: LocalizedText) : ListRow("section-$index")
+    class SectionDivider(index: Int) : ListRow("section-divider-$index")
 }
 
 /**
@@ -27,7 +35,7 @@ fun buildRows(days: List<MenuDay>, updatedAt: Long?, failed: Boolean): List<List
         add(ListRow.Header(day.date))
         if (day.dishes.isEmpty()) {
             // Everything on this day is filtered out: keep the day visible and say why.
-            add(ListRow.NoMatch(day.date))
+            add(ListRow.NoMatch(day.date.toString()))
         } else {
             val (dinner, lunch) = day.dishes.partition { it.isDinner }
             val seen = HashMap<String, Int>()
@@ -45,6 +53,26 @@ fun buildRows(days: List<MenuDay>, updatedAt: Long?, failed: Boolean): List<List
             }
         }
         if (index < days.lastIndex) add(ListRow.DayDivider(day.date))
+    }
+    if (updatedAt != null) add(ListRow.Footer(updatedAt, failed))
+}
+
+/**
+ * Rows of a fixed (undated) menu: one "Festes Angebot" label, then each section with its optional
+ * title, dishes (or "no matching dishes" when filters removed them all) and a divider between sections.
+ */
+fun buildFixedRows(sections: List<FixedSection>, updatedAt: Long?, failed: Boolean): List<ListRow> = buildList {
+    add(ListRow.FixedHeader)
+    sections.forEachIndexed { index, section ->
+        section.title?.let { add(ListRow.SectionTitle(index, it)) }
+        val seen = HashMap<String, Int>()
+        for (dish in section.dishes) {
+            val base = "fixed-$index|${dish.name.de}"
+            val n = seen.merge(base, 1, Int::plus)!!
+            add(ListRow.DishRow(dish, null, if (n == 1) base else "$base#$n"))
+        }
+        if (section.dishes.isEmpty()) add(ListRow.NoMatch("fixed-$index"))
+        if (index < sections.lastIndex) add(ListRow.SectionDivider(index))
     }
     if (updatedAt != null) add(ListRow.Footer(updatedAt, failed))
 }

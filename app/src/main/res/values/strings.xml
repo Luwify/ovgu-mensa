@@ -63,4 +63,5 @@
     <string name="theme_system">System colors</string>
     <string name="theme_soft">Soft</string>
     <string name="theme_amoled">AMOLED</string>
+    <string name="fixed_offer">Fixed menu</string>
 </resources>

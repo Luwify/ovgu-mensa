@@ -30,6 +30,7 @@ class MenuRowsTest {
             is ListRow.SubDivider -> "|"
             is ListRow.DayDivider -> "||"
             is ListRow.Footer -> "F"
+            else -> error("fixed-menu row in a dated list")
         }
     }
 
@@ -83,5 +84,54 @@ class MenuRowsTest {
         val rows = buildRows(page("unicampus-unten").days, null, false)
         assertTrue(rows.any { it is ListRow.SubHeader && it.dinner })
         assertTrue(rows.any { it is ListRow.SubHeader && !it.dinner })
+    }
+
+    // ---- fixed (undated) menus ----
+
+    private fun section(title: String?, vararg dishes: Dish) =
+        de.luwify.mensamd.model.FixedSection(title?.let { de.luwify.mensamd.model.LocalizedText(it) }, dishes.toList())
+
+    private fun fixedKinds(rows: List<ListRow>) = rows.map {
+        when (it) {
+            ListRow.FixedHeader -> "FH"
+            is ListRow.SectionTitle -> "T:" + it.title.de
+            is ListRow.DishRow -> "d:" + it.dish.name.de + (if (it.date == null) "" else "@date")
+            is ListRow.NoMatch -> "none"
+            is ListRow.SectionDivider -> "||"
+            is ListRow.Footer -> "F"
+            else -> "?"
+        }
+    }
+
+    @Test
+    fun fixedMenu_hasOneLabelInsteadOfDayHeaders_andNoDates() {
+        val rows = buildFixedRows(listOf(section(null, dish("A"), dish("B"))), 5L, false)
+        assertEquals(listOf("FH", "d:A", "d:B", "F"), fixedKinds(rows))
+        assertTrue(rows.filterIsInstance<ListRow.DishRow>().all { it.date == null })
+        assertTrue(rows.none { it is ListRow.Header || it is ListRow.SubHeader || it is ListRow.DayDivider })
+    }
+
+    @Test
+    fun fixedSections_getTitlesAndDividers_andEmptiedSectionsSayNoMatch() {
+        val rows = buildFixedRows(listOf(section("Frühstück", dish("A")), section("Kuchen"), section(null, dish("B"))), null, false)
+        assertEquals(listOf("FH", "T:Frühstück", "d:A", "||", "T:Kuchen", "none", "||", "d:B"), fixedKinds(rows))
+    }
+
+    @Test
+    fun fixedKeys_areUnique_evenForRepeatedNamesAndSections() {
+        val rows = buildFixedRows(listOf(section(null, dish("Suppe"), dish("Suppe")), section("Mehr", dish("Suppe"))), 1L, false)
+        val keys = rows.map { it.key }
+        assertEquals(keys.size, keys.toSet().size)
+    }
+
+    @Test
+    fun realPierFixture_buildsAHeaderNineCardsAndAFooter() {
+        val html = checkNotNull(javaClass.getResourceAsStream("/fixtures/2026-10-01/pier16.html")).use { it.readBytes().toString(Charsets.UTF_8) }
+        val page = de.luwify.mensamd.parser.PierParser.parse(html)
+        val rows = buildFixedRows(page.fixed, 1L, false)
+        assertEquals(ListRow.FixedHeader, rows.first())
+        assertEquals(9, rows.count { it is ListRow.DishRow })
+        assertTrue(rows.last() is ListRow.Footer)
+        assertEquals(rows.size, rows.map { it.key }.toSet().size)
     }
 }

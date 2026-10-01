@@ -132,9 +132,13 @@ private fun MensaPage(vm: MainViewModel, mensaId: String, today: LocalDate, pref
 
     val current = ui
     val days = remember(current?.days, today) { current?.days?.upcomingWeekdays(today).orEmpty() }
-    val options = remember(days, prefs.tagFilters) { DishFilters.options(days, prefs.tagFilters) }
+    val fixed = remember(current?.fixed) { current?.fixed.orEmpty() }
+    val options = remember(days, fixed, prefs.tagFilters) { DishFilters.options(days, prefs.tagFilters, fixed) }
     val shown = remember(days, prefs.tagFilters, prefs.excludedCodes) {
         DishFilters.apply(days, prefs.tagFilters, prefs.excludedCodes)
+    }
+    val shownFixed = remember(fixed, prefs.tagFilters, prefs.excludedCodes) {
+        DishFilters.applySections(fixed, prefs.tagFilters, prefs.excludedCodes)
     }
     // Scales come from the unfiltered days, so colors don't shift when the user filters.
     val footprints = remember(days) { dayFootprints(days) }
@@ -159,7 +163,7 @@ private fun MensaPage(vm: MainViewModel, mensaId: String, today: LocalDate, pref
                 FilterRow(options, prefs.tagFilters, prefs.excludedCodes.size, vm::toggleFilter) { showSheet = true }
             }
             Box(Modifier.weight(1f).fillMaxWidth()) {
-                if (current != null) MenuBody(current, shown, today, prefs, footprints) { vm.refresh(mensaId) }
+                if (current != null) MenuBody(current, shown, shownFixed, today, prefs, footprints) { vm.refresh(mensaId) }
             }
         }
         if (showSheet && current != null) {

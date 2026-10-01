@@ -67,6 +67,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import de.luwify.mensamd.R
 import de.luwify.mensamd.model.Dish
+import de.luwify.mensamd.model.FixedSection
 import de.luwify.mensamd.model.Legend
 import de.luwify.mensamd.model.MenuDay
 import de.luwify.mensamd.model.Tag
@@ -83,13 +84,21 @@ import java.util.Locale
 fun MenuBody(
     ui: MenuUiState,
     days: List<MenuDay>,
+    fixed: List<FixedSection>,
     today: LocalDate,
     prefs: ViewPrefs,
     footprints: Map<LocalDate, DayFootprint>,
     onRetry: () -> Unit,
 ) {
     when {
-        days.isNotEmpty() -> MenuList(ui, days, today, prefs, footprints)
+        days.isNotEmpty() -> {
+            val rows = remember(days, ui.lastUpdatedMillis, ui.refreshFailed) { buildRows(days, ui.lastUpdatedMillis, ui.refreshFailed) }
+            MenuList(ui, rows, today, prefs, footprints)
+        }
+        fixed.isNotEmpty() -> {
+            val rows = remember(fixed, ui.lastUpdatedMillis, ui.refreshFailed) { buildFixedRows(fixed, ui.lastUpdatedMillis, ui.refreshFailed) }
+            MenuList(ui, rows, today, prefs, footprints)
+        }
         !ui.hasData && ui.refreshFailed -> Message(stringResource(R.string.error_no_data), onRetry)
         ui.hasData && !ui.isRefreshing -> Message(stringResource(R.string.empty_no_upcoming), null)
         // else: nothing cached yet and the first fetch is running. The progress bar says so; no spinner screen.
@@ -112,16 +121,16 @@ private fun Message(text: String, onRetry: (() -> Unit)?) {
 }
 
 /**
- * All upcoming days in one scroll. The list starts at its first item, which is today or the next
- * open day, because past days are already filtered out.
+ * The rows of one Mensa in one scroll. For dated Mensen the list starts at its first item, which is
+ * today or the next open day, because past days are already filtered out; a fixed menu starts at
+ * its "Festes Angebot" label.
  */
 @Composable
-private fun MenuList(ui: MenuUiState, days: List<MenuDay>, today: LocalDate, prefs: ViewPrefs, footprints: Map<LocalDate, DayFootprint>) {
+private fun MenuList(ui: MenuUiState, rows: List<ListRow>, today: LocalDate, prefs: ViewPrefs, footprints: Map<LocalDate, DayFootprint>) {
     val locale = LocalConfiguration.current.locales[0]
     val euro = remember(locale) { NumberFormat.getCurrencyInstance(locale).apply { currency = Currency.getInstance("EUR") } }
     val bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     val codeIndex = remember(ui.legend) { ui.legend.codes.associateBy { it.code } }
-    val rows = remember(days, ui.lastUpdatedMillis, ui.refreshFailed) { buildRows(days, ui.lastUpdatedMillis, ui.refreshFailed) }
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         // Horizontal padding lives on the items so sticky headers can span the full width.
@@ -132,9 +141,14 @@ private fun MenuList(ui: MenuUiState, days: List<MenuDay>, today: LocalDate, pre
             when (row) {
                 is ListRow.Header -> stickyHeader(key = row.key, contentType = "header") { DayHeader(row.date, today, locale) }
                 is ListRow.SubHeader -> item(key = row.key, contentType = "subheader") { SubHeader(row.dinner) }
+                ListRow.FixedHeader -> stickyHeader(key = row.key, contentType = "header") { FixedHeader() }
+                is ListRow.SectionTitle -> item(key = row.key, contentType = "subheader") { SectionLabel(row.title.forLanguage(locale.language)) }
+                is ListRow.SectionDivider -> item(key = row.key, contentType = "divider") {
+                    HorizontalDivider(Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
+                }
                 is ListRow.DishRow -> item(key = row.key, contentType = "dish") {
                     DishCard(
-                        row.dish, ui.legend, codeIndex, locale.language, euro, prefs.priceGroup, footprints[row.date],
+                        row.dish, ui.legend, codeIndex, locale.language, euro, prefs.priceGroup, row.date?.let { footprints[it] },
                         prefs.compact, Modifier.padding(horizontal = 16.dp),
                     )
                 }
@@ -156,6 +170,28 @@ private fun MenuList(ui: MenuUiState, days: List<MenuDay>, today: LocalDate, pre
             }
         }
     }
+}
+
+/** Replaces the day header on a fixed menu: it has no days, only this label. Opaque like [DayHeader]. */
+@Composable
+private fun FixedHeader() {
+    Text(
+        stringResource(R.string.fixed_offer),
+        style = MaterialTheme.typography.titleMedium,
+        fontWeight = FontWeight.Bold,
+        modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.background).padding(horizontal = 16.dp, vertical = 10.dp),
+    )
+}
+
+/** Title of a section of a fixed menu (e.g. a category the page may add). */
+@Composable
+private fun SectionLabel(text: String) {
+    Text(
+        text,
+        style = MaterialTheme.typography.labelLarge,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+    )
 }
 
 /** Small label that tells the lunch part from the dinner part of a day. */
@@ -254,7 +290,11 @@ private fun FullCardBody(
         }
     }
     val prices: @Composable () -> Unit = {
-        Prices(dish.prices, priceGroup, legend, language, euro, pricesExpanded) { pricesExpanded = !pricesExpanded }
+        if (dish.priceGroupsKnown) {
+            Prices(dish.prices, priceGroup, legend, language, euro, pricesExpanded) { pricesExpanded = !pricesExpanded }
+        } else {
+            UnlabeledPrices(dish.prices, euro, MaterialTheme.typography.titleMedium)
+        }
     }
 
     Column(Modifier.padding(horizontal = 16.dp, vertical = 14.dp).animateContentSize(), verticalArrangement = Arrangement.spacedBy(5.dp)) {
@@ -324,7 +364,9 @@ private fun CompactCardBody(dish: Dish, legend: Legend, language: String, euro: 
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f),
             )
-            if (split != null) {
+            if (split != null && !dish.priceGroupsKnown) {
+                UnlabeledPrices(dish.prices, euro, MaterialTheme.typography.labelLarge)
+            } else if (split != null) {
                 Surface(
                     shape = MaterialTheme.shapes.extraSmall,
                     color = LocalMensaColors.current.price.container,
@@ -351,6 +393,19 @@ private fun CompactCardBody(dish: Dish, legend: Legend, language: String, euro: 
             }
         }
     }
+}
+
+/**
+ * Prices whose groups the page doesn't name (PIER 16 sometimes lists only two): shown as plain
+ * amounts, without a group label and without picking one as "the selected group's" price.
+ */
+@Composable
+private fun UnlabeledPrices(prices: List<Int>, euro: NumberFormat, style: androidx.compose.ui.text.TextStyle) {
+    Text(
+        prices.joinToString("  ·  ") { euro.format(it / 100.0) },
+        style = style,
+        fontWeight = FontWeight.Bold,
+    )
 }
 
 /**

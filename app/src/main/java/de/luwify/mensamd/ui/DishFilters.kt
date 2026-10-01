@@ -1,6 +1,7 @@
 package de.luwify.mensamd.ui
 
 import de.luwify.mensamd.model.Dish
+import de.luwify.mensamd.model.FixedSection
 import de.luwify.mensamd.model.MenuDay
 
 /**
@@ -34,6 +35,11 @@ object DishFilters {
         if (active.isEmpty() && excludedCodes.isEmpty()) days
         else days.map { day -> day.copy(dishes = day.dishes.filter { matches(it, active, excludedCodes) }) }
 
+    /** Same filters over the sections of a fixed menu; sections are kept even when all their dishes are filtered out. */
+    fun applySections(sections: List<FixedSection>, active: Set<String>, excludedCodes: Set<String> = emptySet()): List<FixedSection> =
+        if (active.isEmpty() && excludedCodes.isEmpty()) sections
+        else sections.map { it.copy(dishes = it.dishes.filter { d -> matches(d, active, excludedCodes) }) }
+
     /** [label] is the site's alt text, used only for keys we have no own strings for. */
     data class Option(val key: String, val label: String)
 
@@ -42,9 +48,10 @@ object DishFilters {
      * page, so a persisted filter can always be switched off. Vegetarian is offered when there are
      * vegetarian or vegan dishes, since it matches both.
      */
-    fun options(days: List<MenuDay>, active: Set<String>): List<Option> {
+    fun options(days: List<MenuDay>, active: Set<String>, fixed: List<FixedSection> = emptyList()): List<Option> {
         val labels = LinkedHashMap<String, String>()
         for (day in days) for (dish in day.dishes) for (tag in dish.tags) labels.putIfAbsent(tag.key, tag.label)
+        for (section in fixed) for (dish in section.dishes) for (tag in dish.tags) labels.putIfAbsent(tag.key, tag.label)
         if (VEGAN in labels && VEGETARIAN !in labels) labels[VEGETARIAN] = VEGETARIAN
         for (key in active) labels.putIfAbsent(key, key)
         return labels.map { Option(it.key, it.value) }.sortedWith(

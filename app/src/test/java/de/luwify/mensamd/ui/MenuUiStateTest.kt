@@ -49,4 +49,20 @@ class MenuUiStateTest {
         val days = listOf(day(2, dish), day(5, dish))
         assertEquals(listOf(5), days.upcomingWeekdays(LocalDate.of(2026, 10, 3)).map { it.date.dayOfMonth })
     }
+
+    @Test
+    fun fixedSections_passThrough_andEmptyOnesAreDropped() {
+        val page = MenuPage(
+            emptyList(), Legend.EMPTY,
+            listOf(
+                de.luwify.mensamd.model.FixedSection(null, listOf(dish)),
+                de.luwify.mensamd.model.FixedSection(LocalizedText("Leer"), emptyList()),
+            ),
+        )
+        val ui = MenuState(page, 9L).toUiState()
+        assertEquals(1, ui.fixed.size)
+        assertTrue(ui.days.isEmpty())
+        assertTrue(ui.hasData)
+        assertTrue(MenuState(MenuPage(emptyList(), Legend.EMPTY)).toUiState().fixed.isEmpty())
+    }
 }

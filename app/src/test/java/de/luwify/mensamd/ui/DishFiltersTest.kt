@@ -107,4 +107,44 @@ class DishFiltersTest {
         assertEquals(1, r.size)
         assertTrue(r.single().dishes.isEmpty())
     }
+
+    // ---- fixed menus (PIER 16) ----
+
+    private fun fixedSection(vararg dishes: Dish) = de.luwify.mensamd.model.FixedSection(null, dishes.toList())
+
+    @Test
+    fun sections_areFilteredLikeDays_andKeptWhenEmptied() {
+        val s = listOf(fixedSection(vegan, veggie, pork), fixedSection(fish))
+        val r = DishFilters.applySections(s, setOf("vegetarisch", "schwein"))
+        assertEquals(listOf("Linsen", "Käsespätzle"), r[0].dishes.map { it.name.de })
+        assertEquals(2, r.size)
+        assertTrue(r[1].dishes.isEmpty()) // fish is not vegetarian: section kept, empty
+    }
+
+    @Test
+    fun sections_excludedCodesHideDishes() {
+        val s = listOf(fixedSection(withCodes("Brot", "a1"), withCodes("Reis")))
+        assertEquals(listOf("Reis"), DishFilters.applySections(s, emptySet(), setOf("a1"))[0].dishes.map { it.name.de })
+        assertEquals(s, DishFilters.applySections(s, emptySet(), emptySet()))
+    }
+
+    @Test
+    fun options_includeTagsOfFixedSections_inFixedOrder() {
+        val keys = DishFilters.options(emptyList(), emptySet(), listOf(fixedSection(pork, vegan))).map { it.key }
+        assertEquals(listOf("vegan", "vegetarisch", "schwein", "knoblauch"), keys)
+    }
+
+    @Test
+    fun realPier_offersTheTagsItHas_andFiltersWork() {
+        val html = checkNotNull(javaClass.getResourceAsStream("/fixtures/2026-10-01/pier16.html")).use { it.readBytes().toString(Charsets.UTF_8) }
+        val page = de.luwify.mensamd.parser.PierParser.parse(html)
+        val keys = DishFilters.options(emptyList(), emptySet(), page.fixed).map { it.key }
+        assertEquals(listOf("vegan", "vegetarisch", "schwein", "rind", "gefluegel", "knoblauch"), keys)
+        val vegan = DishFilters.applySections(page.fixed, setOf("vegan")).flatMap { it.dishes }
+        assertEquals(3, vegan.size) // Veggie burger, Vegane Curry-Gemüsebratwurst, Mediterraner Wrap
+        val vegetarian = DishFilters.applySections(page.fixed, setOf("vegetarisch")).flatMap { it.dishes }
+        assertEquals(5, vegetarian.size) // + Cheesy Veggie burger, Caprese wrap
+        val noGluten = DishFilters.applySections(page.fixed, emptySet(), setOf("a1")).flatMap { it.dishes }
+        assertEquals(1, noGluten.size) // only the Curry-Bratwurst states no wheat
+    }
 }
