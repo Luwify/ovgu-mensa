@@ -230,4 +230,40 @@ class DishFiltersTest {
         val s = listOf(fixedSection(vegan, fish))
         assertEquals(listOf("Lachs"), DishFilters.applySections(s, setOf(DishFilters.FAVORITES), favorites = setOf("lachs"))[0].dishes.map { it.name.de })
     }
+
+    // ---- chip order (long-press + drag) ----
+
+    @Test
+    fun customOrder_comesFirst_unknownKeysFollowInDefaultOrder() {
+        val keys = DishFilters.options(listOf(day), emptySet(), customOrder = listOf("fisch", DishFilters.FAVORITES, "vegan")).map { it.key }
+        assertEquals(listOf("fisch", DishFilters.FAVORITES, "vegan", "vegetarisch", "schwein", "knoblauch"), keys)
+    }
+
+    @Test
+    fun mergeOrder_firstDrag_takesTheVisibleOrder() {
+        assertEquals(listOf("vegetarisch", "vegan", ":kuchen"), DishFilters.mergeOrder(emptyList(), listOf("vegetarisch", "vegan", ":kuchen")))
+    }
+
+    @Test
+    fun mergeOrder_chipsOfOtherPagesKeepTheirPlace() {
+        // stored: cake (only on some pages) sits between vegan and favorites
+        val stored = listOf("vegan", ":kuchen", ":favoriten", "schwein")
+        // a page without cake: the user drags favorites to the front
+        val merged = DishFilters.mergeOrder(stored, listOf(":favoriten", "vegan", "schwein"))
+        assertEquals(listOf(":favoriten", ":kuchen", "vegan", "schwein"), merged)
+        // seen from that page the order is exactly what the user dragged
+        assertEquals(listOf(":favoriten", "vegan", "schwein"), merged.filter { it in setOf(":favoriten", "vegan", "schwein") })
+    }
+
+    @Test
+    fun mergeOrder_newVisibleChipsGetSlotsAtTheEnd_andDuplicatesVanish() {
+        assertEquals(listOf("rind", "vegan", "fisch"), DishFilters.mergeOrder(listOf("vegan", "vegan"), listOf("rind", "vegan", "fisch")))
+    }
+
+    @Test
+    fun mergeOrder_thenOptions_showTheDraggedOrderOnThatPage() {
+        val dragged = listOf("schwein", "vegan", "fisch", DishFilters.FAVORITES, "vegetarisch", "knoblauch")
+        val stored = DishFilters.mergeOrder(listOf("alkohol"), dragged)
+        assertEquals(dragged, DishFilters.options(listOf(day), emptySet(), customOrder = stored).map { it.key })
+    }
 }

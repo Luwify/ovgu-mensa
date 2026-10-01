@@ -180,4 +180,20 @@ class SettingsRepositoryTest {
             scope.shutDown()
         }
     }
+
+    @Test
+    fun filterOrder_isEmptyUntilDragged_thenMergedAndPersisted() = runBlocking {
+        val file = File(tmp.root, "chips.preferences_pb")
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        try {
+            val repo = SettingsRepository(PreferenceDataStoreFactory.create(scope = scope) { file })
+            assertEquals(emptyList<String>(), repo.filterOrder.first())
+            val merge = de.luwify.mensamd.ui.DishFilters::mergeOrder
+            repo.reorderFilters(listOf("vegan", ":kuchen", ":favoriten"), merge)
+            repo.reorderFilters(listOf(":favoriten", "vegan"), merge)
+            assertEquals(listOf(":favoriten", ":kuchen", "vegan"), repo.filterOrder.first())
+        } finally {
+            scope.shutDown()
+        }
+    }
 }

@@ -58,6 +58,21 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
         }
     }
 
+    private val filterOrderKey = stringPreferencesKey("filter_order")
+
+    /** The user's filter chip order (keys); empty until they first drag a chip. Keys never contain commas. */
+    val filterOrder: Flow<List<String>> = store.data.map { prefs ->
+        prefs[filterOrderKey]?.split(',')?.filter { it.isNotEmpty() }.orEmpty()
+    }
+
+    /** Applies a drag on one page ([visibleNew]) to the stored order, atomically (see `DishFilters.mergeOrder`). */
+    suspend fun reorderFilters(visibleNew: List<String>, merge: (List<String>, List<String>) -> List<String>) {
+        store.edit { prefs ->
+            val stored = prefs[filterOrderKey]?.split(',')?.filter { it.isNotEmpty() }.orEmpty()
+            prefs[filterOrderKey] = merge(stored, visibleNew).joinToString(",")
+        }
+    }
+
     private val excludedCodesKey = stringPreferencesKey("excluded_codes")
 
     /** Additive/allergen codes whose dishes are hidden; shared by all Mensen. */

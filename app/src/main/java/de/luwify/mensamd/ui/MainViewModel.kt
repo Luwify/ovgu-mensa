@@ -49,6 +49,7 @@ class MainViewModel(private val container: AppContainer) : ViewModel() {
         container.settings.compactMode,
         container.settings.favorites,
     ) { tags, codes, priceGroup, compact, favorites -> ViewPrefs(tags, codes, priceGroup, compact, favorites) }
+        .combine(container.settings.filterOrder) { prefs, order -> prefs.copy(filterOrder = order) }
 
     val screen: StateFlow<AppScreen> = combine(
         container.settings.defaultMensaId,
@@ -166,6 +167,11 @@ class MainViewModel(private val container: AppContainer) : ViewModel() {
 
     fun consumeOpenRequest() {
         _openRequest.value = null
+    }
+
+    /** The chips of one page after a drag; merged into the stored order (chips of other pages keep their place). */
+    fun reorderFilters(visibleKeys: List<String>) {
+        viewModelScope.launch { container.settings.reorderFilters(visibleKeys, DishFilters::mergeOrder) }
     }
 
     fun toggleFilter(key: String) {

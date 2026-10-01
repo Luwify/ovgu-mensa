@@ -26,6 +26,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Arrangement
@@ -198,7 +199,9 @@ private fun MensaPage(
     val current = ui
     val days = remember(current?.days, today) { current?.days?.upcomingWeekdays(today).orEmpty() }
     val fixed = remember(current?.fixed) { current?.fixed.orEmpty() }
-    val options = remember(days, fixed, prefs.tagFilters) { DishFilters.options(days, prefs.tagFilters, fixed) }
+    val options = remember(days, fixed, prefs.tagFilters, prefs.filterOrder) {
+        DishFilters.options(days, prefs.tagFilters, fixed, prefs.filterOrder)
+    }
     val shown = remember(days, prefs.tagFilters, prefs.excludedCodes, prefs.favorites) {
         DishFilters.apply(days, prefs.tagFilters, prefs.excludedCodes, prefs.favorites)
     }
@@ -225,7 +228,7 @@ private fun MensaPage(
     ) {
         Column(Modifier.fillMaxSize()) {
             if (current?.hasData == true) {
-                FilterRow(options, prefs.tagFilters, prefs.excludedCodes.size, vm::toggleFilter) { showSheet = true }
+                FilterRow(options, prefs.tagFilters, prefs.excludedCodes.size, vm::toggleFilter, vm::reorderFilters) { showSheet = true }
             }
             Box(Modifier.weight(1f).fillMaxWidth()) {
                 if (current != null) MenuBody(current, shown, shownFixed, today, prefs, footprints, onToggleFavorite) { vm.refresh(mensaId) }
@@ -248,7 +251,8 @@ private fun MensaPage(
 
 /**
  * The sheet button stays pinned at the start; the tag chips (built from the tags found on this
- * page plus active filters; the selection is global) scroll next to it.
+ * page plus active filters; the selection is global) scroll next to it. Long-press a chip and drag
+ * to reorder them; the order is global too.
  */
 @Composable
 private fun FilterRow(
@@ -256,19 +260,27 @@ private fun FilterRow(
     active: Set<String>,
     excludedCodeCount: Int,
     onToggle: (String) -> Unit,
+    onReorder: (List<String>) -> Unit,
     onOpenSheet: () -> Unit,
 ) {
+    val listState = rememberLazyListState()
+    val reorder = rememberRowReorder(options, listState, key = { it.key }, onReorder = onReorder)
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         FilterButton(excludedCodeCount, onOpenSheet)
         // Short divider: the button opens a sheet, the chips toggle filters.
         VerticalDivider(Modifier.padding(horizontal = 10.dp).height(24.dp))
         LazyRow(
+            state = listState,
+            modifier = reorder.gestures,
+            userScrollEnabled = !reorder.isDragging,
             contentPadding = PaddingValues(end = 16.dp, top = 4.dp, bottom = 4.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            items(options, key = { it.key }) { option ->
+            items(reorder.order, key = { it.key }) { option ->
                 val label = filterLabelRes(option.key)?.let { stringResource(it) } ?: stringResource(R.string.filter_no_generic, option.label)
-                MensaFilterChip(selected = option.key in active, onClick = { onToggle(option.key) }, label = { Text(label) })
+                Box(Modifier.reorderItem(this, reorder, option.key)) {
+                    MensaFilterChip(selected = option.key in active, onClick = { onToggle(option.key) }, label = { Text(label) })
+                }
             }
         }
     }

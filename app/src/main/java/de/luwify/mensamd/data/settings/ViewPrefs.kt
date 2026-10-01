@@ -12,4 +12,6 @@ data class ViewPrefs(
     val compact: Boolean = false,
     /** Favorite dishes as normalized names (see `Favorites`). */
     val favorites: Set<String> = emptySet(),
+    /** The user's filter chip order (see `DishFilters.mergeOrder`); empty = default order. */
+    val filterOrder: List<String> = emptyList(),
 )
