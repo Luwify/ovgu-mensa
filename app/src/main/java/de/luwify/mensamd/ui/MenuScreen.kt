@@ -12,7 +12,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.material3.Icon
 import de.luwify.mensamd.data.settings.ViewPrefs
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.width
@@ -28,10 +27,10 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.graphics.Color
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.animation.animateContentSize
@@ -76,7 +75,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.draw.drawBehind
 import de.luwify.mensamd.model.Dish
 import de.luwify.mensamd.model.FixedSection
 import de.luwify.mensamd.model.Legend
@@ -153,12 +151,13 @@ private fun MenuList(
     val euro = remember(locale) { NumberFormat.getCurrencyInstance(locale).apply { currency = Currency.getInstance("EUR") } }
     val bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     val codeIndex = remember(ui.legend) { ui.legend.codes.associateBy { it.code } }
-    // Super sparkle: the favorites' aura trails the scrolling (see ScrollDrag); nothing installed otherwise.
+    // "Favoriten funkeln": the favorites' aura (SuperAuraOverlay). The unlocked Super-Funkeln adds the jelly drag
+    // while scrolling (ScrollDrag); nothing installed otherwise, so the aura stays still.
     val drag = if (prefs.superSparkle) rememberScrollDrag() else null
     val listState = rememberLazyListState()
-    // The super aura is drawn in one layer above the list (see SuperAuraOverlay), not by the cards themselves.
-    val favoriteKeys = remember(rows, prefs.favorites, prefs.superSparkle) {
-        if (!prefs.superSparkle) emptySet()
+    // The aura is drawn in one layer above the list (see SuperAuraOverlay), not by the cards themselves.
+    val favoriteKeys = remember(rows, prefs.favorites, prefs.legendary) {
+        if (!prefs.legendary) emptySet()
         else rows.filterIsInstance<ListRow.DishRow>().filter { it.favoriteKey in prefs.favorites }.mapTo(HashSet()) { it.key }
     }
     Box(Modifier.fillMaxSize()) {
@@ -181,7 +180,7 @@ private fun MenuList(
                     is ListRow.DishRow -> item(key = row.key, contentType = "dish") {
                         DishCard(
                             row.dish, ui.legend, codeIndex, locale.language, euro, prefs.priceGroup, row.date?.let { footprints[it] },
-                            prefs.compact, row.favoriteKey in prefs.favorites, prefs.legendary, { onToggleFavorite(row.favoriteKey) },
+                            prefs.compact, row.favoriteKey in prefs.favorites, { onToggleFavorite(row.favoriteKey) },
                             Modifier.padding(horizontal = 16.dp),
                         )
                     }
@@ -284,7 +283,6 @@ private fun DishCard(
     footprint: DayFootprint?,
     compact: Boolean,
     favorite: Boolean,
-    legendary: Boolean,
     onToggleFavorite: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -306,9 +304,7 @@ private fun DishCard(
     val shape = CardDefaults.shape
     val cardModifier = theme.cardGlow?.let { glow -> Modifier.cardGlow(glow, shape) } ?: Modifier
     FavoriteEffects(
-        legendary = legendary && favorite,
         burst = burst,
-        shape = shape,
         favoriteColor = theme.favorite,
         background = theme.cardContainer ?: MaterialTheme.colorScheme.surface,
         // Where the heart sits (see FullCardBody / CompactCardBody): its 24dp icon at the end of the first row.

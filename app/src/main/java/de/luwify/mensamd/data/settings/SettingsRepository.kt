@@ -114,7 +114,7 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
 
     private val legendaryKey = booleanPreferencesKey("legendary_favorites")
 
-    /** Favorites sparkle in the overview (gold, turning frame); on by default. */
+    /** "Favoriten funkeln": favorites get the gold aura with sparkles; on by default. */
     val legendaryFavorites: Flow<Boolean> = store.data.map { it[legendaryKey] ?: true }
 
     suspend fun setLegendaryFavorites(on: Boolean) {
@@ -127,7 +127,7 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
     /** Whether the hidden super sparkle was unlocked (it stays unlocked). */
     val superSparkleUnlocked: Flow<Boolean> = store.data.map { it[superUnlockedKey] ?: false }
 
-    /** The moving aura on favorites; on as soon as it is unlocked. */
+    /** Super-Funkeln: the aura also stretches and wobbles while scrolling; on as soon as it is unlocked. */
     val superSparkle: Flow<Boolean> = store.data.map { (it[superUnlockedKey] ?: false) && (it[superSparkleKey] ?: true) }
 
     /** The easter egg: unlocks super sparkle and switches it and the normal sparkle on, in one edit. */

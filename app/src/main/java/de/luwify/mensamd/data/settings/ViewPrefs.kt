@@ -14,10 +14,10 @@ data class ViewPrefs(
     val favorites: Set<String> = emptySet(),
     /** The user's filter chip order (see `DishFilters.mergeOrder`); empty = default order. */
     val filterOrder: List<String> = emptyList(),
-    /** Favorite dishes get the sparkling gold "legendary" frame. */
+    /** "Favoriten funkeln": favorite dishes get the shimmering gold aura with sparkles. */
     val legendary: Boolean = true,
     /** The hidden super sparkle (5 fast taps on the sparkle switch) was found. */
     val superUnlocked: Boolean = false,
-    /** Favorites get the moving aura too (only with [legendary] and once unlocked). */
+    /** Super-Funkeln: the aura also stretches and wobbles while scrolling (only with [legendary] and once unlocked). */
     val superSparkle: Boolean = false,
 )

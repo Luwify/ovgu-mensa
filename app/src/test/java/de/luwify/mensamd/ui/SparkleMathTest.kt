@@ -29,26 +29,6 @@ class SparkleMathTest {
     }
 
     @Test
-    fun twinkle_isMostlyOff_withShortBrightMoments_perStarOffset() {
-        val samples = (0 until 2000 step 10).map { SparkleMath.twinkle(it.toLong(), 0) }
-        assertTrue(samples.all { it in 0f..1f })
-        assertTrue("bright moments exist", samples.any { it > 0.9f })
-        assertTrue("mostly dim", samples.count { it < 0.2f } > samples.size / 2)
-        assertTrue("stars twinkle at different times", SparkleMath.twinkle(500, 0) != SparkleMath.twinkle(500, 1))
-    }
-
-    @Test
-    fun turn_and_cyclicGradient_wrap() {
-        assertEquals(0f, SparkleMath.turn(0), 0f)
-        assertEquals(0.5f, SparkleMath.turn(1800), 0.001f)
-        assertEquals(0f, SparkleMath.turn(3600), 0f)
-        val stops = listOf(Color.Red, Color.Blue)
-        assertEquals(Color.Red, SparkleMath.cyclic(stops, 0f))
-        assertEquals(SparkleMath.cyclic(stops, 0.25f), SparkleMath.cyclic(stops, 1.25f))
-        assertEquals(SparkleMath.cyclic(stops, 0.75f), SparkleMath.cyclic(stops, -0.25f))
-    }
-
-    @Test
     fun gold_isBrightOnDarkCards_deeperOnLightOnes() {
         val onDark = goldFor(Color(0xFF0F0F11))
         val onLight = goldFor(Color.White)

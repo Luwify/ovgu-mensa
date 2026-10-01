@@ -1,7 +1,6 @@
 package de.luwify.mensamd.ui
 
 import android.content.Context
-import android.os.SystemClock
 import android.os.Build
 import android.provider.Settings
 import androidx.compose.animation.core.Animatable
@@ -9,12 +8,8 @@ import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
@@ -22,17 +17,11 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.luminance
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.compose.LocalLifecycleOwner
-import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -42,7 +31,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.drawscope.clipPath
 import kotlin.math.PI
 import kotlin.math.cos
@@ -228,15 +216,9 @@ object SparkleMath {
     fun lowPass(previous: Float, sample: Float, dtMs: Float, tauMs: Float): Float =
         previous + (sample - previous) * (1f - kotlin.math.exp(-dtMs / tauMs))
 
-    /** The color at position [x] (any number, wraps at 1) of a cyclic gradient through [stops]. */
-    fun cyclic(stops: List<Color>, x: Float): Color {
-        val f = (x % 1f + 1f) % 1f * stops.size
-        val i = f.toInt() % stops.size
-        return lerp(stops[i], stops[(i + 1) % stops.size], f - f.toInt())
-    }
 }
 
-/** Gold for the legendary frame: bright tones on dark pages, deeper ones that still show on light pages. */
+/** Gold for the heart burst: bright tones on dark cards, deeper ones that still show on light cards. */
 private val GOLD_ON_DARK = listOf(Color(0xFFFFF3B0), Color(0xFFFFD54F), Color(0xFFFFB300), Color(0xFFFF8F00), Color(0xFFFFD54F))
 private val GOLD_ON_LIGHT = listOf(Color(0xFFE0A800), Color(0xFFB07800), Color(0xFF8A5A00), Color(0xFFC68A00), Color(0xFFFFC233))
 
@@ -320,87 +302,27 @@ class FavoriteBurst {
 }
 
 /**
- * Wraps a dish card: draws the burst over it (centered on [heartCenter], which knows where the card puts its
- * heart) and, when [legendary], the legendary frame: a gold glow, a gold gradient edge that slowly turns, and three
- * twinkling stars. Everything is drawn in the draw phase from one clock (about 30 fps, only while the app is
- * resumed and the card is composed), with no blur and no offscreen layer, so scrolling stays smooth. The super aura
- * is not drawn here but by [SuperAuraOverlay] above the list (it must lie over the neighboring cards).
+ * Wraps a dish card and draws the heart's burst over it (centered on [heartCenter], which knows where the card puts
+ * its heart). The favorites' aura is drawn by [SuperAuraOverlay] above the list (it must lie over the neighboring
+ * cards).
  */
 @Composable
 fun FavoriteEffects(
-    legendary: Boolean,
     burst: FavoriteBurst,
-    shape: Shape,
     favoriteColor: Color,
     background: Color,
     heartCenter: Density.(Size) -> Offset,
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
-    val context = LocalContext.current
-    val animate = remember(context) { animationsEnabled(context) }
     val gold = remember(background) { goldFor(background) }
-    var clock by remember { mutableLongStateOf(0L) }
-    if (legendary && animate) {
-        val lifecycle = LocalLifecycleOwner.current.lifecycle
-        LaunchedEffect(lifecycle) {
-            lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
-                while (true) {
-                    // Read only while drawing: redraws, never recomposes. ~30 fps is plenty for the slow shine and
-                    // aura (measured: every frame doubled the idle cost); while scrolling the list redraws anyway.
-                    clock = SystemClock.uptimeMillis()
-                    delay(33)
-                }
-            }
-        }
-    }
     Box(
-        modifier
-            // The gold glow: one smooth gradient (EdgeGlow), about as strong and wide as the old two rings.
-            .then(if (legendary) Modifier.edgeGlow(gold[1], shape, reach = 9.dp, strength = 0.5f, power = 2f) else Modifier)
-            .drawWithContent {
-                drawContent()
-                if (legendary) drawLegendaryEdge(shape, gold, if (animate) clock else 0L, animate)
-                val p = burst.progress.value
-                if (p < 1f) drawBurst(heartCenter(size), p, gold[1], favoriteColor)
-            },
+        modifier.drawWithContent {
+            drawContent()
+            val p = burst.progress.value
+            if (p < 1f) drawBurst(heartCenter(size), p, gold[1], favoriteColor)
+        },
     ) { content() }
-}
-
-/** The card's corner radius in px (from its shape at this size). */
-internal fun DrawScope.cornerRadiusOf(shape: Shape): Float =
-    (shape.createOutline(size, layoutDirection, this) as? androidx.compose.ui.graphics.Outline.Rounded)
-        ?.roundRect?.topLeftCornerRadius?.x ?: 0f
-
-/**
- * A stroke parallel to the card's outline, [distance] px outside it (negative: inside), with the corner radius that
- * distance needs (the card's radius plus the distance), so every ring shares the card's corner center.
- */
-internal fun DrawScope.drawParallelRing(radius: Float, distance: Float, width: Float, brush: Brush, alpha: Float = 1f) {
-    val r = (radius + distance).coerceAtLeast(0f)
-    drawRoundRect(
-        brush,
-        alpha = alpha,
-        topLeft = Offset(-distance, -distance),
-        size = Size(size.width + 2 * distance, size.height + 2 * distance),
-        cornerRadius = androidx.compose.ui.geometry.CornerRadius(r, r),
-        style = Stroke(width),
-    )
-}
-
-private fun DrawScope.drawLegendaryEdge(shape: Shape, gold: List<Color>, timeMs: Long, animate: Boolean) {
-    val width = 2.dp.toPx()
-    val turn = SparkleMath.turn(timeMs)
-    // 13 stops of the cyclic gold, shifted by the turn: the shine runs around the card.
-    val colors = (0..12).map { SparkleMath.cyclic(gold, it / 12f - turn) }
-    // Centered half a stroke inside the edge, with the radius for that.
-    drawParallelRing(cornerRadiusOf(shape), -width / 2, width, Brush.sweepGradient(colors, center))
-    // Three stars on the edge: top left, right side, bottom.
-    val spots = listOf(Offset(0.10f, 0f) to 7f, Offset(1f, 0.70f) to 5.5f, Offset(0.36f, 1f) to 6f)
-    spots.forEachIndexed { i, (at, r) ->
-        val alpha = if (animate) SparkleMath.twinkle(timeMs, i) else 0.85f
-        if (alpha > 0.02f) drawStar(Offset(at.x * size.width, at.y * size.height), r.dp.toPx(), gold[0].copy(alpha = alpha))
-    }
 }
 
 /**
