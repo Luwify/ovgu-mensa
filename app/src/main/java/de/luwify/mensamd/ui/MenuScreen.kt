@@ -2,6 +2,7 @@ package de.luwify.mensamd.ui
 
 import android.text.format.DateUtils
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
 import de.luwify.mensamd.model.LegendCode
@@ -209,8 +210,9 @@ private fun DishCard(
 }
 
 /**
- * The selected price group's price is highlighted in a tonal pill; a small arrow expands the other
- * prices. The expanded state is saved per lazy-list key like the code meanings.
+ * Collapsed: only the selected group's price in a tonal pill, with an arrow to its right. Expanded:
+ * the pill gets its group label and the other prices appear inline to the right, labeled.
+ * The expanded state is saved per lazy-list key like the code meanings.
  */
 @Composable
 private fun Prices(prices: List<Int>, priceGroup: Int, legend: Legend, language: String, euro: NumberFormat) {
@@ -221,10 +223,14 @@ private fun Prices(prices: List<Int>, priceGroup: Int, legend: Legend, language:
         ?: fallback.getOrNull(index)?.let { stringResource(it) }.orEmpty()
 
     var expanded by rememberSaveable { mutableStateOf(false) }
-    Row(verticalAlignment = Alignment.CenterVertically) {
+    // One row: [selected price] [arrow] [other prices...]. If it is too wide for a narrow screen
+    // it scrolls sideways instead of wrapping below.
+    Row(Modifier.horizontalScroll(rememberScrollState()), verticalAlignment = Alignment.CenterVertically) {
         Surface(shape = MaterialTheme.shapes.small, color = MaterialTheme.colorScheme.primaryContainer) {
             Column(Modifier.padding(horizontal = 10.dp, vertical = 4.dp)) {
-                Text(label(split.selected), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                if (expanded) {
+                    Text(label(split.selected), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                }
                 Text(
                     euro.format(prices[split.selected] / 100.0),
                     style = MaterialTheme.typography.titleMedium,
@@ -236,21 +242,21 @@ private fun Prices(prices: List<Int>, priceGroup: Int, legend: Legend, language:
         if (split.others.isNotEmpty()) {
             val description = stringResource(if (expanded) R.string.hide_other_prices else R.string.show_other_prices)
             Text(
-                if (expanded) "▴" else "▾",
+                if (expanded) "◂" else "▸",
                 style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier
                     .clickable(role = Role.Button, onClickLabel = description) { expanded = !expanded }
-                    .padding(horizontal = 14.dp, vertical = 8.dp),
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
             )
-        }
-    }
-    if (expanded) {
-        Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
-            split.others.forEach { index ->
-                Column {
-                    Text(label(index), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text(euro.format(prices[index] / 100.0), style = MaterialTheme.typography.titleSmall)
+            if (expanded) {
+                Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                    split.others.forEach { index ->
+                        Column {
+                            Text(label(index), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(euro.format(prices[index] / 100.0), style = MaterialTheme.typography.titleSmall)
+                        }
+                    }
                 }
             }
         }
