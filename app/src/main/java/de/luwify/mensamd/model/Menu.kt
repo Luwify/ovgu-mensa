@@ -7,9 +7,24 @@ import java.time.LocalDate
 @Serializable
 data class LocalizedText(val de: String, val en: String = de)
 
-/** Everything one Mensa page yields: the published days plus the legend found on the same page. */
+/**
+ * Everything one Mensa page yields. A page is either dated ([days], most Mensen) or a fixed list
+ * without dates ([fixed], PIER 16), never both. [legend] is the one found on the page, or for fixed
+ * pages the one borrowed from another Mensa (PIER 16 has none of its own).
+ */
 @Serializable
-data class MenuPage(val days: List<MenuDay>, val legend: Legend)
+data class MenuPage(
+    val days: List<MenuDay>,
+    val legend: Legend,
+    val fixed: List<FixedSection> = emptyList(),
+) {
+    /** No dishes at all: a closed Mensa, an empty or a changed page. */
+    val isBlank: Boolean get() = days.isEmpty() && fixed.none { it.dishes.isNotEmpty() }
+}
+
+/** A part of a fixed menu (e.g. "Frühstück"); [title] is null for the untitled list. */
+@Serializable
+data class FixedSection(val title: LocalizedText?, val dishes: List<Dish>)
 
 @Serializable
 data class MenuDay(
@@ -29,6 +44,11 @@ data class Dish(
     val codes: List<String>,
     val co2Grams: Int?,
     val waterLiters: Int?,
+    /**
+     * False when [prices] can't be matched to the legend's price groups (PIER 16 sometimes lists only
+     * two prices and doesn't say which groups). Such prices are shown without group names.
+     */
+    val priceGroupsKnown: Boolean = true,
 )
 
 /**
