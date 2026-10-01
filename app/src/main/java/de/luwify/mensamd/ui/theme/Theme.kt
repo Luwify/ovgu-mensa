@@ -64,7 +64,15 @@ class MensaColors(
     val linkText: Color,
     /** Section headings in the filter sheet. */
     val headingText: Color,
+    /** The filled heart of a favorite dish (the empty heart uses onSurfaceVariant). */
+    val favorite: Color,
 )
+
+/** Heart red for favorites, the same in every theme; at least 3:1 on every card (an icon, not text). */
+object FavoriteColors {
+    val light = Color(0xFFC62828)
+    val dark = Color(0xFFF28B82)
+}
 
 /** Footprint scale stops used by every theme; they already pass AA on the Soft and Material cards. */
 object FootprintStops {
@@ -90,6 +98,7 @@ private fun systemMensaColors(darkTheme: Boolean, scheme: ColorScheme) = MensaCo
     chipSelected = ControlColors(Color.Transparent, scheme.primary, scheme.primary),
     linkText = scheme.onSurfaceVariant,
     headingText = scheme.onSurface,
+    favorite = if (darkTheme) FavoriteColors.dark else FavoriteColors.light,
 )
 
 /** Fraction of the wallpaper's color kept in accent roles / in surface roles of the System theme. */

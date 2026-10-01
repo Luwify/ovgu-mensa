@@ -79,4 +79,29 @@
     <string name="card_privacy">Wird nur auf diesem Gerät gelesen. Nichts wird gespeichert oder gesendet.</string>
     <string name="card_popup_open">App öffnen</string>
     <string name="card_popup_error">Karte beim Lesen verloren. Halte sie ruhig an die Rückseite des Handys und versuche es erneut.</string>
+
+    <string name="filter_favorites">Favoriten</string>
+    <string name="favorites_empty">Noch keine Favoriten. Tippe bei einem Gericht auf das Herz, dann erscheint es hier, an jedem Tag und in jeder Mensa, die es anbietet.</string>
+    <string name="favorite_add">Zu Favoriten hinzufügen</string>
+    <string name="favorite_remove">Aus Favoriten entfernen</string>
+
+    <string name="notify_title_single">Morgen in der Mensa</string>
+    <plurals name="notify_title_many">
+        <item quantity="one">Morgen gibt es %d deiner Favoriten</item>
+        <item quantity="other">Morgen gibt es %d deiner Favoriten</item>
+    </plurals>
+    <string name="notify_test_dish">Dein Lieblingsgericht (Test)</string>
+    <string name="notify_channel_name">Favoriten auf dem Speiseplan von morgen</string>
+    <string name="notify_channel_description">Einmal am Tag gegen 18 Uhr, wenn einer deiner Favoriten morgen auf dem Speiseplan steht.</string>
+    <string name="notify_section_title">Benachrichtigungen</string>
+    <string name="notify_toggle">Favoriten auf dem Speiseplan von morgen</string>
+    <string name="notify_toggle_hint">Gegen 18 Uhr am Vortag. Wenn das Handy Akku spart, kann es später werden.</string>
+    <string name="notify_mensen_title">Diese Mensen prüfen</string>
+    <string name="notify_blocked">Benachrichtigungen sind für Mensa MD ausgeschaltet.</string>
+    <string name="notify_open_settings">Einschalten</string>
+    <string name="notify_test">Testbenachrichtigung senden</string>
+    <string name="notify_permission_title">Über Favoriten benachrichtigen?</string>
+    <string name="notify_permission_text">Mensa MD kann dir gegen 18 Uhr Bescheid geben, wenn einer deiner Favoriten morgen auf dem Speiseplan steht. Deine Favoriten bleiben auf diesem Gerät. Ändern kannst du das jederzeit im Filter-Menü.</string>
+    <string name="notify_permission_allow">Erlauben</string>
+    <string name="notify_permission_later">Nicht jetzt</string>
 </resources>

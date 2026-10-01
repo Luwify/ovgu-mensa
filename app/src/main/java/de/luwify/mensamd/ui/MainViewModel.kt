@@ -13,7 +13,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -35,13 +38,17 @@ sealed interface AppScreen {
     data class Main(val mensas: List<Mensa>, val defaultId: String, val prefs: ViewPrefs) : AppScreen
 }
 
+/** The "Benachrichtigungen" part of the filter sheet. */
+data class NotifySettings(val enabled: Boolean, val watched: Set<String>)
+
 class MainViewModel(private val container: AppContainer) : ViewModel() {
     private val prefs = combine(
         container.settings.activeFilters,
         container.settings.excludedCodes,
         container.settings.priceGroup,
         container.settings.compactMode,
-    ) { tags, codes, priceGroup, compact -> ViewPrefs(tags, codes, priceGroup, compact) }
+        container.settings.favorites,
+    ) { tags, codes, priceGroup, compact, favorites -> ViewPrefs(tags, codes, priceGroup, compact, favorites) }
 
     val screen: StateFlow<AppScreen> = combine(
         container.settings.defaultMensaId,
@@ -55,6 +62,33 @@ class MainViewModel(private val container: AppContainer) : ViewModel() {
     /** Null until DataStore answered: the activity draws nothing until then, so there is no theme flash. */
     val themeMode: StateFlow<ThemeMode?> = container.settings.themeMode
         .stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    val notifySettings: StateFlow<NotifySettings?> = combine(
+        container.settings.notificationsEnabled,
+        container.settings.notifyMensen,
+    ) { enabled, watched -> NotifySettings(enabled, watched) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    /** Whether the permission explanation was shown already; null until known (then nothing is asked). */
+    val permissionExplained: StateFlow<Boolean?> = container.settings.notificationPermissionExplained
+        .stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    val permissionRequested: StateFlow<Boolean?> = container.settings.notificationPermissionRequested
+        .stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    private val _openRequest = MutableStateFlow<String?>(null)
+
+    /** A Mensa tab to switch to (from a notification tap); consumed by the main screen. */
+    val openRequest: StateFlow<String?> = _openRequest.asStateFlow()
+
+    init {
+        // Off the main thread: the first WorkManager call initializes it.
+        viewModelScope.launch(Dispatchers.Default) {
+            combine(container.settings.notificationsEnabled, container.settings.favorites) { on, favorites -> on && favorites.isNotEmpty() }
+                .distinctUntilChanged()
+                .collect { container.syncFavoriteSchedule(it) }
+        }
+    }
 
     private val menus = ConcurrentHashMap<String, StateFlow<MenuUiState?>>()
 
@@ -98,6 +132,40 @@ class MainViewModel(private val container: AppContainer) : ViewModel() {
 
     fun clearExcludedCodes() {
         viewModelScope.launch { container.settings.clearExcludedCodes() }
+    }
+
+    fun toggleFavorite(key: String) {
+        viewModelScope.launch { container.settings.toggleFavorite(key) }
+    }
+
+    fun setNotificationsEnabled(enabled: Boolean) {
+        viewModelScope.launch { container.settings.setNotificationsEnabled(enabled) }
+    }
+
+    fun setNotifyMensa(id: String, watched: Boolean) {
+        viewModelScope.launch { container.settings.setNotifyMensa(id, watched) }
+    }
+
+    fun markPermissionExplained() {
+        viewModelScope.launch { container.settings.setNotificationPermissionExplained() }
+    }
+
+    fun markPermissionRequested() {
+        viewModelScope.launch { container.settings.setNotificationPermissionRequested() }
+    }
+
+    fun canPostNotifications(): Boolean = container.canPostNotifications()
+
+    fun postTestNotification(mensaId: String) {
+        container.postTestNotification(mensaId)
+    }
+
+    fun requestOpen(mensaId: String) {
+        _openRequest.value = mensaId
+    }
+
+    fun consumeOpenRequest() {
+        _openRequest.value = null
     }
 
     fun toggleFilter(key: String) {

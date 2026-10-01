@@ -34,6 +34,7 @@ fun filterLabelRes(key: String): Int? = when (key) {
     "vegan" -> R.string.tag_vegan
     "vegetarisch" -> R.string.tag_vegetarisch
     DishFilters.CAKE -> R.string.filter_cake
+    DishFilters.FAVORITES -> R.string.filter_favorites
     "schwein" -> R.string.filter_no_schwein
     "rind" -> R.string.filter_no_rind
     "gefluegel" -> R.string.filter_no_gefluegel

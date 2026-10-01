@@ -66,6 +66,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import de.luwify.mensamd.R
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.material3.ripple
+import androidx.compose.ui.layout.layout
 import de.luwify.mensamd.model.Dish
 import de.luwify.mensamd.model.FixedSection
 import de.luwify.mensamd.model.Legend
@@ -88,16 +92,20 @@ fun MenuBody(
     today: LocalDate,
     prefs: ViewPrefs,
     footprints: Map<LocalDate, DayFootprint>,
+    onToggleFavorite: (String) -> Unit,
     onRetry: () -> Unit,
 ) {
     when {
+        // The favorites filter before the first favorite: say how to add one instead of "no matching dishes" per day.
+        DishFilters.FAVORITES in prefs.tagFilters && prefs.favorites.isEmpty() && (days.isNotEmpty() || fixed.isNotEmpty()) ->
+            Message(stringResource(R.string.favorites_empty), null)
         days.isNotEmpty() -> {
             val rows = remember(days, ui.lastUpdatedMillis, ui.refreshFailed) { buildRows(days, ui.lastUpdatedMillis, ui.refreshFailed) }
-            MenuList(ui, rows, today, prefs, footprints)
+            MenuList(ui, rows, today, prefs, footprints, onToggleFavorite)
         }
         fixed.isNotEmpty() -> {
             val rows = remember(fixed, ui.lastUpdatedMillis, ui.refreshFailed) { buildFixedRows(fixed, ui.lastUpdatedMillis, ui.refreshFailed) }
-            MenuList(ui, rows, today, prefs, footprints)
+            MenuList(ui, rows, today, prefs, footprints, onToggleFavorite)
         }
         !ui.hasData && ui.refreshFailed -> Message(stringResource(R.string.error_no_data), onRetry)
         ui.hasData && !ui.isRefreshing -> Message(stringResource(R.string.empty_no_upcoming), null)
@@ -126,7 +134,14 @@ private fun Message(text: String, onRetry: (() -> Unit)?) {
  * its "Festes Angebot" label.
  */
 @Composable
-private fun MenuList(ui: MenuUiState, rows: List<ListRow>, today: LocalDate, prefs: ViewPrefs, footprints: Map<LocalDate, DayFootprint>) {
+private fun MenuList(
+    ui: MenuUiState,
+    rows: List<ListRow>,
+    today: LocalDate,
+    prefs: ViewPrefs,
+    footprints: Map<LocalDate, DayFootprint>,
+    onToggleFavorite: (String) -> Unit,
+) {
     val locale = LocalConfiguration.current.locales[0]
     val euro = remember(locale) { NumberFormat.getCurrencyInstance(locale).apply { currency = Currency.getInstance("EUR") } }
     val bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
@@ -149,7 +164,8 @@ private fun MenuList(ui: MenuUiState, rows: List<ListRow>, today: LocalDate, pre
                 is ListRow.DishRow -> item(key = row.key, contentType = "dish") {
                     DishCard(
                         row.dish, ui.legend, codeIndex, locale.language, euro, prefs.priceGroup, row.date?.let { footprints[it] },
-                        prefs.compact, Modifier.padding(horizontal = 16.dp),
+                        prefs.compact, row.favoriteKey in prefs.favorites, { onToggleFavorite(row.favoriteKey) },
+                        Modifier.padding(horizontal = 16.dp),
                     )
                 }
                 is ListRow.NoMatch -> item(key = row.key, contentType = "empty") {
@@ -246,15 +262,17 @@ private fun DishCard(
     priceGroup: Int,
     footprint: DayFootprint?,
     compact: Boolean,
+    favorite: Boolean,
+    onToggleFavorite: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var open by rememberSaveable { mutableStateOf(false) }
     val full = !compact || open
     val body: @Composable () -> Unit = {
         if (full) {
-            FullCardBody(dish, legend, codeIndex, language, euro, priceGroup, footprint)
+            FullCardBody(dish, legend, codeIndex, language, euro, priceGroup, footprint, favorite, onToggleFavorite)
         } else {
-            CompactCardBody(dish, legend, language, euro, priceGroup)
+            CompactCardBody(dish, legend, language, euro, priceGroup, favorite, onToggleFavorite)
         }
     }
     val theme = LocalMensaColors.current
@@ -263,7 +281,11 @@ private fun DishCard(
     // Hairline border (one physical pixel) so the card edge doesn't depend on the shadow.
     val border = theme.cardBorder?.let { BorderStroke(Dp.Hairline, it) }
     if (compact) {
-        Card(onClick = { open = !open }, modifier = modifier.fillMaxWidth(), colors = colors, elevation = elevation, border = border) { body() }
+        // At least 48dp tall so the heart's touch area (see FavoriteButton) is never clipped by the card.
+        Card(
+            onClick = { open = !open }, modifier = modifier.fillMaxWidth().heightIn(min = 48.dp),
+            colors = colors, elevation = elevation, border = border,
+        ) { body() }
     } else {
         Card(modifier.fillMaxWidth(), colors = colors, elevation = elevation, border = border) { body() }
     }
@@ -279,6 +301,8 @@ private fun FullCardBody(
     euro: NumberFormat,
     priceGroup: Int,
     footprint: DayFootprint?,
+    favorite: Boolean,
+    onToggleFavorite: () -> Unit,
 ) {
     val density = LocalDensity.current
     // The window, not the screen: correct in split-screen too.
@@ -298,13 +322,23 @@ private fun FullCardBody(
     }
 
     Column(Modifier.padding(horizontal = 16.dp, vertical = 14.dp).animateContentSize(), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-        if (dish.badges.isNotEmpty()) {
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                dish.badges.forEach { BadgeLabel(it.forLanguage(language)) }
-            }
+        val name: @Composable (Modifier) -> Unit = {
+            Text(dish.name.forLanguage(language), style = MaterialTheme.typography.titleMedium.copy(lineHeight = 20.sp), modifier = it)
         }
-        // The name always keeps the full card width.
-        Text(dish.name.forLanguage(language), style = MaterialTheme.typography.titleMedium.copy(lineHeight = 20.sp))
+        // The heart sits at the end of the first row: the badges if there are any (the name then keeps the full
+        // card width below), otherwise the name.
+        Row(verticalAlignment = Alignment.Top) {
+            if (dish.badges.isNotEmpty()) {
+                FlowRow(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    dish.badges.forEach { BadgeLabel(it.forLanguage(language)) }
+                }
+            } else {
+                name(Modifier.weight(1f))
+            }
+            Spacer(Modifier.width(HEART_GAP))
+            FavoriteButton(favorite, onToggleFavorite, above = 14.dp)
+        }
+        if (dish.badges.isNotEmpty()) name(Modifier)
         when {
             dish.tags.isEmpty() -> prices()
             dish.prices.isEmpty() -> tags()
@@ -353,7 +387,15 @@ private fun PriceTagsRow(price: @Composable () -> Unit, tags: @Composable () -> 
 /** Name (at most two lines) with the selected price on the same row, then badges and small text tag chips. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun CompactCardBody(dish: Dish, legend: Legend, language: String, euro: NumberFormat, priceGroup: Int) {
+private fun CompactCardBody(
+    dish: Dish,
+    legend: Legend,
+    language: String,
+    euro: NumberFormat,
+    priceGroup: Int,
+    favorite: Boolean,
+    onToggleFavorite: () -> Unit,
+) {
     val split = splitPrices(dish.prices, priceGroup)
     Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp).animateContentSize(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.Top) {
@@ -381,6 +423,9 @@ private fun CompactCardBody(dish: Dish, legend: Legend, language: String, euro: 
                     )
                 }
             }
+            // Row spacing 10 + 4: the heart's touch area (12dp beyond the icon) stays clear of the price pill.
+            Spacer(Modifier.width(HEART_GAP - 10.dp))
+            FavoriteButton(favorite, onToggleFavorite, above = 8.dp)
         }
         if (dish.badges.isNotEmpty()) {
             FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -392,6 +437,45 @@ private fun CompactCardBody(dish: Dish, legend: Legend, language: String, euro: 
                 dish.tags.forEach { TagLabel(it, dense = true) }
             }
         }
+    }
+}
+
+/** Space between the card text and the heart: more than the 12dp its touch area reaches beyond the icon. */
+private val HEART_GAP = 14.dp
+
+/**
+ * The favorite toggle: a 24dp heart whose 48x48dp touch area is larger than its layout box, so the card's rows
+ * don't grow. The area reaches [above] up into the card padding (the rest of the overhang goes down) and 12dp to
+ * either side, into the card's end padding and the [HEART_GAP]; the card must leave that room (compact cards have
+ * a 48dp minimum height for this).
+ */
+@Composable
+private fun FavoriteButton(favorite: Boolean, onToggle: () -> Unit, above: Dp) {
+    val icon = 24.dp
+    val target = 48.dp
+    Box(
+        Modifier
+            .layout { measurable, _ ->
+                val placeable = measurable.measure(Constraints.fixed(target.roundToPx(), target.roundToPx()))
+                layout(icon.roundToPx(), icon.roundToPx()) {
+                    placeable.place((icon.roundToPx() - placeable.width) / 2, -above.roundToPx())
+                }
+            }
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = ripple(bounded = false, radius = 20.dp),
+                role = Role.Button,
+                onClickLabel = null,
+                onClick = onToggle,
+            ),
+        contentAlignment = Alignment.TopCenter,
+    ) {
+        Icon(
+            painterResource(if (favorite) R.drawable.ic_favorite_filled else R.drawable.ic_favorite),
+            contentDescription = stringResource(if (favorite) R.string.favorite_remove else R.string.favorite_add),
+            tint = if (favorite) LocalMensaColors.current.favorite else MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = above).size(icon),
+        )
     }
 }
 

@@ -81,4 +81,30 @@
     <string name="card_privacy">Read on this device only. Nothing is stored or sent.</string>
     <string name="card_popup_open">Open app</string>
     <string name="card_popup_error">Lost the card while reading. Hold it still against the back of your phone and try again.</string>
+
+    <string name="filter_favorites">Favorites</string>
+    <string name="favorites_empty">No favorites yet. Tap the heart on a dish and it shows up here, on every day and in every Mensa that serves it.</string>
+    <string name="favorite_add">Add to favorites</string>
+    <string name="favorite_remove">Remove from favorites</string>
+
+    <string name="notify_title_single">Tomorrow at the Mensa</string>
+    <plurals name="notify_title_many">
+        <item quantity="one">Tomorrow there is %d of your favorites</item>
+        <item quantity="other">Tomorrow there are %d of your favorites</item>
+    </plurals>
+    <string name="notify_line" translatable="false">%1$s – %2$s</string>
+    <string name="notify_test_dish">Your favorite dish (test)</string>
+    <string name="notify_channel_name">Favorites on tomorrow\'s menu</string>
+    <string name="notify_channel_description">Once a day around 6 pm, when one of your favorites is on tomorrow\'s menu.</string>
+    <string name="notify_section_title">Notifications</string>
+    <string name="notify_toggle">Favorites on tomorrow\'s menu</string>
+    <string name="notify_toggle_hint">Around 6 pm the day before. When the phone is saving battery it can come later.</string>
+    <string name="notify_mensen_title">Check these Mensen</string>
+    <string name="notify_blocked">Notifications are turned off for Mensa MD.</string>
+    <string name="notify_open_settings">Turn on</string>
+    <string name="notify_test">Send test notification</string>
+    <string name="notify_permission_title">Notify you about favorites?</string>
+    <string name="notify_permission_text">Mensa MD can let you know around 6 pm when one of your favorites is on tomorrow\'s menu. Your favorites stay on this phone. You can change this any time in the filter menu.</string>
+    <string name="notify_permission_allow">Allow</string>
+    <string name="notify_permission_later">Not now</string>
 </resources>

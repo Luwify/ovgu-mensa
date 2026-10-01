@@ -4,6 +4,8 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.NFC" />
+    <!-- Favorites notifications (asked for when the first favorite is set; everything else works without). -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <!-- The card reader is optional: the menus work on phones without NFC. -->
     <uses-feature android:name="android.hardware.nfc" android:required="false" />
@@ -49,6 +51,21 @@
                 android:name="android.nfc.action.TECH_DISCOVERED"
                 android:resource="@xml/nfc_tech_filter" />
         </activity>
+
+        <!--
+          WorkManager starts on demand (MensaApp is its Configuration.Provider) instead of at every process
+          start, so cold start and the card popup don't pay for it.
+        -->
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            android:exported="false"
+            tools:node="merge">
+            <meta-data
+                android:name="androidx.work.WorkManagerInitializer"
+                android:value="androidx.startup"
+                tools:node="remove" />
+        </provider>
     </application>
 
 </manifest>

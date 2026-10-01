@@ -7,9 +7,12 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import java.time.LocalDate
 
 private val Context.settingsDataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
 
@@ -99,5 +102,75 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
 
     suspend fun setThemeMode(mode: ThemeMode) {
         store.edit { it[themeKey] = mode.key }
+    }
+
+    private val favoritesKey = stringSetPreferencesKey("favorites")
+
+    /**
+     * Favorite dishes as normalized German names (see `Favorites`); global for all Mensen. A string set, not a
+     * joined string: names contain commas. Stays on the device and is never logged.
+     */
+    val favorites: Flow<Set<String>> = store.data.map { it[favoritesKey].orEmpty() }
+
+    /** Atomic toggle; returns true if [key] is a favorite afterwards. */
+    suspend fun toggleFavorite(key: String): Boolean {
+        var added = false
+        store.edit { prefs ->
+            val current = prefs[favoritesKey].orEmpty()
+            added = key !in current
+            prefs[favoritesKey] = if (added) current + key else current - key
+        }
+        return added
+    }
+
+    private val notifyEnabledKey = booleanPreferencesKey("notify_enabled")
+
+    /** Daily favorites notifications; on by default (they need favorites and the system permission anyway). */
+    val notificationsEnabled: Flow<Boolean> = store.data.map { it[notifyEnabledKey] ?: true }
+
+    suspend fun setNotificationsEnabled(enabled: Boolean) {
+        store.edit { it[notifyEnabledKey] = enabled }
+    }
+
+    private val notifyMensenKey = stringSetPreferencesKey("notify_mensen")
+
+    /** Mensa ids the daily job checks. Until the user changes it: only the default Mensa. */
+    val notifyMensen: Flow<Set<String>> = store.data.map { prefs ->
+        prefs[notifyMensenKey] ?: setOfNotNull(prefs[defaultMensaKey])
+    }
+
+    suspend fun setNotifyMensa(id: String, watched: Boolean) {
+        store.edit { prefs ->
+            val current = prefs[notifyMensenKey] ?: setOfNotNull(prefs[defaultMensaKey])
+            prefs[notifyMensenKey] = if (watched) current + id else current - id
+        }
+    }
+
+    private val notifiedKey = stringSetPreferencesKey("notified_favorites")
+
+    /** "date|mensaId|favorite" entries already announced, so nothing is announced twice. */
+    suspend fun notifiedFavorites(): Set<String> = store.data.first()[notifiedKey].orEmpty()
+
+    /** Adds [entries] and drops what [prune] rejects (entries for past days), in one atomic edit. */
+    suspend fun recordNotified(entries: Set<String>, today: LocalDate, prune: (Set<String>, LocalDate) -> Set<String>) {
+        store.edit { prefs -> prefs[notifiedKey] = prune(prefs[notifiedKey].orEmpty() + entries, today) }
+    }
+
+    private val permissionExplainedKey = booleanPreferencesKey("notify_permission_explained")
+
+    /** Whether the notification permission was already explained and asked for (asked once, on the first favorite). */
+    val notificationPermissionExplained: Flow<Boolean> = store.data.map { it[permissionExplainedKey] ?: false }
+
+    suspend fun setNotificationPermissionExplained() {
+        store.edit { it[permissionExplainedKey] = true }
+    }
+
+    private val permissionRequestedKey = booleanPreferencesKey("notify_permission_requested")
+
+    /** Whether the system permission dialog was launched before: after that, a denial may be permanent. */
+    val notificationPermissionRequested: Flow<Boolean> = store.data.map { it[permissionRequestedKey] ?: false }
+
+    suspend fun setNotificationPermissionRequested() {
+        store.edit { it[permissionRequestedKey] = true }
     }
 }

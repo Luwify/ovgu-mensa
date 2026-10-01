@@ -1,5 +1,6 @@
 package de.luwify.mensamd.ui
 
+import de.luwify.mensamd.favorites.Favorites
 import de.luwify.mensamd.model.Dish
 import de.luwify.mensamd.model.LocalizedText
 import de.luwify.mensamd.model.MenuDay
@@ -55,22 +56,22 @@ class DishFiltersTest {
     @Test
     fun options_areBuiltFromFoundTags_inFixedOrder() {
         val keys = DishFilters.options(listOf(day), emptySet()).map { it.key }
-        assertEquals(listOf("vegan", "vegetarisch", "schwein", "fisch", "knoblauch"), keys)
+        assertEquals(listOf("vegan", "vegetarisch", DishFilters.FAVORITES, "schwein", "fisch", "knoblauch"), keys)
     }
 
     @Test
     fun options_offerVegetarianWhenOnlyVeganExists_andNotVeganWhenAbsent() {
         val onlyVegan = listOf(MenuDay(day.date, listOf(vegan)))
-        assertEquals(listOf("vegan", "vegetarisch"), DishFilters.options(onlyVegan, emptySet()).map { it.key })
+        assertEquals(listOf("vegan", "vegetarisch", DishFilters.FAVORITES), DishFilters.options(onlyVegan, emptySet()).map { it.key })
         val onlyVeggie = listOf(MenuDay(day.date, listOf(veggie)))
-        assertEquals(listOf("vegetarisch"), DishFilters.options(onlyVeggie, emptySet()).map { it.key })
+        assertEquals(listOf("vegetarisch", DishFilters.FAVORITES), DishFilters.options(onlyVeggie, emptySet()).map { it.key })
     }
 
     @Test
     fun options_keepActiveFiltersAbsentFromThePage_andUnknownKeysLast() {
         val d = listOf(MenuDay(day.date, listOf(dish("X", "neu_ding"), dish("Y", "rind"))))
         val keys = DishFilters.options(d, setOf("alkohol")).map { it.key }
-        assertEquals(listOf("rind", "alkohol", "neu_ding"), keys)
+        assertEquals(listOf(DishFilters.FAVORITES, "rind", "alkohol", "neu_ding"), keys)
         assertFalse(DishFilters.options(d, emptySet()).any { it.key == "alkohol" })
     }
 
@@ -132,7 +133,7 @@ class DishFiltersTest {
     @Test
     fun options_includeTagsOfFixedSections_inFixedOrder() {
         val keys = DishFilters.options(emptyList(), emptySet(), listOf(fixedSection(pork, vegan))).map { it.key }
-        assertEquals(listOf("vegan", "vegetarisch", "schwein", "knoblauch"), keys)
+        assertEquals(listOf("vegan", "vegetarisch", DishFilters.FAVORITES, "schwein", "knoblauch"), keys)
     }
 
     @Test
@@ -140,7 +141,7 @@ class DishFiltersTest {
         val html = checkNotNull(javaClass.getResourceAsStream("/fixtures/2026-10-01/pier16.html")).use { it.readBytes().toString(Charsets.UTF_8) }
         val page = de.luwify.mensamd.parser.PierParser.parse(html)
         val keys = DishFilters.options(emptyList(), emptySet(), page.fixed).map { it.key }
-        assertEquals(listOf("vegan", "vegetarisch", "schwein", "rind", "gefluegel", "knoblauch"), keys)
+        assertEquals(listOf("vegan", "vegetarisch", DishFilters.FAVORITES, "schwein", "rind", "gefluegel", "knoblauch"), keys)
         val vegan = DishFilters.applySections(page.fixed, setOf("vegan")).flatMap { it.dishes }
         assertEquals(3, vegan.size) // Veggie burger, Vegane Curry-Gemüsebratwurst, Mediterraner Wrap
         val vegetarian = DishFilters.applySections(page.fixed, setOf("vegetarisch")).flatMap { it.dishes }
@@ -202,5 +203,31 @@ class DishFiltersTest {
         val d = listOf(MenuDay(day.date, listOf(veganCake, cake, vegan)))
         assertEquals(listOf("Schokokuchen", "Zupfkuchen"), DishFilters.apply(d, setOf(DishFilters.CAKE)).single().dishes.map { it.name.de })
         assertEquals(listOf("Schokokuchen"), DishFilters.apply(d, setOf(DishFilters.CAKE, "vegan")).single().dishes.map { it.name.de })
+    }
+
+    // ---- favorites ----
+
+    @Test
+    fun favorites_showOnlyFavoritedDishes_andCombineWithOtherFilters() {
+        val favorites = setOf(Favorites.key(vegan), Favorites.key(pork))
+        assertEquals(listOf("Linsen", "Schnitzel"), DishFilters.apply(listOf(day), setOf(DishFilters.FAVORITES), favorites = favorites).single().dishes.map { it.name.de })
+        assertEquals(listOf("Linsen"), DishFilters.apply(listOf(day), setOf(DishFilters.FAVORITES, "schwein"), favorites = favorites).single().dishes.map { it.name.de })
+        // without favorites the day stays, empty (the screen shows the "no favorites yet" message instead)
+        assertTrue(DishFilters.apply(listOf(day), setOf(DishFilters.FAVORITES)).single().dishes.isEmpty())
+        // favorites alone don't filter anything while the chip is off
+        assertEquals(5, DishFilters.apply(listOf(day), emptySet(), favorites = favorites).single().dishes.size)
+    }
+
+    @Test
+    fun favorites_chipIsAlwaysOffered_afterCake() {
+        assertEquals(listOf(DishFilters.VEGAN, DishFilters.VEGETARIAN, DishFilters.CAKE, DishFilters.FAVORITES),
+            DishFilters.options(fixture("unicampus-unten").days, emptySet()).map { it.key }.take(4))
+        assertEquals(listOf(DishFilters.FAVORITES), DishFilters.options(emptyList(), emptySet()).map { it.key })
+    }
+
+    @Test
+    fun favorites_workOnFixedMenusToo() {
+        val s = listOf(fixedSection(vegan, fish))
+        assertEquals(listOf("Lachs"), DishFilters.applySections(s, setOf(DishFilters.FAVORITES), favorites = setOf("lachs"))[0].dishes.map { it.name.de })
     }
 }

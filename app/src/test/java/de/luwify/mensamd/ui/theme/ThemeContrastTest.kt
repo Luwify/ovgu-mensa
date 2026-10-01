@@ -49,6 +49,8 @@ class ThemeContrastTest {
         check("chip outline/background", s.outline, s.background, 3.0, failures)
         check("filter button border/background", s.primary, s.background, 3.0, failures)
         check("badge border (tertiary)/card", s.tertiary, card, 3.0, failures)
+        check("favorite heart/card", m.favorite, card, 3.0, failures)
+        check("empty heart (onSurfaceVariant)/card", s.onSurfaceVariant, card, 3.0, failures)
         check("card hairline/background", m.cardBorder!!, s.background, cardEdgeMin, failures)
     }
 

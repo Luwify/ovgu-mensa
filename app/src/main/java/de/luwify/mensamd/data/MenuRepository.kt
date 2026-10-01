@@ -120,6 +120,9 @@ class MenuRepository(
         }
     }
 
+    /** The current state (cache loaded if needed), without fetching: for the background favorites check. */
+    suspend fun current(id: String): MenuState = loadCache(id)
+
     /** Fills the state from disk once; returns the state after that. */
     private suspend fun loadCache(id: String): MenuState {
         val e = entry(id)

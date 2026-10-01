@@ -10,4 +10,6 @@ data class ViewPrefs(
     val priceGroup: Int = 0,
     /** Compact dish cards (tap to expand) instead of the normal layout. */
     val compact: Boolean = false,
+    /** Favorite dishes as normalized names (see `Favorites`). */
+    val favorites: Set<String> = emptySet(),
 )

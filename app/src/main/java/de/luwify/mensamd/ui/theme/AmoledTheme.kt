@@ -66,5 +66,6 @@ object AmoledTheme {
         chipSelected = ControlColors(Color.Transparent, scheme.primary, scheme.primary),
         linkText = scheme.primary,
         headingText = scheme.primary,
+        favorite = FavoriteColors.dark,
     )
 }

@@ -57,6 +57,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import de.luwify.mensamd.model.PageFormat
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 
@@ -68,9 +69,47 @@ fun MainScreen(vm: MainViewModel, screen: AppScreen.Main, showCardIcon: Boolean,
     val today = rememberToday()
     val scope = rememberCoroutineScope()
 
-    val pager = rememberPagerState(initialPage = mensas.indexOfFirst { it.id == screen.defaultId }.coerceAtLeast(0)) {
+    // A notification tap that started the app opens its Mensa right away, not the default one first.
+    val startId = remember { vm.openRequest.value ?: screen.defaultId }
+    val pager = rememberPagerState(initialPage = mensas.indexOfFirst { it.id == startId }.coerceAtLeast(0)) {
         latestMensas.size
     }
+    val openRequest by vm.openRequest.collectAsStateWithLifecycle()
+    LaunchedEffect(openRequest) {
+        val id = openRequest ?: return@LaunchedEffect
+        val index = latestMensas.indexOfFirst { it.id == id }
+        if (index >= 0 && index != pager.currentPage) pager.scrollToPage(index)
+        vm.consumeOpenRequest()
+    }
+
+    // Favorites: the first one set explains (once) why notifications are useful, then the system asks.
+    val access = rememberNotificationAccess(vm)
+    val explained by vm.permissionExplained.collectAsStateWithLifecycle()
+    val notify by vm.notifySettings.collectAsStateWithLifecycle()
+    var explain by rememberSaveable { mutableStateOf(false) }
+    val latestFavorites by rememberUpdatedState(screen.prefs.favorites)
+    val shouldExplain by rememberUpdatedState(explained == false && notify?.enabled != false && access.needsRuntimePermission)
+    val onToggleFavorite: (String) -> Unit = remember(vm) {
+        { key ->
+            val first = latestFavorites.isEmpty()
+            vm.toggleFavorite(key)
+            if (first && shouldExplain) explain = true
+        }
+    }
+    if (explain) {
+        NotificationPermissionDialog(
+            onAllow = {
+                explain = false
+                vm.markPermissionExplained()
+                access.request()
+            },
+            onLater = {
+                explain = false
+                vm.markPermissionExplained()
+            },
+        )
+    }
+    val notifyMensas = remember(mensas) { mensas.filter { it.format == PageFormat.DATED } }
 
     // Track the active Mensa by id so a reorder (which changes indices) keeps you on the same one.
     var activeId by rememberSaveable { mutableStateOf<String?>(null) }
@@ -120,7 +159,21 @@ fun MainScreen(vm: MainViewModel, screen: AppScreen.Main, showCardIcon: Boolean,
                 beyondViewportPageCount = 1,
                 key = { latestMensas.getOrNull(it)?.id ?: it.toString() },
             ) { page ->
-                latestMensas.getOrNull(page)?.let { mensa -> MensaPage(vm, mensa.id, today, screen.prefs) }
+                latestMensas.getOrNull(page)?.let { mensa ->
+                    MensaPage(vm, mensa.id, today, screen.prefs, onToggleFavorite) { mensaId ->
+                        notify?.let { settings ->
+                            NotifySheet(
+                                settings = settings,
+                                mensas = notifyMensas,
+                                allowed = access.allowed,
+                                onEnabled = vm::setNotificationsEnabled,
+                                onWatch = vm::setNotifyMensa,
+                                onAllow = access.request,
+                                onTest = { if (access.allowed) vm.postTestNotification(mensaId) else access.request() },
+                            )
+                        }
+                    }
+                }
             }
         }
     }
@@ -135,7 +188,14 @@ private fun rememberToday(): LocalDate {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun MensaPage(vm: MainViewModel, mensaId: String, today: LocalDate, prefs: ViewPrefs) {
+private fun MensaPage(
+    vm: MainViewModel,
+    mensaId: String,
+    today: LocalDate,
+    prefs: ViewPrefs,
+    onToggleFavorite: (String) -> Unit,
+    notifySheet: (mensaId: String) -> NotifySheet?,
+) {
     val flow = remember(mensaId) { vm.menuFor(mensaId) }
     val ui by flow.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
@@ -146,11 +206,11 @@ private fun MensaPage(vm: MainViewModel, mensaId: String, today: LocalDate, pref
     val days = remember(current?.days, today) { current?.days?.upcomingWeekdays(today).orEmpty() }
     val fixed = remember(current?.fixed) { current?.fixed.orEmpty() }
     val options = remember(days, fixed, prefs.tagFilters) { DishFilters.options(days, prefs.tagFilters, fixed) }
-    val shown = remember(days, prefs.tagFilters, prefs.excludedCodes) {
-        DishFilters.apply(days, prefs.tagFilters, prefs.excludedCodes)
+    val shown = remember(days, prefs.tagFilters, prefs.excludedCodes, prefs.favorites) {
+        DishFilters.apply(days, prefs.tagFilters, prefs.excludedCodes, prefs.favorites)
     }
-    val shownFixed = remember(fixed, prefs.tagFilters, prefs.excludedCodes) {
-        DishFilters.applySections(fixed, prefs.tagFilters, prefs.excludedCodes)
+    val shownFixed = remember(fixed, prefs.tagFilters, prefs.excludedCodes, prefs.favorites) {
+        DishFilters.applySections(fixed, prefs.tagFilters, prefs.excludedCodes, prefs.favorites)
     }
     // Scales come from the unfiltered days, so colors don't shift when the user filters.
     val footprints = remember(days) { dayFootprints(days) }
@@ -175,7 +235,7 @@ private fun MensaPage(vm: MainViewModel, mensaId: String, today: LocalDate, pref
                 FilterRow(options, prefs.tagFilters, prefs.excludedCodes.size, vm::toggleFilter) { showSheet = true }
             }
             Box(Modifier.weight(1f).fillMaxWidth()) {
-                if (current != null) MenuBody(current, shown, shownFixed, today, prefs, footprints) { vm.refresh(mensaId) }
+                if (current != null) MenuBody(current, shown, shownFixed, today, prefs, footprints, onToggleFavorite) { vm.refresh(mensaId) }
             }
         }
         if (showSheet && current != null) {
@@ -187,6 +247,7 @@ private fun MensaPage(vm: MainViewModel, mensaId: String, today: LocalDate, pref
                 onThemeMode = vm::setThemeMode,
                 onSetCodes = vm::setCodesExcluded,
                 onClearCodes = vm::clearExcludedCodes,
+                notify = notifySheet(mensaId),
                 onDismiss = { showSheet = false },
             )
         }

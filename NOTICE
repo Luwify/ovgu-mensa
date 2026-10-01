@@ -13,7 +13,20 @@ Sprout icon
   Changes:  the theme-attribute tint was removed and the fill color set to black so the
             app can tint it per theme. The path data is unchanged.
 
-Only this one icon is included; the app has no dependency on any icon library.
+Heart icons
+  Files:    app/src/main/res/drawable/ic_favorite.xml (outlined, not a favorite)
+            app/src/main/res/drawable/ic_favorite_filled.xml (filled, a favorite)
+  Used for: the favorite toggle on dish cards
+  Source:   Material Symbols, icon "favorite" (Outlined, weight 400, 24px, fill 0 and fill 1), by Google
+            https://fonts.google.com/icons
+            https://github.com/google/material-design-icons
+            (symbols/android/favorite/materialsymbolsoutlined/favorite_24px.xml and favorite_fill1_24px.xml)
+  License:  Apache License, Version 2.0
+            https://www.apache.org/licenses/LICENSE-2.0
+  Changes:  the theme-attribute tint was removed and the fill color set to black so the
+            app can tint it per theme. The path data is unchanged.
+
+Only these icons are included; the app has no dependency on any icon library.
 
 
 Mensa card balance reader (derived code, GPL)

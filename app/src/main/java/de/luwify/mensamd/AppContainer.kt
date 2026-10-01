@@ -6,6 +6,8 @@ import de.luwify.mensamd.data.cache.FileMenuCache
 import de.luwify.mensamd.data.remote.HttpMenuFetcher
 import de.luwify.mensamd.data.settings.SettingsRepository
 import de.luwify.mensamd.data.settings.settingsRepository
+import de.luwify.mensamd.notify.FavoriteNotifier
+import de.luwify.mensamd.notify.FavoriteScheduler
 import java.io.File
 
 /** Manual DI: one instance per process, owned by [MensaApp]. Everything heavy is lazy. */
@@ -19,4 +21,13 @@ class AppContainer(context: Context) {
         // cacheDir: it is a cache, and it stays out of backups.
         MenuRepository(HttpMenuFetcher(version), FileMenuCache(File(app.cacheDir, "menus")))
     }
+
+    /** The daily favorites job runs only while notifications are on and there is at least one favorite. */
+    fun syncFavoriteSchedule(active: Boolean) {
+        if (active) FavoriteScheduler.ensureScheduled(app) else FavoriteScheduler.cancel(app)
+    }
+
+    fun canPostNotifications(): Boolean = FavoriteNotifier.canPost(app)
+
+    fun postTestNotification(mensaId: String): Boolean = FavoriteNotifier.postTest(app, mensaId)
 }

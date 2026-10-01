@@ -88,7 +88,7 @@ object MenuPageParser {
     }
 
     /** Peels off leading "label:" prefixes (they can nest) and returns (labels, remaining name). */
-    private fun splitBadges(text: String): Pair<List<String>, String> {
+    fun splitBadges(text: String): Pair<List<String>, String> {
         val labels = mutableListOf<String>()
         var rest = text
         while (true) {

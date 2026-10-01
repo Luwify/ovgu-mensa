@@ -23,7 +23,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import de.luwify.mensamd.card.NfcCardScanner
+import android.content.Intent
+import androidx.compose.runtime.LaunchedEffect
 import de.luwify.mensamd.data.settings.ThemeMode
+import de.luwify.mensamd.notify.FavoriteNotifier
 import de.luwify.mensamd.ui.CardScreen
 import de.luwify.mensamd.ui.AppScreen
 import de.luwify.mensamd.ui.MainViewModel
@@ -41,6 +44,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        // Not after a recreation: that intent was handled already.
+        if (savedInstanceState == null) handleOpenIntent(intent)
         setContent {
             val mode by viewModel.themeMode.collectAsStateWithLifecycle()
             // AMOLED is always dark: black bars with light icons whatever the system setting is;
@@ -60,6 +65,16 @@ class MainActivity : ComponentActivity() {
             mode?.let { MensaTheme(it) { MensaRoot(viewModel, cardScanner) } }
         }
     }
+
+    /** A tap on the favorites notification (activity already running). */
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handleOpenIntent(intent)
+    }
+
+    private fun handleOpenIntent(intent: Intent?) {
+        intent?.getStringExtra(FavoriteNotifier.EXTRA_MENSA_ID)?.let(viewModel::requestOpen)
+    }
 }
 
 @Composable
@@ -72,6 +87,9 @@ private fun MensaRoot(viewModel: MainViewModel, cardScanner: NfcCardScanner) {
         is AppScreen.Main -> {
             // Overlay, not a replacement: the pager keeps its tab while the card screen is open.
             var showCard by rememberSaveable { mutableStateOf(false) }
+            // A notification tap goes to the menu, also from the card screen.
+            val openRequest by viewModel.openRequest.collectAsStateWithLifecycle()
+            LaunchedEffect(openRequest) { if (openRequest != null) showCard = false }
             Box(Modifier.fillMaxSize()) {
                 MainScreen(viewModel, s, showCardIcon = cardScanner.available, onOpenCard = { showCard = true })
                 if (showCard) CardScreen(cardScanner, onBack = { showCard = false })

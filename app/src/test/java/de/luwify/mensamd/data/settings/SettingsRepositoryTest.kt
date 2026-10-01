@@ -125,4 +125,59 @@ class SettingsRepositoryTest {
             scope.shutDown()
         }
     }
+
+    @Test
+    fun favorites_areAStringSet_soNamesWithCommasSurvive_andToggleIsAtomic() = runBlocking {
+        val file = File(tmp.root, "fav.preferences_pb")
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        try {
+            val repo = SettingsRepository(PreferenceDataStoreFactory.create(scope = scope) { file })
+            assertEquals(emptySet<String>(), repo.favorites.first())
+            assertEquals(true, repo.toggleFavorite("reis, gemüse"))
+            assertEquals(true, repo.toggleFavorite("schnitzel"))
+            assertEquals(setOf("reis, gemüse", "schnitzel"), repo.favorites.first())
+            assertEquals(false, repo.toggleFavorite("schnitzel"))
+            assertEquals(setOf("reis, gemüse"), repo.favorites.first())
+        } finally {
+            scope.shutDown()
+        }
+    }
+
+    @Test
+    fun notifyMensen_defaultToTheDefaultMensa_untilChanged() = runBlocking {
+        val file = File(tmp.root, "notify.preferences_pb")
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        try {
+            val repo = SettingsRepository(PreferenceDataStoreFactory.create(scope = scope) { file })
+            assertEquals(true, repo.notificationsEnabled.first())
+            assertEquals(emptySet<String>(), repo.notifyMensen.first())
+            repo.setDefaultMensaId("herrenkrug")
+            assertEquals(setOf("herrenkrug"), repo.notifyMensen.first())
+            repo.setNotifyMensa("stendal", true)
+            assertEquals(setOf("herrenkrug", "stendal"), repo.notifyMensen.first())
+            // once chosen, a new default Mensa doesn't change the watched ones
+            repo.setDefaultMensaId("kellercafe")
+            assertEquals(setOf("herrenkrug", "stendal"), repo.notifyMensen.first())
+            repo.setNotifyMensa("herrenkrug", false)
+            assertEquals(setOf("stendal"), repo.notifyMensen.first())
+        } finally {
+            scope.shutDown()
+        }
+    }
+
+    @Test
+    fun notified_isRecordedAndPruned() = runBlocking {
+        val file = File(tmp.root, "notified.preferences_pb")
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        try {
+            val repo = SettingsRepository(PreferenceDataStoreFactory.create(scope = scope) { file })
+            val prune = de.luwify.mensamd.favorites.FavoriteNotifications::prune
+            repo.recordNotified(setOf("2026-10-02|a|x"), java.time.LocalDate.of(2026, 10, 1), prune)
+            assertEquals(setOf("2026-10-02|a|x"), repo.notifiedFavorites())
+            repo.recordNotified(setOf("2026-10-06|a|y"), java.time.LocalDate.of(2026, 10, 5), prune)
+            assertEquals(setOf("2026-10-06|a|y"), repo.notifiedFavorites())
+        } finally {
+            scope.shutDown()
+        }
+    }
 }

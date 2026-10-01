@@ -1,5 +1,6 @@
 package de.luwify.mensamd.ui
 
+import de.luwify.mensamd.favorites.Favorites
 import de.luwify.mensamd.model.Dish
 import de.luwify.mensamd.model.FixedSection
 import de.luwify.mensamd.model.LocalizedText
@@ -12,7 +13,10 @@ sealed class ListRow(val key: String) {
     class Header(val date: LocalDate) : ListRow("header-$date")
     class SubHeader(val date: LocalDate, val dinner: Boolean) : ListRow("sub-${if (dinner) "dinner" else "lunch"}-$date")
     /** [date] is null for dishes of a fixed (undated) menu. */
-    class DishRow(val dish: Dish, val date: LocalDate?, key: String) : ListRow(key)
+    class DishRow(val dish: Dish, val date: LocalDate?, key: String) : ListRow(key) {
+        /** Computed once per row, not at every recomposition of the card. */
+        val favoriteKey: String by lazy(LazyThreadSafetyMode.NONE) { Favorites.key(dish) }
+    }
     class NoMatch(id: String) : ListRow("empty-$id")
     class SubDivider(date: LocalDate) : ListRow("subdivider-$date")
     class DayDivider(date: LocalDate) : ListRow("divider-$date")
