@@ -1,0 +1,16 @@
+Mensa MD: third-party material
+==============================
+
+Sprout icon
+  File:     app/src/main/res/drawable/ic_sprout.xml
+  Used for: the vegan tag chip
+  Source:   Material Symbols, icon "psychiatry" (Outlined, weight 400, 24px), by Google
+            https://fonts.google.com/icons
+            https://github.com/google/material-design-icons
+            (symbols/android/psychiatry/materialsymbolsoutlined/psychiatry_24px.xml)
+  License:  Apache License, Version 2.0
+            https://www.apache.org/licenses/LICENSE-2.0
+  Changes:  the theme-attribute tint was removed and the fill color set to black so the
+            app can tint it per theme. The path data is unchanged.
+
+Only this one icon is included; the app has no dependency on any icon library.

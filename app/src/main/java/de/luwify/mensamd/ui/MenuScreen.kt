@@ -498,7 +498,7 @@ private fun CodeMeanings(codes: List<String>, codeIndex: Map<String, LegendCode>
 
 /**
  * A tag as a text chip; [dense] is the smaller variant for compact cards. Every tag is text only,
- * except vegan: it has its own light-green pair per theme and the logo, tinted with the chip's text
+ * except vegan: it has its own light-green pair per theme and the sprout icon, tinted with the chip's text
  * color so it stays readable on both the light and the deep green chip.
  */
 @Composable
@@ -517,7 +517,7 @@ private fun TagLabel(tag: Tag, dense: Boolean = false) {
         ) {
             if (vegan != null) {
                 Icon(
-                    painterResource(R.drawable.ic_vegan_logo),
+                    painterResource(R.drawable.ic_sprout),
                     contentDescription = null,
                     tint = content,
                     modifier = Modifier.size(if (dense) 14.dp else 18.dp),
