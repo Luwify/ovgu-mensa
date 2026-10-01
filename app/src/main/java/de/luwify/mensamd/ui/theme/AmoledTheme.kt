@@ -54,7 +54,10 @@ object AmoledTheme {
 
     fun mensaColors(): MensaColors = MensaColors(
         cardContainer = cardColor,
-        cardBorder = scheme.outlineVariant,
+        // A brighter blue edge (an accent, well above 3:1 on black) plus a faint wider halo outside it.
+        cardBorder = Color(0xFF4F7FD9),
+        cardBorderWidth = 1.dp,
+        cardGlow = Color(0xFF4F7FD9).copy(alpha = 0.22f),
         cardElevation = 0.dp,
         veganContainer = Color(0xFF1F4D2A),
         veganContent = Color(0xFFC8F0CA),

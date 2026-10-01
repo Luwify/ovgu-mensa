@@ -70,6 +70,9 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.material3.ripple
 import androidx.compose.ui.layout.layout
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.drawOutline
+import androidx.compose.ui.graphics.drawscope.translate
 import de.luwify.mensamd.model.Dish
 import de.luwify.mensamd.model.FixedSection
 import de.luwify.mensamd.model.Legend
@@ -279,7 +282,10 @@ private fun DishCard(
     val colors = theme.cardContainer?.let { CardDefaults.cardColors(containerColor = it) } ?: CardDefaults.cardColors()
     val elevation = CardDefaults.cardElevation(defaultElevation = theme.cardElevation)
     // Hairline border (one physical pixel) so the card edge doesn't depend on the shadow.
-    val border = theme.cardBorder?.let { BorderStroke(Dp.Hairline, it) }
+    val border = theme.cardBorder?.let { BorderStroke(theme.cardBorderWidth, it) }
+    val shape = CardDefaults.shape
+    val glowModifier = theme.cardGlow?.let { glow -> Modifier.cardGlow(glow, shape) } ?: Modifier
+    val modifier = modifier.then(glowModifier)
     if (compact) {
         // At least 48dp tall so the heart's touch area (see FavoriteButton) is never clipped by the card.
         Card(
@@ -438,6 +444,24 @@ private fun CompactCardBody(
             }
         }
     }
+}
+
+/**
+ * A soft halo around a card: two plain strokes just outside the card's own border, the inner one 2dp at the given
+ * alpha, the outer one 5dp much fainter, so it fades outward. Drawn behind the card in the same layer (no blur, no
+ * shadow, no offscreen buffer): scrolling costs two more outlines per card.
+ */
+private fun Modifier.cardGlow(color: Color, shape: androidx.compose.ui.graphics.Shape): Modifier = drawBehind {
+    fun ring(width: Float, alpha: Float) {
+        val outline = shape.createOutline(
+            androidx.compose.ui.geometry.Size(size.width + width, size.height + width), layoutDirection, this,
+        )
+        translate(-width / 2, -width / 2) {
+            drawOutline(outline, color.copy(alpha = color.alpha * alpha), style = androidx.compose.ui.graphics.drawscope.Stroke(width))
+        }
+    }
+    ring(5.dp.toPx(), 0.35f)
+    ring(2.dp.toPx(), 1f)
 }
 
 /** Space between the card text and the heart: more than the 12dp its touch area reaches beyond the icon. */

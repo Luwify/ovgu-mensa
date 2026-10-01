@@ -71,7 +71,6 @@ class ThemeContrastTest {
         val s = AmoledTheme.scheme
         assertTrue(s.background == Color(0xFF000000) && s.surface == Color(0xFF000000))
         assertTrue(AmoledTheme.mensaColors().cardContainer == Color(0xFF0F0F11))
-        assertTrue(AmoledTheme.mensaColors().cardBorder == s.outlineVariant)
         // light, slightly desaturated blue: not a pure saturated blue
         assertTrue(s.primary.blue > s.primary.red && s.primary.blue > s.primary.green && s.primary.red > 0.3f)
     }
@@ -83,6 +82,45 @@ class ThemeContrastTest {
             val s = if (dark) SoftTheme.dark else SoftTheme.light
             assertTrue(m.cardContainer != s.background)
             assertTrue(m.cardBorder == s.outlineVariant)
+        }
+    }
+
+    @Test
+    fun amoledCardHasABlueOutline_atLeast3to1_andAFainterGlow() {
+        val m = AmoledTheme.mensaColors()
+        val border = m.cardBorder!!
+        assertTrue("outline/black ${ratio(border, Color.Black)}", ratio(border, Color.Black) >= 3.0)
+        assertTrue("outline/card", ratio(border, m.cardContainer!!) >= 3.0)
+        assertTrue("blue", border.blue > border.red && border.blue > border.green)
+        val glow = m.cardGlow!!
+        assertTrue("glow is a translucent version of the outline", glow.alpha < 0.5f && glow.copy(alpha = 1f) == border)
+    }
+
+    /** The System theme with the fallback palettes (dynamic colors depend on the wallpaper; these are the same tones). */
+    @Test
+    fun systemCardsStandOutByTheirFill_andTagChipsStayVisibleOnThem() {
+        for (dark in listOf(false, true)) {
+            val s = (if (dark) DarkColors else LightColors).softened().withCardContrast(dark)
+            val m = systemMensaColors(dark, s)
+            val card = m.cardContainer!!
+            val name = if (dark) "dark" else "light"
+            // Before (2026-10-01): default background, light cards surfaceContainerLowest, dark surfaceContainerLow.
+            val old = (if (dark) DarkColors else LightColors).softened()
+            val oldRatio = ratio(if (dark) old.surfaceContainerLow else old.surfaceContainerLowest, old.background)
+            val now = ratio(card, s.background)
+            assertTrue("$name card/page $now", now >= 1.1 && now > oldRatio + 0.02)
+            assertTrue("$name tag chip/card ${ratio(m.tag.container, card)}", ratio(m.tag.container, card) >= 1.1)
+            assertTrue("$name top bar = page", s.surface == s.background)
+            // The System pill and chips are transparent (outlined), so their text sits on the card or page itself.
+            val failures = mutableListOf<String>()
+            check("onSurface/card", s.onSurface, card, 4.5, failures)
+            check("onSurfaceVariant/card", s.onSurfaceVariant, card, 4.5, failures)
+            check("price text (primary)/card", m.price.content, card, 4.5, failures)
+            check("onSurface/page", s.onSurface, s.background, 4.5, failures)
+            check("onSurfaceVariant/page", s.onSurfaceVariant, s.background, 4.5, failures)
+            check("tag chip text", m.tag.content, m.tag.container, 4.5, failures)
+            check("heart/card", m.favorite, card, 3.0, failures)
+            assertTrue("$name: $failures", failures.isEmpty())
         }
     }
 }

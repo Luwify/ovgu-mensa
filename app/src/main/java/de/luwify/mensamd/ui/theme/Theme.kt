@@ -23,13 +23,13 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import de.luwify.mensamd.data.settings.ThemeMode
 
-private val LightColors = lightColorScheme(
+internal val LightColors = lightColorScheme(
     primary = Color(0xFF2E7D32),
     secondary = Color(0xFF52634F),
     tertiary = Color(0xFF39656B),
 )
 
-private val DarkColors = darkColorScheme(
+internal val DarkColors = darkColorScheme(
     primary = Color(0xFF94D88F),
     secondary = Color(0xFFB9CCB4),
     tertiary = Color(0xFFA1CED5),
@@ -66,6 +66,10 @@ class MensaColors(
     val headingText: Color,
     /** The filled heart of a favorite dish (the empty heart uses onSurfaceVariant). */
     val favorite: Color,
+    /** Width of [cardBorder]; a hairline unless the border is what sets the card apart. */
+    val cardBorderWidth: Dp = Dp.Hairline,
+    /** A soft blue halo around cards (AMOLED): plain strokes behind the card, no blur, no extra layer. */
+    val cardGlow: Color? = null,
 )
 
 /** Heart red for favorites, the same in every theme; at least 3:1 on every card (an icon, not text). */
@@ -82,10 +86,13 @@ object FootprintStops {
 
 /**
  * System colors: neutral surfaces and mostly outlined controls, so the wallpaper palette only
- * shows where it means something (selected tab, selected price, active filters).
+ * shows where it means something (selected tab, selected price, active filters). The cards stand
+ * apart from the page by their fill (see [withCardContrast]): white on a light gray page, a lifted
+ * gray on the dark page; the hairline border is only a finishing edge.
  */
-private fun systemMensaColors(darkTheme: Boolean, scheme: ColorScheme) = MensaColors(
-    cardContainer = if (darkTheme) scheme.surfaceContainerLow else scheme.surfaceContainerLowest,
+internal fun systemMensaColors(darkTheme: Boolean, scheme: ColorScheme) = MensaColors(
+    // Dark: one step below the tag chips (surfaceContainerHigh), so the chips stay visible on the card.
+    cardContainer = if (darkTheme) scheme.surfaceContainer else scheme.surfaceContainerLowest,
     cardBorder = scheme.outlineVariant,
     cardElevation = 0.dp,
     veganContainer = if (darkTheme) Color(0xFF264D2A) else Color(0xFFCDEBCF),
@@ -100,6 +107,16 @@ private fun systemMensaColors(darkTheme: Boolean, scheme: ColorScheme) = MensaCo
     headingText = scheme.onSurface,
     favorite = if (darkTheme) FavoriteColors.dark else FavoriteColors.light,
 )
+
+/**
+ * The System theme's page background, one step deeper than Material's default so the cards stand
+ * out (user's choice "variant 1", 2026-10-01): light surfaceContainer, dark surfaceContainerLowest.
+ * The top bar and day headers use the same color, so the page stays one plane.
+ */
+internal fun ColorScheme.withCardContrast(dark: Boolean): ColorScheme {
+    val page = if (dark) surfaceContainerLowest else surfaceContainer
+    return copy(background = page, surface = page)
+}
 
 /** Fraction of the wallpaper's color kept in accent roles / in surface roles of the System theme. */
 private const val ACCENT_KEPT = 0.7f
@@ -156,7 +173,7 @@ fun MensaTheme(
                     if (darkTheme) dynamicDarkColorScheme(context).softened() else dynamicLightColorScheme(context).softened()
                 darkTheme -> DarkColors.softened()
                 else -> LightColors.softened()
-            }
+            }.withCardContrast(darkTheme)
             shapes = Shapes()
             mensa = remember(darkTheme, colorScheme) { systemMensaColors(darkTheme, colorScheme) }
         }
