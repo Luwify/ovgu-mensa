@@ -1,8 +1,18 @@
 package de.luwify.mensamd.ui
 
 import androidx.compose.foundation.layout.Box
+import de.luwify.mensamd.ui.theme.FilterIcon
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.material3.VerticalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.BorderStroke
 import de.luwify.mensamd.data.settings.ViewPrefs
-import androidx.compose.material3.AssistChip
 import androidx.compose.foundation.layout.Row
 import androidx.compose.ui.unit.dp
 import de.luwify.mensamd.R
@@ -181,24 +191,44 @@ private fun FilterRow(
     onOpenSheet: () -> Unit,
 ) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        AssistChip(
-            onClick = onOpenSheet,
-            label = {
-                Text(
-                    if (excludedCodeCount > 0) stringResource(R.string.filter_button_count, excludedCodeCount)
-                    else stringResource(R.string.filter_button),
-                )
-            },
-            modifier = Modifier.padding(start = 16.dp),
-        )
+        FilterButton(excludedCodeCount, onOpenSheet)
+        // Short divider: the button opens a sheet, the chips toggle filters.
+        VerticalDivider(Modifier.padding(horizontal = 10.dp).height(24.dp))
         LazyRow(
-            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+            contentPadding = PaddingValues(end = 16.dp, top = 4.dp, bottom = 4.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             items(options, key = { it.key }) { option ->
                 val label = filterLabelRes(option.key)?.let { stringResource(it) } ?: stringResource(R.string.filter_no_generic, option.label)
                 FilterChip(selected = option.key in active, onClick = { onToggle(option.key) }, label = { Text(label) })
             }
+        }
+    }
+}
+
+/**
+ * Opens the filter sheet. Deliberately not a chip: a rounded rectangle (the chips are pills), a
+ * tonal fill with a primary-colored border, and a funnel icon, so it reads as a button, not a toggle.
+ */
+@Composable
+private fun FilterButton(excludedCodeCount: Int, onClick: () -> Unit) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(10.dp),
+        color = MaterialTheme.colorScheme.secondaryContainer,
+        border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary),
+        modifier = Modifier.padding(start = 16.dp).height(36.dp),
+    ) {
+        Row(Modifier.padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(FilterIcon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(6.dp))
+            Text(
+                if (excludedCodeCount > 0) stringResource(R.string.filter_button_count, excludedCodeCount)
+                else stringResource(R.string.filter_button),
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSecondaryContainer,
+            )
         }
     }
 }
