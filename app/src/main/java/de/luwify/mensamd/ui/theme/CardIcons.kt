@@ -55,3 +55,35 @@ val BackIcon: ImageVector by lazy {
         }
     }.build()
 }
+
+/** A check mark (selected entry of a drop-down menu), drawn like [BackIcon]. */
+val CheckIcon: ImageVector by lazy {
+    ImageVector.Builder("Check", 24.dp, 24.dp, 24f, 24f).apply {
+        path(
+            stroke = SolidColor(Color.Black),
+            strokeLineWidth = 2f,
+            strokeLineCap = StrokeCap.Round,
+            strokeLineJoin = StrokeJoin.Round,
+        ) {
+            moveTo(5f, 12.5f)
+            lineTo(10f, 17.5f)
+            lineTo(19f, 7f)
+        }
+    }.build()
+}
+
+/** A chevron pointing down (drop-down field); turned 180° while the menu is open. */
+val ChevronDownIcon: ImageVector by lazy {
+    ImageVector.Builder("ChevronDown", 24.dp, 24.dp, 24f, 24f).apply {
+        path(
+            stroke = SolidColor(Color.Black),
+            strokeLineWidth = 2f,
+            strokeLineCap = StrokeCap.Round,
+            strokeLineJoin = StrokeJoin.Round,
+        ) {
+            moveTo(6f, 9.5f)
+            lineTo(12f, 15.5f)
+            lineTo(18f, 9.5f)
+        }
+    }.build()
+}

@@ -125,17 +125,6 @@
     <string name="custom_hue">Hue</string>
     <string name="custom_glow">Glow border</string>
     <string name="custom_glow_hint">A glowing edge around the cards in the accent color, like the AMOLED theme</string>
-    <string name="hue_red">Red</string>
-    <string name="hue_orange">Orange</string>
-    <string name="hue_yellow">Yellow</string>
-    <string name="hue_lime">Lime</string>
-    <string name="hue_green">Green</string>
-    <string name="hue_teal">Teal</string>
-    <string name="hue_cyan">Cyan</string>
-    <string name="hue_blue">Blue</string>
-    <string name="hue_violet">Violet</string>
-    <string name="hue_magenta">Magenta</string>
-    <string name="hue_pink">Pink</string>
     <string name="layout_title">Card layout</string>
     <string name="theme_title">Theme</string>
     <string name="theme_label">Color scheme</string>

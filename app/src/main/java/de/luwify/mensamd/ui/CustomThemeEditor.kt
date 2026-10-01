@@ -53,30 +53,23 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 
-/** Quick picks for the accent hue, with names for TalkBack. The slider below reaches every other hue. */
-private val SWATCHES = listOf(
-    0 to R.string.hue_red, 25 to R.string.hue_orange, 45 to R.string.hue_yellow, 90 to R.string.hue_lime,
-    140 to R.string.hue_green, 175 to R.string.hue_teal, 200 to R.string.hue_cyan, 220 to R.string.hue_blue,
-    265 to R.string.hue_violet, 300 to R.string.hue_magenta, 335 to R.string.hue_pink,
-)
-
-/** A swatch is the accent the old hue-only setting meant: HSL saturation 62 %, lightness 52 % of its hue. */
+/** The slider track shows each hue as the old hue-only setting meant it: HSL saturation 62 %, lightness 52 %. */
 private fun swatchRgb(hue: Int) = hueToAccent(hue)
 
 private fun rgbColor(rgb: Int) = Color(0xFF000000.toInt() or (rgb and 0xFFFFFF))
 
 /**
  * The editor for the user's own theme (shown on the settings page while "Eigenes" is selected): background
- * (drop-down), accent color (swatches, a hue slider that keeps saturation and lightness, or typed as hex / RGB)
- * and the glow border. [onChange] gets (spec, commit): commit false only previews (slider moving).
+ * (radio list), accent color (a hue slider that keeps saturation and lightness, or typed as hex / RGB) and the
+ * glow border. [onChange] gets (spec, commit): commit false only previews (slider moving).
  */
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun CustomThemeEditor(spec: CustomThemeSpec, onChange: (CustomThemeSpec, Boolean) -> Unit) {
     val latest by rememberUpdatedState(spec)
     Column(Modifier.fillMaxWidth().padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        SettingsDropdown(
-            label = stringResource(R.string.custom_base),
+        Label(R.string.custom_base)
+        SettingsRadioGroup(
             options = listOf(
                 CustomBase.SYSTEM to stringResource(R.string.custom_base_system),
                 CustomBase.LIGHT to stringResource(R.string.custom_base_light),
@@ -85,15 +78,9 @@ fun CustomThemeEditor(spec: CustomThemeSpec, onChange: (CustomThemeSpec, Boolean
             ),
             selected = spec.base,
             onSelect = { onChange(latest.copy(base = it), true) },
-            modifier = Modifier.fillMaxWidth(),
         )
 
         Label(R.string.custom_accent)
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            for ((hue, name) in SWATCHES) {
-                Swatch(swatchRgb(hue), name, selected = spec.accent == swatchRgb(hue)) { onChange(latest.copy(accent = swatchRgb(hue)), true) }
-            }
-        }
         var dragging by remember { mutableFloatStateOf(-1f) }
         val hueLabel = stringResource(R.string.custom_hue)
         val hue = ColorInput.hue(spec.accent)
@@ -207,27 +194,4 @@ private fun ColorFields(accent: Int, onAccent: (Int) -> Unit) {
 @Composable
 private fun Label(@StringRes text: Int) {
     Text(stringResource(text), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-}
-
-/** A 32dp color dot in a 48dp touch target; the selected one gets a ring in the text color. */
-@Composable
-private fun Swatch(rgb: Int, @StringRes name: Int, selected: Boolean, onClick: () -> Unit) {
-    val ring = MaterialTheme.colorScheme.onSurface
-    Box(
-        Modifier
-            .size(48.dp)
-            .clip(CircleShape)
-            .selectable(selected = selected, role = Role.RadioButton, onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) {
-        val label = stringResource(name)
-        Box(
-            Modifier
-                .size(32.dp)
-                .then(if (selected) Modifier.border(BorderStroke(2.dp, ring), CircleShape).padding(4.dp) else Modifier)
-                .clip(CircleShape)
-                .background(rgbColor(rgb))
-                .semantics { contentDescription = label },
-        )
-    }
 }
