@@ -4,6 +4,7 @@ import de.luwify.mensamd.model.Dish
 import de.luwify.mensamd.model.LocalizedText
 import de.luwify.mensamd.model.MenuDay
 import de.luwify.mensamd.model.Tag
+import de.luwify.mensamd.model.isCakeOfTheDay
 import de.luwify.mensamd.parser.MenuPageParser
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -146,5 +147,60 @@ class DishFiltersTest {
         assertEquals(5, vegetarian.size) // + Cheesy Veggie burger, Caprese wrap
         val noGluten = DishFilters.applySections(page.fixed, emptySet(), setOf("a1")).flatMap { it.dishes }
         assertEquals(1, noGluten.size) // only the Curry-Bratwurst states no wheat
+    }
+
+    // ---- cake of the day ----
+
+    private fun fixture(name: String) = MenuPageParser.parse(
+        checkNotNull(javaClass.getResourceAsStream("/fixtures/2026-09-30/$name.html")).use { it.readBytes().toString(Charsets.UTF_8) },
+    )
+
+    private fun withBadge(name: String, de: String, en: String = de) = dish(name).copy(badges = listOf(LocalizedText(de, en)))
+
+    @Test
+    fun cake_isDetectedFromEitherLanguage() {
+        assertTrue(withBadge("A", "Der heutige Lieblingskuchen vom Mensa-Team", "Today's favorite cake of the Mensa team").isCakeOfTheDay)
+        // German text missing on the page: the parser puts the English one on both sides
+        assertTrue(withBadge("B", "Today's favourite cake of our Mensa-Team").isCakeOfTheDay)
+        assertFalse(withBadge("C", "Save the meal").isCakeOfTheDay)
+        assertFalse(dish("Käsekuchen").isCakeOfTheDay) // a cake by name only is not the cake of the day
+    }
+
+    @Test
+    fun cake_realPages_showOnlyTheCakeOfTheDay_oneEachDay() {
+        for ((name, expected) in listOf("unicampus-unten" to 6, "herrenkrug" to 1, "wernigerode" to 1)) {
+            val days = fixture(name).days
+            assertTrue(name, DishFilters.options(days, emptySet()).any { it.key == DishFilters.CAKE })
+            val shown = DishFilters.apply(days, setOf(DishFilters.CAKE))
+            assertEquals(name, days.size, shown.size) // days without cake stay (they say "no matching dishes")
+            val cakes = shown.flatMap { it.dishes }
+            assertEquals(name, expected, cakes.size)
+            assertTrue(name, shown.all { it.dishes.size <= 1 })
+            assertTrue(name, cakes.all { d -> d.badges.any { it.de.startsWith("Der heutige Lieblingskuchen") && it.en.contains("cake") } })
+        }
+    }
+
+    @Test
+    fun cake_herrenkrugUsesTheBritishSpelling_andIsStillFound() {
+        val cake = fixture("herrenkrug").days.flatMap { it.dishes }.single { it.isCakeOfTheDay }
+        assertTrue(cake.badges.any { it.en.contains("favourite cake") })
+    }
+
+    @Test
+    fun cake_chipComesRightAfterVegetarian_andOnlyWhereThereIsCake() {
+        val keys = DishFilters.options(fixture("unicampus-unten").days, emptySet()).map { it.key }
+        assertEquals(listOf(DishFilters.VEGAN, DishFilters.VEGETARIAN, DishFilters.CAKE), keys.take(3))
+        assertFalse(DishFilters.options(fixture("stendal").days, emptySet()).any { it.key == DishFilters.CAKE })
+        // a persisted cake filter can still be switched off where there is no cake
+        assertTrue(DishFilters.options(fixture("stendal").days, setOf(DishFilters.CAKE)).any { it.key == DishFilters.CAKE })
+    }
+
+    @Test
+    fun cake_combinesWithOtherFilters() {
+        val veganCake = withBadge("Schokokuchen", "Der heutige Lieblingskuchen vom Mensa-Team").copy(tags = listOf(Tag("vegan", "v")))
+        val cake = withBadge("Zupfkuchen", "Der heutige Lieblingskuchen vom Mensa-Team")
+        val d = listOf(MenuDay(day.date, listOf(veganCake, cake, vegan)))
+        assertEquals(listOf("Schokokuchen", "Zupfkuchen"), DishFilters.apply(d, setOf(DishFilters.CAKE)).single().dishes.map { it.name.de })
+        assertEquals(listOf("Schokokuchen"), DishFilters.apply(d, setOf(DishFilters.CAKE, "vegan")).single().dishes.map { it.name.de })
     }
 }

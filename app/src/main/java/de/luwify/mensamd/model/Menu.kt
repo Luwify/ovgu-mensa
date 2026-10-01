@@ -57,6 +57,16 @@ data class Dish(
  */
 val Dish.isDinner: Boolean get() = badges.any { it.de.startsWith("Abendessen", ignoreCase = true) }
 
+private val CAKE_EN = Regex("""favou?rite cake""", RegexOption.IGNORE_CASE)
+
+/**
+ * The cake of the day: badge "Der heutige Lieblingskuchen vom Mensa-Team", English "Today's favorite cake of
+ * the Mensa team" (sometimes "favourite cake of our Mensa-Team"). Either side is enough, since a badge
+ * whose German text is missing carries the English one in both. This is the only place that knows.
+ */
+val Dish.isCakeOfTheDay: Boolean
+    get() = badges.any { it.de.contains("Lieblingskuchen", ignoreCase = true) || CAKE_EN.containsMatchIn(it.en) }
+
 /** A tag icon. [key] is the icon file name (`mensasym_<key>.png`) and is the only stable identifier. */
 @Serializable
 data class Tag(val key: String, val label: String)

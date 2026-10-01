@@ -3,9 +3,11 @@ package de.luwify.mensamd.ui
 import de.luwify.mensamd.model.Dish
 import de.luwify.mensamd.model.FixedSection
 import de.luwify.mensamd.model.MenuDay
+import de.luwify.mensamd.model.isCakeOfTheDay
 
 /**
- * Tag filters and code exclusion. Filter keys are tag keys. `vegan` and `vegetarisch` are inclusive (show only matching dishes,
+ * Tag filters and code exclusion. Filter keys are tag keys, plus [CAKE], which is not a tag (it can't collide with
+ * one: tag keys never contain a colon). `vegan`, `vegetarisch` and [CAKE] are inclusive (show only matching dishes,
  * and vegetarian also lets vegan dishes through); every other key hides dishes carrying that tag.
  * Excluded codes hide every dish that lists any of them. A dish with no codes passes, which does
  * not mean it is free of allergens (the sheet says so).
@@ -14,8 +16,11 @@ object DishFilters {
     const val VEGAN = "vegan"
     const val VEGETARIAN = "vegetarisch"
 
+    /** The cake of the day (see `Dish.isCakeOfTheDay`). */
+    const val CAKE = ":kuchen"
+
     /** Chip order; keys we don't know yet follow alphabetically. */
-    private val ORDER = listOf(VEGAN, VEGETARIAN, "schwein", "rind", "gefluegel", "fisch", "knoblauch", "alkohol", "suppe")
+    private val ORDER = listOf(VEGAN, VEGETARIAN, CAKE, "schwein", "rind", "gefluegel", "fisch", "knoblauch", "alkohol", "suppe")
 
     fun matches(dish: Dish, active: Set<String>, excludedCodes: Set<String> = emptySet()): Boolean {
         if (excludedCodes.isNotEmpty() && dish.codes.any { it in excludedCodes }) return false
@@ -25,6 +30,7 @@ object DishFilters {
             when (filter) {
                 VEGAN -> VEGAN in tags
                 VEGETARIAN -> VEGETARIAN in tags || VEGAN in tags
+                CAKE -> dish.isCakeOfTheDay
                 else -> filter !in tags
             }
         }
@@ -46,13 +52,16 @@ object DishFilters {
     /**
      * One option per tag actually found in [days], plus any active filter whose tag isn't on this
      * page, so a persisted filter can always be switched off. Vegetarian is offered when there are
-     * vegetarian or vegan dishes, since it matches both.
+     * vegetarian or vegan dishes, since it matches both; cake only when there is a cake of the day.
      */
     fun options(days: List<MenuDay>, active: Set<String>, fixed: List<FixedSection> = emptyList()): List<Option> {
         val labels = LinkedHashMap<String, String>()
         for (day in days) for (dish in day.dishes) for (tag in dish.tags) labels.putIfAbsent(tag.key, tag.label)
         for (section in fixed) for (dish in section.dishes) for (tag in dish.tags) labels.putIfAbsent(tag.key, tag.label)
         if (VEGAN in labels && VEGETARIAN !in labels) labels[VEGETARIAN] = VEGETARIAN
+        if (days.any { d -> d.dishes.any { it.isCakeOfTheDay } } || fixed.any { s -> s.dishes.any { it.isCakeOfTheDay } }) {
+            labels[CAKE] = CAKE
+        }
         for (key in active) labels.putIfAbsent(key, key)
         return labels.map { Option(it.key, it.value) }.sortedWith(
             compareBy<Option>({ ORDER.indexOf(it.key).let { i -> if (i < 0) Int.MAX_VALUE else i } }, { it.key }),

@@ -34,6 +34,7 @@
     <string name="co2_value">%1$d g CO₂e</string>
     <string name="water_value">%1$d l water</string>
     <string name="per_portion">%1$s per portion</string>
+    <string name="filter_cake">Cake</string>
     <string name="filter_no_schwein">No pork</string>
     <string name="filter_no_rind">No beef</string>
     <string name="filter_no_gefluegel">No poultry</string>
