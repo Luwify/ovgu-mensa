@@ -16,4 +16,8 @@ data class ViewPrefs(
     val filterOrder: List<String> = emptyList(),
     /** Favorite dishes get the sparkling gold "legendary" frame. */
     val legendary: Boolean = true,
+    /** The hidden super sparkle (5 fast taps on the sparkle switch) was found. */
+    val superUnlocked: Boolean = false,
+    /** Favorites get the moving aura too (only with [legendary] and once unlocked). */
+    val superSparkle: Boolean = false,
 )

@@ -283,4 +283,27 @@ class SettingsRepositoryTest {
             scope.shutDown()
         }
     }
+
+    @Test
+    fun superSparkle_isOffUntilUnlocked_thenOn_andTurnsSparkleOn() = runBlocking {
+        val file = File(tmp.root, "super.preferences_pb")
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        try {
+            val repo = SettingsRepository(PreferenceDataStoreFactory.create(scope = scope) { file })
+            assertEquals(false, repo.superSparkleUnlocked.first())
+            assertEquals(false, repo.superSparkle.first())
+            repo.setSuperSparkle(true) // not unlocked: no effect
+            assertEquals(false, repo.superSparkle.first())
+            repo.setLegendaryFavorites(false) // the five taps end with the switch off ...
+            repo.unlockSuperSparkle() // ... the unlock turns everything on
+            assertEquals(true, repo.superSparkleUnlocked.first())
+            assertEquals(true, repo.superSparkle.first())
+            assertEquals(true, repo.legendaryFavorites.first())
+            repo.setSuperSparkle(false)
+            assertEquals(false, repo.superSparkle.first())
+            assertEquals(true, repo.superSparkleUnlocked.first())
+        } finally {
+            scope.shutDown()
+        }
+    }
 }

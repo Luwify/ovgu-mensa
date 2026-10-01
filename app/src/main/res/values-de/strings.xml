@@ -155,4 +155,9 @@
     <string name="color_picker">Farbwähler: Farbkreis und Feld für Sättigung und Helligkeit</string>
     <string name="legendary_title">Favoriten funkeln</string>
     <string name="legendary_hint">Deine Favoriten bekommen einen goldenen, funkelnden Rahmen, wie ein legendäres Item</string>
+    <string name="super_title">Super-Funkeln ✨</string>
+    <string name="super_hint">Eine bewegte Aura um deine Favoriten, die beim Scrollen nachschwingt</string>
+    <string name="super_unlocked_title">Super-Funkeln freigeschaltet!</string>
+    <string name="super_unlocked_text">Deine Favoriten haben jetzt eine Aura, die beim Scrollen mitschwingt.</string>
+    <string name="super_unlocked_hint">Tippen zum Fortfahren</string>
 </resources>

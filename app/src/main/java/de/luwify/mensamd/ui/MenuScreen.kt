@@ -70,13 +70,13 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.material3.ripple
 import androidx.compose.ui.layout.layout
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.graphics.drawOutline
-import androidx.compose.ui.graphics.drawscope.translate
 import de.luwify.mensamd.model.Dish
 import de.luwify.mensamd.model.FixedSection
 import de.luwify.mensamd.model.Legend
@@ -153,43 +153,47 @@ private fun MenuList(
     val euro = remember(locale) { NumberFormat.getCurrencyInstance(locale).apply { currency = Currency.getInstance("EUR") } }
     val bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     val codeIndex = remember(ui.legend) { ui.legend.codes.associateBy { it.code } }
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        // Horizontal padding lives on the items so sticky headers can span the full width.
-        contentPadding = PaddingValues(bottom = bottom + 16.dp),
-        verticalArrangement = Arrangement.spacedBy(if (prefs.compact) 8.dp else 12.dp),
-    ) {
-        for (row in rows) {
-            when (row) {
-                is ListRow.Header -> stickyHeader(key = row.key, contentType = "header") { DayHeader(row.date, today, locale) }
-                is ListRow.SubHeader -> item(key = row.key, contentType = "subheader") { SubHeader(row.dinner) }
-                ListRow.FixedHeader -> stickyHeader(key = row.key, contentType = "header") { FixedHeader() }
-                is ListRow.SectionTitle -> item(key = row.key, contentType = "subheader") { SectionLabel(row.title.forLanguage(locale.language)) }
-                is ListRow.SectionDivider -> item(key = row.key, contentType = "divider") {
-                    HorizontalDivider(Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
+    // Super sparkle: the favorites' aura trails the scrolling (see ScrollDrag); nothing installed otherwise.
+    val drag = if (prefs.superSparkle) rememberScrollDrag() else null
+    CompositionLocalProvider(LocalScrollDrag provides drag) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize().then(if (drag != null) Modifier.nestedScroll(drag.connection) else Modifier),
+            // Horizontal padding lives on the items so sticky headers can span the full width.
+            contentPadding = PaddingValues(bottom = bottom + 16.dp),
+            verticalArrangement = Arrangement.spacedBy(if (prefs.compact) 8.dp else 12.dp),
+        ) {
+            for (row in rows) {
+                when (row) {
+                    is ListRow.Header -> stickyHeader(key = row.key, contentType = "header") { DayHeader(row.date, today, locale) }
+                    is ListRow.SubHeader -> item(key = row.key, contentType = "subheader") { SubHeader(row.dinner) }
+                    ListRow.FixedHeader -> stickyHeader(key = row.key, contentType = "header") { FixedHeader() }
+                    is ListRow.SectionTitle -> item(key = row.key, contentType = "subheader") { SectionLabel(row.title.forLanguage(locale.language)) }
+                    is ListRow.SectionDivider -> item(key = row.key, contentType = "divider") {
+                        HorizontalDivider(Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
+                    }
+                    is ListRow.DishRow -> item(key = row.key, contentType = "dish") {
+                        DishCard(
+                            row.dish, ui.legend, codeIndex, locale.language, euro, prefs.priceGroup, row.date?.let { footprints[it] },
+                            prefs.compact, row.favoriteKey in prefs.favorites, prefs.legendary, prefs.superSparkle, { onToggleFavorite(row.favoriteKey) },
+                            Modifier.padding(horizontal = 16.dp),
+                        )
+                    }
+                    is ListRow.NoMatch -> item(key = row.key, contentType = "empty") {
+                        Text(
+                            stringResource(R.string.no_matching_dishes),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                        )
+                    }
+                    is ListRow.SubDivider -> item(key = row.key, contentType = "subdivider") {
+                        HorizontalDivider(Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant)
+                    }
+                    is ListRow.DayDivider -> item(key = row.key, contentType = "divider") {
+                        HorizontalDivider(Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
+                    }
+                    is ListRow.Footer -> item(key = row.key, contentType = "footer") { UpdatedFooter(row.updatedAt, row.failed) }
                 }
-                is ListRow.DishRow -> item(key = row.key, contentType = "dish") {
-                    DishCard(
-                        row.dish, ui.legend, codeIndex, locale.language, euro, prefs.priceGroup, row.date?.let { footprints[it] },
-                        prefs.compact, row.favoriteKey in prefs.favorites, prefs.legendary, { onToggleFavorite(row.favoriteKey) },
-                        Modifier.padding(horizontal = 16.dp),
-                    )
-                }
-                is ListRow.NoMatch -> item(key = row.key, contentType = "empty") {
-                    Text(
-                        stringResource(R.string.no_matching_dishes),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-                    )
-                }
-                is ListRow.SubDivider -> item(key = row.key, contentType = "subdivider") {
-                    HorizontalDivider(Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant)
-                }
-                is ListRow.DayDivider -> item(key = row.key, contentType = "divider") {
-                    HorizontalDivider(Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
-                }
-                is ListRow.Footer -> item(key = row.key, contentType = "footer") { UpdatedFooter(row.updatedAt, row.failed) }
             }
         }
     }
@@ -271,6 +275,7 @@ private fun DishCard(
     compact: Boolean,
     favorite: Boolean,
     legendary: Boolean,
+    superAura: Boolean,
     onToggleFavorite: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -293,6 +298,7 @@ private fun DishCard(
     val cardModifier = theme.cardGlow?.let { glow -> Modifier.cardGlow(glow, shape) } ?: Modifier
     FavoriteEffects(
         legendary = legendary && favorite,
+        superAura = superAura,
         burst = burst,
         shape = shape,
         favoriteColor = theme.favorite,
@@ -474,16 +480,10 @@ private fun CompactCardBody(
  * shadow, no offscreen buffer): scrolling costs two more outlines per card.
  */
 private fun Modifier.cardGlow(color: Color, shape: androidx.compose.ui.graphics.Shape): Modifier = drawBehind {
-    fun ring(width: Float, alpha: Float) {
-        val outline = shape.createOutline(
-            androidx.compose.ui.geometry.Size(size.width + width, size.height + width), layoutDirection, this,
-        )
-        translate(-width / 2, -width / 2) {
-            drawOutline(outline, color.copy(alpha = color.alpha * alpha), style = androidx.compose.ui.graphics.drawscope.Stroke(width))
-        }
-    }
-    ring(5.dp.toPx(), 0.35f)
-    ring(2.dp.toPx(), 1f)
+    // Each ring parallel to the card edge with its own radius, so the corners line up.
+    val r = cornerRadiusOf(shape)
+    drawParallelRing(r, 2.5.dp.toPx(), 5.dp.toPx(), androidx.compose.ui.graphics.SolidColor(color.copy(alpha = color.alpha * 0.35f)))
+    drawParallelRing(r, 1.dp.toPx(), 2.dp.toPx(), androidx.compose.ui.graphics.SolidColor(color))
 }
 
 /** Space between the card text and the heart: more than the 12dp its touch area reaches beyond the icon. */

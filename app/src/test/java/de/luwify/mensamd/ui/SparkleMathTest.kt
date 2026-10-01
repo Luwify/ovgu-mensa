@@ -54,4 +54,69 @@ class SparkleMathTest {
         val onLight = goldFor(Color.White)
         assertTrue(onDark.first() != onLight.first())
     }
+
+    // ---- super sparkle ----
+
+    @Test
+    fun roundedRectOutline_isClosedContinuous_onTheEdge_withUnitNormals() {
+        val w = 300f
+        val h = 120f
+        val r = 12f
+        val pts = (0..400).map { SparkleMath.roundedRectPoint(it / 400f, w, h, r) }
+        for (p in pts) {
+            assertEquals(1f, kotlin.math.hypot(p[2], p[3]), 0.001f)
+            assertTrue(p[0] in -0.01f..w + 0.01f && p[1] in -0.01f..h + 0.01f)
+        }
+        // neighbors are close: no jumps at the corners, and the loop closes
+        val steps = pts.zipWithNext().map { (a, b) -> kotlin.math.hypot(a[0] - b[0], a[1] - b[1]) }
+        assertTrue("max step ${steps.max()}", steps.max() < 3f)
+        assertEquals(pts.first()[0], pts.last()[0], 0.01f)
+        // top edge points up, right edge right
+        assertEquals(-1f, SparkleMath.roundedRectPoint(0.05f, w, h, r)[3], 0.001f)
+        assertEquals(1f, SparkleMath.roundedRectPoint(0.42f, w, h, r)[2], 0.001f) // right edge: 0.36..0.48 of the loop
+    }
+
+    @Test
+    fun auraWave_staysInRange_andMovesOverTime() {
+        val values = (0 until 100).flatMap { s -> listOf(0L, 400L, 1300L).map { SparkleMath.auraWave(s / 100f, it) } }
+        assertTrue(values.all { it in -1f..1f })
+        assertTrue(SparkleMath.auraWave(0.2f, 0) != SparkleMath.auraWave(0.2f, 500))
+    }
+
+    @Test
+    fun motes_fadeInAndOut() {
+        for (i in 0 until 8) for (t in 0L until 6000L step 50) {
+            val (x, rise, a) = SparkleMath.mote(t, i)
+            assertTrue(x in 0f..1f && rise in 0f..1f && a in 0f..1f)
+        }
+    }
+
+    @Test
+    fun unlock_needsFiveTapsWithinThreeSeconds() {
+        var taps = emptyList<Long>()
+        for (t in listOf(1000L, 1400L, 1800L, 2200L)) taps = SparkleMath.recentTaps(taps + t, t)
+        assertEquals(4, taps.size)
+        taps = SparkleMath.recentTaps(taps + 2600L, 2600L)
+        assertTrue(taps.size >= SparkleMath.UNLOCK_TAPS)
+        // slow taps never get there
+        var slow = emptyList<Long>()
+        for (t in listOf(0L, 1000L, 2000L, 3000L, 4000L, 5000L)) slow = SparkleMath.recentTaps(slow + t, t)
+        assertTrue(slow.size < SparkleMath.UNLOCK_TAPS)
+    }
+
+    @Test
+    fun scrollDrag_trailsAgainstTheScroll_andIsCapped() {
+        assertTrue(SparkleMath.dragAfter(0f, -10f, 50f) > 0f) // content moved up: the aura stays lower
+        assertEquals(50f, SparkleMath.dragAfter(40f, -100f, 50f), 0f)
+        assertEquals(-50f, SparkleMath.dragAfter(0f, 1000f, 50f), 0f)
+    }
+
+    @Test
+    fun unlockReveal_starsPopInOrder_andSettle() {
+        val t = UnlockTimeline.STARS_START + 2 * UnlockTimeline.STAR_STEP + 0.1f
+        assertTrue(UnlockTimeline.pop(t, UnlockTimeline.STARS_START) == 1f) // first star settled
+        assertTrue(UnlockTimeline.pop(t, UnlockTimeline.STARS_START + 4 * UnlockTimeline.STAR_STEP) == 0f) // last not yet
+        assertEquals(1.3f, UnlockTimeline.pop(0.6f * 0.28f, 0f), 0.001f) // overshoot
+        assertEquals(1f, UnlockTimeline.pop(UnlockTimeline.TOTAL, 0f), 0f)
+    }
 }
