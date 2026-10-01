@@ -43,6 +43,7 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.graphics.drawscope.clipPath
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
@@ -161,6 +162,28 @@ object SparkleMath {
     fun recentTaps(taps: List<Long>, now: Long, windowMs: Long = 3000L): List<Long> = taps.filter { now - it in 0..windowMs }
 
     const val UNLOCK_TAPS = 5
+
+    /** The aura's maximum reach in units of its base reach: 4 x the living factor's maximum (0.55 + 0.75 x 1.1). */
+    const val AURA_REACH_FACTOR = 4f * 1.375f
+
+    /**
+     * The aura's fall-off at [x] = distance / maximum reach: (1 - x)^4, so it reaches exactly 0 at x = 1 with a
+     * zero slope (no visible edge), and is 0 beyond. Mirrors the shader.
+     */
+    fun auraFalloff(x: Float): Float = if (x >= 1f) 0f else (1f - x.coerceAtLeast(0f)).let { it * it * it * it }
+
+    /**
+     * The alpha of each of a stack of nested fills (outermost first) so that, drawn over each other, the total
+     * opacity at the i-th fill's edge is [targets] i (which must not decrease inward).
+     */
+    fun stackedAlphas(targets: List<Float>): List<Float> {
+        var covered = 0f
+        return targets.map { t ->
+            val a = if (covered >= 1f) 0f else ((t - covered) / (1f - covered)).coerceIn(0f, 1f)
+            covered = covered + (1f - covered) * a
+            a
+        }
+    }
 
     /**
      * Where the visible band for the aura starts: the bottom of the pinned day header if one is stuck at the top
@@ -367,27 +390,14 @@ internal fun DrawScope.drawSuperAura(
     val center = Offset(w / 2f, h / 2f)
     val fade = 28.dp.toPx()
     val reach = 9.dp.toPx()
-    val margin = 30.dp.toPx() + kotlin.math.abs(jelly[0]) + kotlin.math.abs(jelly[1])
     if (shader != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        // The draw area must hold the whole glow: its maximum reach (4 x reach x the living factor's maximum 1.375)
+        // plus the jelly's shifts, and a little more.
+        val margin = SparkleMath.AURA_REACH_FACTOR * reach + kotlin.math.abs(jelly[0]) + kotlin.math.abs(jelly[1]) + 4.dp.toPx()
         shader.update(w, h, r, timeMs / 1000f, jelly, reach, if (animate) 0.85f else 0.7f, fadeTop, fadeBottom, fade)
         drawRect(shader.brush, topLeft = Offset(-margin, -margin), size = Size(w + 2 * margin, h + 2 * margin))
     } else {
-        // Fallback gradient: twelve touching rings, each fainter, with the jelly's shift and inset.
-        val turn = if (animate) SparkleMath.turn(timeMs, 9000L) else 0f
-        val brush = Brush.sweepGradient((0..12).map { SparkleMath.cyclic(colors, it / 12f + turn) }, center)
-        val step = 1.6.dp.toPx()
-        for (i in 0 until 12) {
-            val d = i * step + step / 2
-            val fade = 1f - i / 12f
-            drawRoundRect(
-                brush,
-                topLeft = Offset(-d + jelly[2], -d + jelly[0]),
-                size = Size(w + 2 * d - 2 * jelly[2], h + 2 * d + jelly[1] - jelly[0]),
-                cornerRadius = androidx.compose.ui.geometry.CornerRadius(r + d),
-                alpha = 0.32f * fade * fade,
-                style = Stroke(step + 0.6f),
-            )
-        }
+        drawFallbackAura(w, h, r, colors, jelly, reach, fadeTop, fadeBottom, fade)
     }
     if (!animate) return
     // Sparkles inside the glow: each flashes for a moment somewhere along the card, then elsewhere.
@@ -399,6 +409,43 @@ internal fun DrawScope.drawSuperAura(
         val shift = jelly[0] + (jelly[1] - jelly[0]) * (p[1] / h)
         val at = Offset(p[0] + p[2] * out.dp.toPx() - p[2] * jelly[2], p[1] + p[3] * out.dp.toPx() + shift)
         drawStar(at, sizeDp.dp.toPx(), colors[3].copy(alpha = alpha))
+    }
+}
+
+/**
+ * The aura below Android 13 (no runtime shaders): nested filled rounded rectangles from the outside in, whose
+ * alphas ([SparkleMath.stackedAlphas]) stack up to exactly the shader's fall-off, so there are no seams (strokes
+ * side by side would overlap and draw lines). The card is clipped out; a vertical gradient fades it out toward the
+ * pinned header and the viewport's end. Plain gold, no iridescence; the jelly shifts and inset still apply.
+ */
+private fun DrawScope.drawFallbackAura(
+    w: Float, h: Float, r: Float, colors: List<Color>, jelly: FloatArray, reach: Float,
+    fadeTop: Float, fadeBottom: Float, fade: Float,
+) {
+    val steps = 18
+    val maxReach = 4f * reach
+    val distances = (0 until steps).map { maxReach * (steps - it) / steps } // outside in
+    val alphas = SparkleMath.stackedAlphas(distances.map { 0.85f * SparkleMath.auraFalloff(it / maxReach) })
+    val color = colors[0]
+    val fadeSpan = (fadeBottom - fadeTop).coerceAtLeast(1f)
+    val brush = Brush.verticalGradient(
+        0f to color.copy(alpha = 0f),
+        (fade / fadeSpan).coerceIn(0f, 0.5f) to color,
+        (1f - fade / fadeSpan).coerceIn(0.5f, 1f) to color,
+        1f to color.copy(alpha = 0f),
+        startY = fadeTop, endY = fadeBottom,
+    )
+    val card = Path().apply { addRoundRect(androidx.compose.ui.geometry.RoundRect(0f, 0f, w, h, androidx.compose.ui.geometry.CornerRadius(r))) }
+    clipPath(card, androidx.compose.ui.graphics.ClipOp.Difference) {
+        distances.forEachIndexed { i, d ->
+            drawRoundRect(
+                brush,
+                topLeft = Offset(-d + jelly[2], -d + jelly[0]),
+                size = Size(w + 2 * d - 2 * jelly[2], h + 2 * d + jelly[1] - jelly[0]),
+                cornerRadius = androidx.compose.ui.geometry.CornerRadius(r + d),
+                alpha = alphas[i],
+            )
+        }
     }
 }
 

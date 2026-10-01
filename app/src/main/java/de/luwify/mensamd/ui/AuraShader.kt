@@ -9,7 +9,7 @@ import androidx.compose.ui.graphics.toArgb
 
 /**
  * The super aura as one GPU shader (Android 13+): a smooth glow around the card's rounded rectangle (signed
- * distance, exponential fall-off, so there are no lines), whose reach swells and shrinks around the card like a
+ * distance, a fall-off that reaches exactly zero smoothly, dithered so 8-bit color shows no bands), whose reach swells and shrinks around the card like a
  * living mass, tinted with a slowly drifting iridescent gold. The jelly deformation (top/bottom shift, side inset)
  * comes in as uniforms. Coordinates are the card's own (0,0 = its top left).
  *
@@ -48,6 +48,11 @@ half3 palette(float t) {
     return mix(a, b, half(f));
 }
 
+// Interleaved gradient noise (Jimenez): cheap, well-spread per-pixel noise in 0..1.
+float ign(float2 xy) {
+    return fract(52.9829189 * fract(dot(xy, float2(0.06711056, 0.00583715))));
+}
+
 half4 main(float2 xy) {
     // Jelly: rows near the top move by `top`, near the bottom by `bottom` (the trailing edge lags more).
     float rel = clamp(xy.y / size.y, -0.5, 1.5);
@@ -60,14 +65,23 @@ half4 main(float2 xy) {
         + 0.22 * sin(a * 3.0 + time * 1.1)
         + 0.16 * sin(a * 5.0 - time * 1.7 + 1.3)
         + 0.10 * sin(a * 2.0 + time * 0.6 + 4.0);
-    float k = exp(-d / (reach * (0.55 + 0.75 * live)));
+    // Fall-off (1 - d/R)^4 with R = 4 x the living reach: close to exp(-d/reach) near the card, but exactly zero
+    // at R with a zero slope, so the glow has no edge anywhere (the draw area is larger than R).
+    float maxReach = 4.0 * reach * (0.55 + 0.75 * live);
+    float k = pow(max(1.0 - d / maxReach, 0.0), 4.0);
     // Iridescent gold: the hue drifts around the card and shifts a little with distance.
     half3 col = palette(a / 6.2831853 + time * 0.045 + d / (reach * 7.0));
     // Nothing over the card itself (the overlay lies above it); a 1.5 px soft edge matches the card's anti-aliasing.
     float card = smoothstep(-0.75, 0.75, roundBox(xy - size * 0.5, size * 0.5, radius));
     // Fade out before the pinned header and the end of the viewport instead of being cut there.
     float band = smoothstep(fadeTop, fadeTop + fade, xy.y) * (1.0 - smoothstep(fadeBottom - fade, fadeBottom, xy.y));
-    float alpha = clamp(k * strength, 0.0, 1.0) * card * band;
+    float alpha = k * strength * card * band;
+    // Dither: triangular noise of +-1/255 (two noise samples) before premultiplying, so neither alpha nor color
+    // shows 8-bit steps in the very shallow gradient. Only where there is glow, so nothing speckles outside.
+    if (alpha > 0.0) {
+        float tri = ign(xy) + ign(xy + float2(17.0, 59.0)) - 1.0;
+        alpha = clamp(alpha + tri / 255.0, 0.0, 1.0);
+    }
     return half4(col * half(alpha), half(alpha));
 }
 """

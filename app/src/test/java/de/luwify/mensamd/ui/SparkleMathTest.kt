@@ -143,4 +143,29 @@ class SparkleMathTest {
         assertEquals(0, SparkleMath.pinnedHeaderBottom(listOf(0 to 300, 312 to 48), listOf(false, true)))
         assertEquals(0, SparkleMath.pinnedHeaderBottom(emptyList(), emptyList()))
     }
+
+    @Test
+    fun auraFalloff_reachesExactlyZeroSmoothly_andIsCloseToExpNearTheCard() {
+        assertEquals(1f, SparkleMath.auraFalloff(0f), 0f)
+        assertEquals(0f, SparkleMath.auraFalloff(1f), 0f)
+        assertEquals(0f, SparkleMath.auraFalloff(1.3f), 0f)
+        // no visible edge at the end: the last step before zero is tiny
+        assertTrue(SparkleMath.auraFalloff(0.98f) < 1e-6f)
+        // monotone
+        val v = (0..100).map { SparkleMath.auraFalloff(it / 100f) }
+        assertTrue(v.zipWithNext().all { (a, b) -> b <= a })
+        // close to exp(-d/reach) with maxReach = 4 x reach, near the card
+        assertEquals(kotlin.math.exp(-0.5f), SparkleMath.auraFalloff(0.5f / 4f), 0.03f)
+    }
+
+    @Test
+    fun stackedFills_addUpToTheTargetOpacity() {
+        val targets = listOf(0.01f, 0.05f, 0.15f, 0.35f, 0.6f, 0.85f)
+        val alphas = SparkleMath.stackedAlphas(targets)
+        var covered = 0f
+        alphas.forEachIndexed { i, a ->
+            covered += (1f - covered) * a
+            assertEquals(targets[i], covered, 0.0001f)
+        }
+    }
 }
