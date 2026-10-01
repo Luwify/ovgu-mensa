@@ -9,7 +9,7 @@ import java.time.LocalDate
 sealed class ListRow(val key: String) {
     class Header(val date: LocalDate) : ListRow("header-$date")
     class SubHeader(val date: LocalDate, val dinner: Boolean) : ListRow("sub-${if (dinner) "dinner" else "lunch"}-$date")
-    class DishRow(val dish: Dish, key: String) : ListRow(key)
+    class DishRow(val dish: Dish, val date: LocalDate, key: String) : ListRow(key)
     class NoMatch(date: LocalDate) : ListRow("empty-$date")
     class SubDivider(date: LocalDate) : ListRow("subdivider-$date")
     class DayDivider(date: LocalDate) : ListRow("divider-$date")
@@ -34,7 +34,7 @@ fun buildRows(days: List<MenuDay>, updatedAt: Long?, failed: Boolean): List<List
             fun addDishes(list: List<Dish>) = list.forEach { dish ->
                 val base = "${day.date}|${dish.name.de}"
                 val n = seen.merge(base, 1, Int::plus)!!
-                add(ListRow.DishRow(dish, if (n == 1) base else "$base#$n"))
+                add(ListRow.DishRow(dish, day.date, if (n == 1) base else "$base#$n"))
             }
             if (lunch.isNotEmpty() && dinner.isNotEmpty()) add(ListRow.SubHeader(day.date, dinner = false))
             addDishes(lunch)

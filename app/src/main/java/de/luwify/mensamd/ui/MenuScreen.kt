@@ -53,6 +53,7 @@ import de.luwify.mensamd.model.Dish
 import de.luwify.mensamd.model.Legend
 import de.luwify.mensamd.model.MenuDay
 import de.luwify.mensamd.model.Tag
+import de.luwify.mensamd.ui.theme.footprintColor
 import de.luwify.mensamd.ui.theme.veganChipColors
 import java.text.NumberFormat
 import java.time.LocalDate
@@ -62,9 +63,16 @@ import java.util.Locale
 
 /** The body of one Mensa page: the continuous menu list, or a message when there is none. */
 @Composable
-fun MenuBody(ui: MenuUiState, days: List<MenuDay>, today: LocalDate, priceGroup: Int, onRetry: () -> Unit) {
+fun MenuBody(
+    ui: MenuUiState,
+    days: List<MenuDay>,
+    today: LocalDate,
+    priceGroup: Int,
+    footprints: Map<LocalDate, DayFootprint>,
+    onRetry: () -> Unit,
+) {
     when {
-        days.isNotEmpty() -> MenuList(ui, days, today, priceGroup)
+        days.isNotEmpty() -> MenuList(ui, days, today, priceGroup, footprints)
         !ui.hasData && ui.refreshFailed -> Message(stringResource(R.string.error_no_data), onRetry)
         ui.hasData && !ui.isRefreshing -> Message(stringResource(R.string.empty_no_upcoming), null)
         // else: nothing cached yet and the first fetch is running. The progress bar says so; no spinner screen.
@@ -91,7 +99,7 @@ private fun Message(text: String, onRetry: (() -> Unit)?) {
  * open day, because past days are already filtered out.
  */
 @Composable
-private fun MenuList(ui: MenuUiState, days: List<MenuDay>, today: LocalDate, priceGroup: Int) {
+private fun MenuList(ui: MenuUiState, days: List<MenuDay>, today: LocalDate, priceGroup: Int, footprints: Map<LocalDate, DayFootprint>) {
     val locale = LocalConfiguration.current.locales[0]
     val euro = remember(locale) { NumberFormat.getCurrencyInstance(locale).apply { currency = Currency.getInstance("EUR") } }
     val bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
@@ -108,7 +116,7 @@ private fun MenuList(ui: MenuUiState, days: List<MenuDay>, today: LocalDate, pri
                 is ListRow.Header -> stickyHeader(key = row.key, contentType = "header") { DayHeader(row.date, today, locale) }
                 is ListRow.SubHeader -> item(key = row.key, contentType = "subheader") { SubHeader(row.dinner) }
                 is ListRow.DishRow -> item(key = row.key, contentType = "dish") {
-                    DishCard(row.dish, ui.legend, codeIndex, locale.language, euro, priceGroup, Modifier.padding(horizontal = 16.dp))
+                    DishCard(row.dish, ui.legend, codeIndex, locale.language, euro, priceGroup, footprints[row.date], Modifier.padding(horizontal = 16.dp))
                 }
                 is ListRow.NoMatch -> item(key = row.key, contentType = "empty") {
                     Text(
@@ -176,6 +184,7 @@ private fun DishCard(
     language: String,
     euro: NumberFormat,
     priceGroup: Int,
+    footprint: DayFootprint?,
     modifier: Modifier = Modifier,
 ) {
     Card(modifier.fillMaxWidth()) {
@@ -192,7 +201,7 @@ private fun DishCard(
                 }
             }
             Prices(dish.prices, priceGroup, legend, language, euro)
-            Footprint(dish)
+            Footprint(dish, footprint)
             if (dish.codes.isNotEmpty()) CodeMeanings(dish.codes, codeIndex, language)
         }
     }
@@ -262,18 +271,39 @@ private fun BadgeLabel(text: String) {
     }
 }
 
-/** CO2e and water per portion; nothing at all when the site has no data ("Keine Daten"). */
+/**
+ * CO2e and water per portion; nothing at all when the site has no data ("Keine Daten"). Each value
+ * is colored green to red relative to the other dishes of the day ([scale]); the number stays text,
+ * and values without a meaningful scale stay neutral.
+ */
 @Composable
-private fun Footprint(dish: Dish) {
-    val parts = listOfNotNull(
-        dish.co2Grams?.let { stringResource(R.string.co2_value, it) },
-        dish.waterLiters?.let { stringResource(R.string.water_value, it) },
-    )
-    if (parts.isEmpty()) return
+private fun Footprint(dish: Dish, scale: DayFootprint?) {
+    val co2 = dish.co2Grams
+    val water = dish.waterLiters
+    if (co2 == null && water == null) return
+    val dark = isSystemInDarkTheme()
+    val neutral = MaterialTheme.colorScheme.onSurfaceVariant
+    val parts = buildList {
+        if (co2 != null) add(stringResource(R.string.co2_value, co2) to scale?.co2?.level(co2))
+        if (water != null) add(stringResource(R.string.water_value, water) to scale?.water?.level(water))
+    }
+    // "%1$s per portion": split around the placeholder so the values can be colored individually.
+    val (before, after) = stringResource(R.string.per_portion, "\u0001").split("\u0001").let { it[0] to it.getOrElse(1) { "" } }
     Text(
-        stringResource(R.string.per_portion, parts.joinToString(" · ")),
+        buildAnnotatedString {
+            append(before)
+            parts.forEachIndexed { index, (text, level) ->
+                if (index > 0) append(" · ")
+                if (level != null) {
+                    withStyle(SpanStyle(color = footprintColor(level, dark), fontWeight = FontWeight.SemiBold)) { append(text) }
+                } else {
+                    append(text)
+                }
+            }
+            append(after)
+        },
         style = MaterialTheme.typography.labelMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        color = neutral,
     )
 }
 

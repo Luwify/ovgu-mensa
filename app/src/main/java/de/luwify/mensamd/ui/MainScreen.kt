@@ -125,6 +125,8 @@ private fun MensaPage(vm: MainViewModel, mensaId: String, today: LocalDate, pref
     val shown = remember(days, prefs.tagFilters, prefs.excludedCodes) {
         DishFilters.apply(days, prefs.tagFilters, prefs.excludedCodes)
     }
+    // Scales come from the unfiltered days, so colors don't shift when the user filters.
+    val footprints = remember(days) { dayFootprints(days) }
     var showSheet by remember { mutableStateOf(false) }
 
     PullToRefreshBox(
@@ -146,7 +148,7 @@ private fun MensaPage(vm: MainViewModel, mensaId: String, today: LocalDate, pref
                 FilterRow(options, prefs.tagFilters, prefs.excludedCodes.size, vm::toggleFilter) { showSheet = true }
             }
             Box(Modifier.weight(1f).fillMaxWidth()) {
-                if (current != null) MenuBody(current, shown, today, prefs.priceGroup) { vm.refresh(mensaId) }
+                if (current != null) MenuBody(current, shown, today, prefs.priceGroup, footprints) { vm.refresh(mensaId) }
             }
         }
         if (showSheet && current != null) {
