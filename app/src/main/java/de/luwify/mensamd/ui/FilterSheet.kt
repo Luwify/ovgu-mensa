@@ -91,9 +91,10 @@ fun FilterSheet(
                         MensaFilterChip(selected = !prefs.compact, onClick = { onCompact(false) }, label = { Text(stringResource(R.string.display_normal)) })
                         MensaFilterChip(selected = prefs.compact, onClick = { onCompact(true) }, label = { Text(stringResource(R.string.display_compact)) })
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         MensaFilterChip(selected = theme == ThemeMode.SYSTEM, onClick = { onThemeMode(ThemeMode.SYSTEM) }, label = { Text(stringResource(R.string.theme_system)) })
                         MensaFilterChip(selected = theme == ThemeMode.SOFT, onClick = { onThemeMode(ThemeMode.SOFT) }, label = { Text(stringResource(R.string.theme_soft)) })
+                        MensaFilterChip(selected = theme == ThemeMode.AMOLED, onClick = { onThemeMode(ThemeMode.AMOLED) }, label = { Text(stringResource(R.string.theme_amoled)) })
                     }
                 }
             }

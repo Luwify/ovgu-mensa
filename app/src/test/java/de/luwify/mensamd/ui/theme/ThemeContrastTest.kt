@@ -6,8 +6,11 @@ import androidx.compose.ui.graphics.luminance
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** WCAG 2.x contrast for every text/background pair the screens use in the Soft theme. */
-class SoftThemeContrastTest {
+/**
+ * WCAG 2.x contrast for every text/background pair the screens use, in the themes with a fixed
+ * palette (Soft light and dark, AMOLED). Text needs 4.5:1, control borders 3:1.
+ */
+class ThemeContrastTest {
     private fun ratio(a: Color, b: Color): Double {
         val la = a.luminance().toDouble()
         val lb = b.luminance().toDouble()
@@ -19,8 +22,8 @@ class SoftThemeContrastTest {
         if (r < min) failures += "$name: %.2f < $min".format(r)
     }
 
-    private fun pairs(dark: Boolean, s: ColorScheme, failures: MutableList<String>) {
-        val m = SoftTheme.mensaColors(dark)
+    /** [cardEdgeMin]: the card hairline is decorative, so it only has to be visible, not 3:1. */
+    private fun pairs(s: ColorScheme, m: MensaColors, cardEdgeMin: Double, failures: MutableList<String>) {
         val card = m.cardContainer!!
         val sheet = s.surfaceContainerLow
         val text = 4.5
@@ -29,43 +32,50 @@ class SoftThemeContrastTest {
         check("primary/background (active tab)", s.primary, s.background, text, failures)
         check("onSurface/card", s.onSurface, card, text, failures)
         check("onSurfaceVariant/card", s.onSurfaceVariant, card, text, failures)
-        check("primary/card (code toggle)", s.primary, card, text, failures)
+        check("link text/card (code toggle)", m.linkText, card, text, failures)
         check("price pill", m.price.content, m.price.container, text, failures)
         check("tag chip", m.tag.content, m.tag.container, text, failures)
-        check("filter button text", m.filterButton.content, m.filterButton.container, text, failures)
-        check("link text (code toggle)/card", m.linkText, card, text, failures)
-        check("sheet heading/sheet", m.headingText, sheet, text, failures)
+        check("filter button text/background", m.filterButton.content, s.background, text, failures)
         check("badge text (tertiary/card)", s.tertiary, card, text, failures)
         check("sheet note", s.onTertiaryContainer, s.tertiaryContainer, text, failures)
-        check("primary/sheet", s.primary, sheet, text, failures)
+        check("sheet heading/sheet", m.headingText, sheet, text, failures)
         check("onSurface/sheet", s.onSurface, sheet, text, failures)
         check("onSurfaceVariant/sheet", s.onSurfaceVariant, sheet, text, failures)
         check("error footer/background", s.error, s.background, text, failures)
         check("onPrimary/primary (retry)", s.onPrimary, s.primary, text, failures)
         check("vegan chip text", m.veganContent, m.veganContainer, text, failures)
         for ((i, c) in m.footprint.withIndex()) check("footprint stop $i/card", c, card, text, failures)
-        // non-text: borders and the filter button outline must be visible
+        // borders of controls must be visible
         check("chip outline/background", s.outline, s.background, 3.0, failures)
-        check("filter button border (primary)/background", s.primary, s.background, 3.0, failures)
+        check("filter button border/background", s.primary, s.background, 3.0, failures)
         check("badge border (tertiary)/card", s.tertiary, card, 3.0, failures)
+        check("card hairline/background", m.cardBorder!!, s.background, cardEdgeMin, failures)
     }
 
-    @Test
-    fun lightPairsPassAA() {
+    private fun run(name: String, s: ColorScheme, m: MensaColors, cardEdgeMin: Double) {
         val failures = mutableListOf<String>()
-        pairs(false, SoftTheme.light, failures)
-        assertTrue("Soft light: $failures", failures.isEmpty())
+        pairs(s, m, cardEdgeMin, failures)
+        assertTrue("$name: $failures", failures.isEmpty())
+    }
+
+    @Test fun softLightPassesAA() = run("Soft light", SoftTheme.light, SoftTheme.mensaColors(false), 1.05)
+
+    @Test fun softDarkPassesAA() = run("Soft dark", SoftTheme.dark, SoftTheme.mensaColors(true), 1.05)
+
+    @Test fun amoledPassesAA() = run("AMOLED", AmoledTheme.scheme, AmoledTheme.mensaColors(), 1.5)
+
+    @Test
+    fun amoledMatchesTheSpecifiedBlackBackgroundAndCards() {
+        val s = AmoledTheme.scheme
+        assertTrue(s.background == Color(0xFF000000) && s.surface == Color(0xFF000000))
+        assertTrue(AmoledTheme.mensaColors().cardContainer == Color(0xFF0F0F11))
+        assertTrue(AmoledTheme.mensaColors().cardBorder == s.outlineVariant)
+        // light, slightly desaturated blue: not a pure saturated blue
+        assertTrue(s.primary.blue > s.primary.red && s.primary.blue > s.primary.green && s.primary.red > 0.3f)
     }
 
     @Test
-    fun darkPairsPassAA() {
-        val failures = mutableListOf<String>()
-        pairs(true, SoftTheme.dark, failures)
-        assertTrue("Soft dark: $failures", failures.isEmpty())
-    }
-
-    @Test
-    fun cardIsDistinctFromBackground_andHasAHairlineBorder() {
+    fun softCardIsDistinctFromBackground_andHasAHairlineBorder() {
         for (dark in listOf(false, true)) {
             val m = SoftTheme.mensaColors(dark)
             val s = if (dark) SoftTheme.dark else SoftTheme.light

@@ -135,6 +135,12 @@ fun MensaTheme(
             shapes = SoftTheme.shapes
             mensa = remember(darkTheme) { SoftTheme.mensaColors(darkTheme) }
         }
+        ThemeMode.AMOLED -> {
+            // Always dark, whatever the system setting says.
+            colorScheme = AmoledTheme.scheme
+            shapes = Shapes()
+            mensa = remember { AmoledTheme.mensaColors() }
+        }
         ThemeMode.SYSTEM -> {
             colorScheme = when {
                 dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S ->

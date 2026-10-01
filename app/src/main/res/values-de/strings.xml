@@ -60,4 +60,5 @@
     <string name="display_compact">Kompakt</string>
     <string name="theme_system">Systemfarben</string>
     <string name="theme_soft">Soft</string>
+    <string name="theme_amoled">AMOLED</string>
 </resources>

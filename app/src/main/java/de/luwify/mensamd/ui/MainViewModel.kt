@@ -1,5 +1,6 @@
 package de.luwify.mensamd.ui
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import de.luwify.mensamd.AppContainer
@@ -77,7 +78,9 @@ class MainViewModel(private val container: AppContainer) : ViewModel() {
         viewModelScope.launch { container.settings.setMensaOrder(ids) }
     }
 
+    /** Only ever called from the sheet's theme chips; logged so an unexpected change leaves a trace. */
     fun setThemeMode(mode: ThemeMode) {
+        Log.i("MensaTheme", "user selected theme $mode")
         viewModelScope.launch { container.settings.setThemeMode(mode) }
     }
 
