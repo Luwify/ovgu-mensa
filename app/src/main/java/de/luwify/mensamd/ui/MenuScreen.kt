@@ -2,6 +2,19 @@ package de.luwify.mensamd.ui
 
 import android.text.format.DateUtils
 import androidx.compose.foundation.background
+import kotlinx.coroutines.launch
+import de.luwify.mensamd.data.settings.ViewPrefs
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.draw.clip
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.material3.rememberTooltipState
+import androidx.compose.material3.TooltipDefaults
+import androidx.compose.material3.TooltipBox
+import androidx.compose.material3.PlainTooltip
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.foundation.layout.Box
 import de.luwify.mensamd.ui.theme.Sunflower
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.foundation.layout.width
@@ -75,12 +88,12 @@ fun MenuBody(
     ui: MenuUiState,
     days: List<MenuDay>,
     today: LocalDate,
-    priceGroup: Int,
+    prefs: ViewPrefs,
     footprints: Map<LocalDate, DayFootprint>,
     onRetry: () -> Unit,
 ) {
     when {
-        days.isNotEmpty() -> MenuList(ui, days, today, priceGroup, footprints)
+        days.isNotEmpty() -> MenuList(ui, days, today, prefs, footprints)
         !ui.hasData && ui.refreshFailed -> Message(stringResource(R.string.error_no_data), onRetry)
         ui.hasData && !ui.isRefreshing -> Message(stringResource(R.string.empty_no_upcoming), null)
         // else: nothing cached yet and the first fetch is running. The progress bar says so; no spinner screen.
@@ -107,7 +120,7 @@ private fun Message(text: String, onRetry: (() -> Unit)?) {
  * open day, because past days are already filtered out.
  */
 @Composable
-private fun MenuList(ui: MenuUiState, days: List<MenuDay>, today: LocalDate, priceGroup: Int, footprints: Map<LocalDate, DayFootprint>) {
+private fun MenuList(ui: MenuUiState, days: List<MenuDay>, today: LocalDate, prefs: ViewPrefs, footprints: Map<LocalDate, DayFootprint>) {
     val locale = LocalConfiguration.current.locales[0]
     val euro = remember(locale) { NumberFormat.getCurrencyInstance(locale).apply { currency = Currency.getInstance("EUR") } }
     val bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
@@ -117,14 +130,17 @@ private fun MenuList(ui: MenuUiState, days: List<MenuDay>, today: LocalDate, pri
         modifier = Modifier.fillMaxSize(),
         // Horizontal padding lives on the items so sticky headers can span the full width.
         contentPadding = PaddingValues(bottom = bottom + 16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(if (prefs.compact) 8.dp else 12.dp),
     ) {
         for (row in rows) {
             when (row) {
                 is ListRow.Header -> stickyHeader(key = row.key, contentType = "header") { DayHeader(row.date, today, locale) }
                 is ListRow.SubHeader -> item(key = row.key, contentType = "subheader") { SubHeader(row.dinner) }
                 is ListRow.DishRow -> item(key = row.key, contentType = "dish") {
-                    DishCard(row.dish, ui.legend, codeIndex, locale.language, euro, priceGroup, footprints[row.date], Modifier.padding(horizontal = 16.dp))
+                    DishCard(
+                        row.dish, ui.legend, codeIndex, locale.language, euro, prefs.priceGroup, footprints[row.date],
+                        prefs.compact, Modifier.padding(horizontal = 16.dp),
+                    )
                 }
                 is ListRow.NoMatch -> item(key = row.key, contentType = "empty") {
                     Text(
@@ -183,7 +199,11 @@ private fun DayHeader(date: LocalDate, today: LocalDate, locale: Locale) {
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
+/**
+ * Normal mode: the full card. Compact mode: a short card (name, small price, tag markers) that
+ * expands to exactly the normal layout when tapped, and back. The expanded state is saved per
+ * lazy-list key, like the other card toggles.
+ */
 @Composable
 private fun DishCard(
     dish: Dish,
@@ -193,24 +213,125 @@ private fun DishCard(
     euro: NumberFormat,
     priceGroup: Int,
     footprint: DayFootprint?,
+    compact: Boolean,
     modifier: Modifier = Modifier,
 ) {
-    Card(modifier.fillMaxWidth()) {
-        Column(Modifier.padding(horizontal = 16.dp, vertical = 14.dp).animateContentSize(), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-            if (dish.badges.isNotEmpty()) {
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    dish.badges.forEach { BadgeLabel(it.forLanguage(language)) }
+    var open by rememberSaveable { mutableStateOf(false) }
+    val full = !compact || open
+    val body: @Composable () -> Unit = {
+        if (full) {
+            FullCardBody(dish, legend, codeIndex, language, euro, priceGroup, footprint)
+        } else {
+            CompactCardBody(dish, legend, language, euro, priceGroup)
+        }
+    }
+    if (compact) {
+        Card(onClick = { open = !open }, modifier = modifier.fillMaxWidth()) { body() }
+    } else {
+        Card(modifier.fillMaxWidth()) { body() }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun FullCardBody(
+    dish: Dish,
+    legend: Legend,
+    codeIndex: Map<String, LegendCode>,
+    language: String,
+    euro: NumberFormat,
+    priceGroup: Int,
+    footprint: DayFootprint?,
+) {
+    Column(Modifier.padding(horizontal = 16.dp, vertical = 14.dp).animateContentSize(), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+        if (dish.badges.isNotEmpty()) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                dish.badges.forEach { BadgeLabel(it.forLanguage(language)) }
+            }
+        }
+        Text(dish.name.forLanguage(language), style = MaterialTheme.typography.titleMedium.copy(lineHeight = 20.sp))
+        if (dish.tags.isNotEmpty()) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                dish.tags.forEach { TagLabel(it) }
+            }
+        }
+        Prices(dish.prices, priceGroup, legend, language, euro)
+        Footprint(dish, footprint)
+        if (dish.codes.isNotEmpty()) CodeMeanings(dish.codes, codeIndex, language)
+    }
+}
+
+/** Name (at most two lines) with the selected price on the same row, then badges and tag markers. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun CompactCardBody(dish: Dish, legend: Legend, language: String, euro: NumberFormat, priceGroup: Int) {
+    val split = splitPrices(dish.prices, priceGroup)
+    Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp).animateContentSize(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.Top) {
+            Text(
+                dish.name.forLanguage(language),
+                style = MaterialTheme.typography.titleSmall.copy(lineHeight = 18.sp),
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            if (split != null) {
+                Surface(shape = MaterialTheme.shapes.extraSmall, color = MaterialTheme.colorScheme.primaryContainer) {
+                    Text(
+                        euro.format(dish.prices[split.selected] / 100.0),
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                    )
                 }
             }
-            Text(dish.name.forLanguage(language), style = MaterialTheme.typography.titleMedium.copy(lineHeight = 20.sp))
-            if (dish.tags.isNotEmpty()) {
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    dish.tags.forEach { TagLabel(it) }
-                }
+        }
+        if (dish.badges.isNotEmpty()) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                dish.badges.forEach { BadgeLabel(it.forLanguage(language)) }
             }
-            Prices(dish.prices, priceGroup, legend, language, euro)
-            Footprint(dish, footprint)
-            if (dish.codes.isNotEmpty()) CodeMeanings(dish.codes, codeIndex, language)
+        }
+        if (dish.tags.isNotEmpty()) {
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) { dish.tags.forEach { TagMarker(it) } }
+        }
+    }
+}
+
+/**
+ * Icon-only tag marker for compact cards. Tap or long-press shows the tag's name. The sunflower
+ * marks vegan; others use an emoji glyph, or the label's first letter when the font lacks it.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TagMarker(tag: Tag) {
+    val label = tagLabelRes(tag.key)?.let { stringResource(it) } ?: tag.label
+    val dark = isSystemInDarkTheme()
+    val vegan = if (tag.key == "vegan") veganChipColors(dark) else null
+    val glyph = remember(tag.key, label) {
+        tagMarkerGlyph(tag.key)?.takeIf { android.graphics.Paint().hasGlyph(it) } ?: tagMarkerLetter(label, tag.key)
+    }
+    val tooltip = rememberTooltipState()
+    val scope = rememberCoroutineScope()
+    TooltipBox(
+        positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+        tooltip = { PlainTooltip { Text(label) } },
+        state = tooltip,
+    ) {
+        Box(
+            Modifier
+                .size(26.dp)
+                .clip(MaterialTheme.shapes.small)
+                .background(vegan?.container ?: MaterialTheme.colorScheme.secondaryContainer)
+                .clickable(role = Role.Button, onClickLabel = label) { scope.launch { tooltip.show() } }
+                .semantics { contentDescription = label },
+            contentAlignment = Alignment.Center,
+        ) {
+            if (vegan != null) {
+                Image(rememberVectorPainter(Sunflower.vector(dark)), contentDescription = null, modifier = Modifier.size(18.dp))
+            } else {
+                Text(glyph, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSecondaryContainer)
+            }
         }
     }
 }

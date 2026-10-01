@@ -34,16 +34,20 @@ sealed interface AppScreen {
 }
 
 class MainViewModel(private val container: AppContainer) : ViewModel() {
-    val screen: StateFlow<AppScreen> = combine(
-        container.settings.defaultMensaId,
-        container.settings.mensaOrder,
+    private val prefs = combine(
         container.settings.activeFilters,
         container.settings.excludedCodes,
         container.settings.priceGroup,
-    ) { defaultId, order, tags, codes, priceGroup ->
+        container.settings.compactMode,
+    ) { tags, codes, priceGroup, compact -> ViewPrefs(tags, codes, priceGroup, compact) }
+
+    val screen: StateFlow<AppScreen> = combine(
+        container.settings.defaultMensaId,
+        container.settings.mensaOrder,
+        prefs,
+    ) { defaultId, order, prefs ->
         val default = defaultId?.let(MensaCatalog::byId)
-        if (default == null) AppScreen.Picker
-        else AppScreen.Main(resolveOrder(order), default.id, ViewPrefs(tags, codes, priceGroup))
+        if (default == null) AppScreen.Picker else AppScreen.Main(resolveOrder(order), default.id, prefs)
     }.stateIn(viewModelScope, SharingStarted.Eagerly, AppScreen.Loading)
 
     private val menus = ConcurrentHashMap<String, StateFlow<MenuUiState?>>()
@@ -66,6 +70,10 @@ class MainViewModel(private val container: AppContainer) : ViewModel() {
 
     fun setOrder(ids: List<String>) {
         viewModelScope.launch { container.settings.setMensaOrder(ids) }
+    }
+
+    fun setCompactMode(compact: Boolean) {
+        viewModelScope.launch { container.settings.setCompactMode(compact) }
     }
 
     fun setPriceGroup(index: Int) {

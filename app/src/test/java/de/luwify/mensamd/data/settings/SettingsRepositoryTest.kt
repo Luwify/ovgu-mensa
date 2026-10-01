@@ -95,4 +95,20 @@ class SettingsRepositoryTest {
             scope.cancel()
         }
     }
+
+    @Test
+    fun compactMode_defaultsOff_andPersists() = runBlocking {
+        val file = File(tmp.root, "compact.preferences_pb")
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        try {
+            val repo = SettingsRepository(PreferenceDataStoreFactory.create(scope = scope) { file })
+            assertEquals(false, repo.compactMode.first())
+            repo.setCompactMode(true)
+            assertEquals(true, repo.compactMode.first())
+            repo.setCompactMode(false)
+            assertEquals(false, repo.compactMode.first())
+        } finally {
+            scope.cancel()
+        }
+    }
 }

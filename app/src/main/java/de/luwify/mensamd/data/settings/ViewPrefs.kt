@@ -8,4 +8,6 @@ data class ViewPrefs(
     val excludedCodes: Set<String> = emptySet(),
     /** Index of the highlighted price column; 0 = students. */
     val priceGroup: Int = 0,
+    /** Compact dish cards (tap to expand) instead of the normal layout. */
+    val compact: Boolean = false,
 )

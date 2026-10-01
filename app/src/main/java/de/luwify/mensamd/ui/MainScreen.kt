@@ -148,7 +148,7 @@ private fun MensaPage(vm: MainViewModel, mensaId: String, today: LocalDate, pref
                 FilterRow(options, prefs.tagFilters, prefs.excludedCodes.size, vm::toggleFilter) { showSheet = true }
             }
             Box(Modifier.weight(1f).fillMaxWidth()) {
-                if (current != null) MenuBody(current, shown, today, prefs.priceGroup, footprints) { vm.refresh(mensaId) }
+                if (current != null) MenuBody(current, shown, today, prefs, footprints) { vm.refresh(mensaId) }
             }
         }
         if (showSheet && current != null) {
@@ -156,6 +156,7 @@ private fun MensaPage(vm: MainViewModel, mensaId: String, today: LocalDate, pref
                 legend = current.legend,
                 prefs = prefs,
                 onPriceGroup = vm::setPriceGroup,
+                onCompact = vm::setCompactMode,
                 onSetCodes = vm::setCodesExcluded,
                 onClearCodes = vm::clearExcludedCodes,
                 onDismiss = { showSheet = false },

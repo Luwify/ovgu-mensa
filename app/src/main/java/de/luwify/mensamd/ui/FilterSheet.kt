@@ -50,6 +50,7 @@ fun FilterSheet(
     legend: Legend,
     prefs: ViewPrefs,
     onPriceGroup: (Int) -> Unit,
+    onCompact: (Boolean) -> Unit,
     onSetCodes: (Set<String>, Boolean) -> Unit,
     onClearCodes: () -> Unit,
     onDismiss: () -> Unit,
@@ -74,6 +75,14 @@ fun FilterSheet(
                             ?: fallback.getOrNull(index)?.let { stringResource(it) }.orEmpty()
                         FilterChip(selected = prefs.priceGroup == index, onClick = { onPriceGroup(index) }, label = { Text(label) })
                     }
+                }
+            }
+
+            item(key = "display-title") { SheetHeading(stringResource(R.string.display_title)) }
+            item(key = "display-picker") {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(selected = !prefs.compact, onClick = { onCompact(false) }, label = { Text(stringResource(R.string.display_normal)) })
+                    FilterChip(selected = prefs.compact, onClick = { onCompact(true) }, label = { Text(stringResource(R.string.display_compact)) })
                 }
             }
 

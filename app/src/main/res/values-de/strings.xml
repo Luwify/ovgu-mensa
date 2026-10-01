@@ -55,4 +55,7 @@
     <string name="hide_other_prices">Andere Preise ausblenden</string>
     <string name="lunch">Mittagessen</string>
     <string name="dinner">Abendessen</string>
+    <string name="display_title">Darstellung</string>
+    <string name="display_normal">Normal</string>
+    <string name="display_compact">Kompakt</string>
 </resources>

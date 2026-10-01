@@ -3,6 +3,7 @@ package de.luwify.mensamd.data.settings
 import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
@@ -80,5 +81,14 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
 
     suspend fun setPriceGroup(index: Int) {
         store.edit { it[priceGroupKey] = index.coerceAtLeast(0) }
+    }
+
+    private val compactKey = booleanPreferencesKey("compact_mode")
+
+    /** Compact dish cards instead of the normal ones; applies to all Mensen. */
+    val compactMode: Flow<Boolean> = store.data.map { it[compactKey] ?: false }
+
+    suspend fun setCompactMode(compact: Boolean) {
+        store.edit { it[compactKey] = compact }
     }
 }
