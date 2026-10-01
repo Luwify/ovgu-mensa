@@ -14,4 +14,6 @@ data class ViewPrefs(
     val favorites: Set<String> = emptySet(),
     /** The user's filter chip order (see `DishFilters.mergeOrder`); empty = default order. */
     val filterOrder: List<String> = emptyList(),
+    /** Favorite dishes get the sparkling gold "legendary" frame. */
+    val legendary: Boolean = true,
 )

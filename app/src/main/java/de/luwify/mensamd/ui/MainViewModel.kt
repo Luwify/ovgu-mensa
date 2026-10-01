@@ -54,6 +54,7 @@ class MainViewModel(private val container: AppContainer) : ViewModel() {
         container.settings.favorites,
     ) { tags, codes, priceGroup, compact, favorites -> ViewPrefs(tags, codes, priceGroup, compact, favorites) }
         .combine(container.settings.filterOrder) { prefs, order -> prefs.copy(filterOrder = order) }
+        .combine(container.settings.legendaryFavorites) { prefs, legendary -> prefs.copy(legendary = legendary) }
 
     val screen: StateFlow<AppScreen> = combine(
         container.settings.defaultMensaId,
@@ -150,6 +151,10 @@ class MainViewModel(private val container: AppContainer) : ViewModel() {
                 if (customDraft.value == spec) customDraft.value = null
             }
         }
+    }
+
+    fun setLegendaryFavorites(on: Boolean) {
+        viewModelScope.launch { container.settings.setLegendaryFavorites(on) }
     }
 
     fun setCompactMode(compact: Boolean) {

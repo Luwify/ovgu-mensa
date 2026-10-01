@@ -133,6 +133,9 @@ fun SettingsScreen(vm: MainViewModel, mensas: List<Mensa>, defaultId: String, pr
                             MensaFilterChip(selected = prefs.compact, onClick = { vm.setCompactMode(true) }, label = { Text(stringResource(R.string.display_compact)) })
                         }
                     }
+                    item(key = "legendary") {
+                        SwitchRow(stringResource(R.string.legendary_title), stringResource(R.string.legendary_hint), prefs.legendary, vm::setLegendaryFavorites)
+                    }
 
                     item(key = "theme-title") { SheetHeading(stringResource(R.string.theme_title)) }
                     item(key = "theme-picker") {
@@ -301,5 +304,24 @@ private fun NotifyTimeRow(time: LocalTime, onTime: (LocalTime) -> Unit) {
             title = { Text(stringResource(R.string.notify_time)) },
             text = { TimePicker(state) },
         )
+    }
+}
+
+/** A setting with a title, an explanation and a switch; the whole row toggles. */
+@Composable
+private fun SwitchRow(title: String, hint: String, checked: Boolean, onChange: (Boolean) -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .toggleable(value = checked, role = Role.Switch, onValueChange = onChange)
+            .padding(top = 12.dp, bottom = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.bodyLarge)
+            Text(hint, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        Spacer(Modifier.width(16.dp))
+        Switch(checked = checked, onCheckedChange = null)
     }
 }

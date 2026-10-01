@@ -160,4 +160,6 @@
     <string name="color_adjusted">%1$s, adjusted for readability</string>
     <string name="color_reset_all">Reset all colors</string>
     <string name="color_picker">Color picker: hue ring and saturation/brightness square</string>
+    <string name="legendary_title">Sparkling favorites</string>
+    <string name="legendary_hint">Your favorites get a gold, sparkling frame, like a legendary item</string>
 </resources>

@@ -70,6 +70,10 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.material3.ripple
 import androidx.compose.ui.layout.layout
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.drawscope.translate
@@ -167,7 +171,7 @@ private fun MenuList(
                 is ListRow.DishRow -> item(key = row.key, contentType = "dish") {
                     DishCard(
                         row.dish, ui.legend, codeIndex, locale.language, euro, prefs.priceGroup, row.date?.let { footprints[it] },
-                        prefs.compact, row.favoriteKey in prefs.favorites, { onToggleFavorite(row.favoriteKey) },
+                        prefs.compact, row.favoriteKey in prefs.favorites, prefs.legendary, { onToggleFavorite(row.favoriteKey) },
                         Modifier.padding(horizontal = 16.dp),
                     )
                 }
@@ -266,16 +270,18 @@ private fun DishCard(
     footprint: DayFootprint?,
     compact: Boolean,
     favorite: Boolean,
+    legendary: Boolean,
     onToggleFavorite: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var open by rememberSaveable { mutableStateOf(false) }
     val full = !compact || open
+    val burst = remember { FavoriteBurst() }
     val body: @Composable () -> Unit = {
         if (full) {
-            FullCardBody(dish, legend, codeIndex, language, euro, priceGroup, footprint, favorite, onToggleFavorite)
+            FullCardBody(dish, legend, codeIndex, language, euro, priceGroup, footprint, favorite, onToggleFavorite, burst)
         } else {
-            CompactCardBody(dish, legend, language, euro, priceGroup, favorite, onToggleFavorite)
+            CompactCardBody(dish, legend, language, euro, priceGroup, favorite, onToggleFavorite, burst)
         }
     }
     val theme = LocalMensaColors.current
@@ -284,16 +290,30 @@ private fun DishCard(
     // Hairline border (one physical pixel) so the card edge doesn't depend on the shadow.
     val border = theme.cardBorder?.let { BorderStroke(theme.cardBorderWidth, it) }
     val shape = CardDefaults.shape
-    val glowModifier = theme.cardGlow?.let { glow -> Modifier.cardGlow(glow, shape) } ?: Modifier
-    val modifier = modifier.then(glowModifier)
-    if (compact) {
-        // At least 48dp tall so the heart's touch area (see FavoriteButton) is never clipped by the card.
-        Card(
-            onClick = { open = !open }, modifier = modifier.fillMaxWidth().heightIn(min = 48.dp),
-            colors = colors, elevation = elevation, border = border,
-        ) { body() }
-    } else {
-        Card(modifier.fillMaxWidth(), colors = colors, elevation = elevation, border = border) { body() }
+    val cardModifier = theme.cardGlow?.let { glow -> Modifier.cardGlow(glow, shape) } ?: Modifier
+    FavoriteEffects(
+        legendary = legendary && favorite,
+        burst = burst,
+        shape = shape,
+        favoriteColor = theme.favorite,
+        background = theme.cardContainer ?: MaterialTheme.colorScheme.surface,
+        // Where the heart sits (see FullCardBody / CompactCardBody): its 24dp icon at the end of the first row.
+        heartCenter = { size ->
+            val end = if (full) 16.dp else 12.dp
+            val top = if (full) 14.dp else 8.dp
+            Offset(size.width - (end + 12.dp).toPx(), (top + 12.dp).toPx())
+        },
+        modifier = modifier,
+    ) {
+        if (compact) {
+            // At least 48dp tall so the heart's touch area (see FavoriteButton) is never clipped by the card.
+            Card(
+                onClick = { open = !open }, modifier = cardModifier.fillMaxWidth().heightIn(min = 48.dp),
+                colors = colors, elevation = elevation, border = border,
+            ) { body() }
+        } else {
+            Card(cardModifier.fillMaxWidth(), colors = colors, elevation = elevation, border = border) { body() }
+        }
     }
 }
 
@@ -309,6 +329,7 @@ private fun FullCardBody(
     footprint: DayFootprint?,
     favorite: Boolean,
     onToggleFavorite: () -> Unit,
+    burst: FavoriteBurst,
 ) {
     val density = LocalDensity.current
     // The window, not the screen: correct in split-screen too.
@@ -342,7 +363,7 @@ private fun FullCardBody(
                 name(Modifier.weight(1f))
             }
             Spacer(Modifier.width(HEART_GAP))
-            FavoriteButton(favorite, onToggleFavorite, above = 14.dp)
+            FavoriteButton(favorite, onToggleFavorite, above = 14.dp, burst = burst)
         }
         if (dish.badges.isNotEmpty()) name(Modifier)
         when {
@@ -401,6 +422,7 @@ private fun CompactCardBody(
     priceGroup: Int,
     favorite: Boolean,
     onToggleFavorite: () -> Unit,
+    burst: FavoriteBurst,
 ) {
     val split = splitPrices(dish.prices, priceGroup)
     Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp).animateContentSize(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -431,7 +453,7 @@ private fun CompactCardBody(
             }
             // Row spacing 10 + 4: the heart's touch area (12dp beyond the icon) stays clear of the price pill.
             Spacer(Modifier.width(HEART_GAP - 10.dp))
-            FavoriteButton(favorite, onToggleFavorite, above = 8.dp)
+            FavoriteButton(favorite, onToggleFavorite, above = 8.dp, burst = burst)
         }
         if (dish.badges.isNotEmpty()) {
             FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -474,9 +496,17 @@ private val HEART_GAP = 14.dp
  * a 48dp minimum height for this).
  */
 @Composable
-private fun FavoriteButton(favorite: Boolean, onToggle: () -> Unit, above: Dp) {
+private fun FavoriteButton(favorite: Boolean, onToggle: () -> Unit, above: Dp, burst: FavoriteBurst) {
     val icon = 24.dp
     val target = 48.dp
+    val context = LocalContext.current
+    // Only a heart the user just filled bursts (the same dish on other days just turns red).
+    LaunchedEffect(favorite) {
+        if (favorite && burst.pending) {
+            burst.pending = false
+            if (animationsEnabled(context)) burst.play()
+        }
+    }
     Box(
         Modifier
             .layout { measurable, _ ->
@@ -490,7 +520,10 @@ private fun FavoriteButton(favorite: Boolean, onToggle: () -> Unit, above: Dp) {
                 indication = ripple(bounded = false, radius = 20.dp),
                 role = Role.Button,
                 onClickLabel = null,
-                onClick = onToggle,
+                onClick = {
+                    if (!favorite) burst.pending = true
+                    onToggle()
+                },
             ),
         contentAlignment = Alignment.TopCenter,
     ) {
@@ -498,7 +531,12 @@ private fun FavoriteButton(favorite: Boolean, onToggle: () -> Unit, above: Dp) {
             painterResource(if (favorite) R.drawable.ic_favorite_filled else R.drawable.ic_favorite),
             contentDescription = stringResource(if (favorite) R.string.favorite_remove else R.string.favorite_add),
             tint = if (favorite) LocalMensaColors.current.favorite else MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(top = above).size(icon),
+            modifier = Modifier.padding(top = above).size(icon).graphicsLayer {
+                // The pop of the burst; 1 the rest of the time. Read here, so it only re-draws this layer.
+                val scale = SparkleMath.heartScale(burst.progress.value)
+                scaleX = scale
+                scaleY = scale
+            },
         )
     }
 }

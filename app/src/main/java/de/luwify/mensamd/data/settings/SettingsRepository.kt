@@ -112,6 +112,15 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
         store.edit { it[compactKey] = compact }
     }
 
+    private val legendaryKey = booleanPreferencesKey("legendary_favorites")
+
+    /** Favorites sparkle in the overview (gold, turning frame); on by default. */
+    val legendaryFavorites: Flow<Boolean> = store.data.map { it[legendaryKey] ?: true }
+
+    suspend fun setLegendaryFavorites(on: Boolean) {
+        store.edit { it[legendaryKey] = on }
+    }
+
     private val themeKey = stringPreferencesKey("theme_mode")
 
     /** System colors (default) or the own Soft palette. */

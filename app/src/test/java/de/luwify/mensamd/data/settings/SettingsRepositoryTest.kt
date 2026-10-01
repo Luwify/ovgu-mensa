@@ -269,4 +269,18 @@ class SettingsRepositoryTest {
             scope.shutDown()
         }
     }
+
+    @Test
+    fun legendaryFavorites_onByDefault_thenPersists() = runBlocking {
+        val file = File(tmp.root, "legendary.preferences_pb")
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        try {
+            val repo = SettingsRepository(PreferenceDataStoreFactory.create(scope = scope) { file })
+            assertEquals(true, repo.legendaryFavorites.first())
+            repo.setLegendaryFavorites(false)
+            assertEquals(false, repo.legendaryFavorites.first())
+        } finally {
+            scope.shutDown()
+        }
+    }
 }
