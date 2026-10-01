@@ -4,8 +4,10 @@ import de.luwify.mensamd.model.Dish
 import de.luwify.mensamd.model.MenuDay
 
 /**
- * Filter keys are tag keys. `vegan` and `vegetarisch` are inclusive (show only matching dishes,
+ * Tag filters and code exclusion. Filter keys are tag keys. `vegan` and `vegetarisch` are inclusive (show only matching dishes,
  * and vegetarian also lets vegan dishes through); every other key hides dishes carrying that tag.
+ * Excluded codes hide every dish that lists any of them. A dish with no codes passes, which does
+ * not mean it is free of allergens (the sheet says so).
  */
 object DishFilters {
     const val VEGAN = "vegan"
@@ -14,7 +16,8 @@ object DishFilters {
     /** Chip order; keys we don't know yet follow alphabetically. */
     private val ORDER = listOf(VEGAN, VEGETARIAN, "schwein", "rind", "gefluegel", "fisch", "knoblauch", "alkohol", "suppe")
 
-    fun matches(dish: Dish, active: Set<String>): Boolean {
+    fun matches(dish: Dish, active: Set<String>, excludedCodes: Set<String> = emptySet()): Boolean {
+        if (excludedCodes.isNotEmpty() && dish.codes.any { it in excludedCodes }) return false
         if (active.isEmpty()) return true
         val tags = dish.tags.mapTo(HashSet()) { it.key }
         return active.all { filter ->
@@ -27,8 +30,9 @@ object DishFilters {
     }
 
     /** Keeps every day, even when all its dishes are filtered out (the UI says "no matching dishes"). */
-    fun apply(days: List<MenuDay>, active: Set<String>): List<MenuDay> =
-        if (active.isEmpty()) days else days.map { day -> day.copy(dishes = day.dishes.filter { matches(it, active) }) }
+    fun apply(days: List<MenuDay>, active: Set<String>, excludedCodes: Set<String> = emptySet()): List<MenuDay> =
+        if (active.isEmpty() && excludedCodes.isEmpty()) days
+        else days.map { day -> day.copy(dishes = day.dishes.filter { matches(it, active, excludedCodes) }) }
 
     /** [label] is the site's alt text, used only for keys we have no own strings for. */
     data class Option(val key: String, val label: String)

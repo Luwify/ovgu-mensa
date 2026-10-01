@@ -1,6 +1,9 @@
 package de.luwify.mensamd.ui
 
 import androidx.compose.foundation.layout.Box
+import de.luwify.mensamd.data.settings.ViewPrefs
+import androidx.compose.material3.AssistChip
+import androidx.compose.foundation.layout.Row
 import androidx.compose.ui.unit.dp
 import de.luwify.mensamd.R
 import androidx.compose.ui.res.stringResource
@@ -94,7 +97,7 @@ fun MainScreen(vm: MainViewModel, screen: AppScreen.Main) {
                 beyondViewportPageCount = 1,
                 key = { latestMensas.getOrNull(it)?.id ?: it.toString() },
             ) { page ->
-                latestMensas.getOrNull(page)?.let { mensa -> MensaPage(vm, mensa.id, today, screen.filters) }
+                latestMensas.getOrNull(page)?.let { mensa -> MensaPage(vm, mensa.id, today, screen.prefs) }
             }
         }
     }
@@ -109,7 +112,7 @@ private fun rememberToday(): LocalDate {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun MensaPage(vm: MainViewModel, mensaId: String, today: LocalDate, filters: Set<String>) {
+private fun MensaPage(vm: MainViewModel, mensaId: String, today: LocalDate, prefs: ViewPrefs) {
     val flow = remember(mensaId) { vm.menuFor(mensaId) }
     val ui by flow.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
@@ -118,8 +121,11 @@ private fun MensaPage(vm: MainViewModel, mensaId: String, today: LocalDate, filt
 
     val current = ui
     val days = remember(current?.days, today) { current?.days?.upcomingWeekdays(today).orEmpty() }
-    val options = remember(days, filters) { DishFilters.options(days, filters) }
-    val shown = remember(days, filters) { DishFilters.apply(days, filters) }
+    val options = remember(days, prefs.tagFilters) { DishFilters.options(days, prefs.tagFilters) }
+    val shown = remember(days, prefs.tagFilters, prefs.excludedCodes) {
+        DishFilters.apply(days, prefs.tagFilters, prefs.excludedCodes)
+    }
+    var showSheet by remember { mutableStateOf(false) }
 
     PullToRefreshBox(
         isRefreshing = pulling,
@@ -136,10 +142,22 @@ private fun MensaPage(vm: MainViewModel, mensaId: String, today: LocalDate, filt
         modifier = Modifier.fillMaxSize(),
     ) {
         Column(Modifier.fillMaxSize()) {
-            if (options.isNotEmpty()) FilterRow(options, filters, vm::toggleFilter)
+            if (current?.hasData == true) {
+                FilterRow(options, prefs.tagFilters, prefs.excludedCodes.size, vm::toggleFilter) { showSheet = true }
+            }
             Box(Modifier.weight(1f).fillMaxWidth()) {
                 if (current != null) MenuBody(current, shown, today) { vm.refresh(mensaId) }
             }
+        }
+        if (showSheet && current != null) {
+            FilterSheet(
+                legend = current.legend,
+                prefs = prefs,
+                onPriceGroup = vm::setPriceGroup,
+                onSetCodes = vm::setCodesExcluded,
+                onClearCodes = vm::clearExcludedCodes,
+                onDismiss = { showSheet = false },
+            )
         }
         if (current?.isRefreshing == true && !pulling) {
             LinearProgressIndicator(Modifier.fillMaxWidth().align(Alignment.TopCenter))
@@ -147,16 +165,37 @@ private fun MensaPage(vm: MainViewModel, mensaId: String, today: LocalDate, filt
     }
 }
 
-/** Chips built from the tags found on this page (plus active filters); the selection is global. */
+/**
+ * The sheet button stays pinned at the start; the tag chips (built from the tags found on this
+ * page plus active filters; the selection is global) scroll next to it.
+ */
 @Composable
-private fun FilterRow(options: List<DishFilters.Option>, active: Set<String>, onToggle: (String) -> Unit) {
-    LazyRow(
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        items(options, key = { it.key }) { option ->
-            val label = filterLabelRes(option.key)?.let { stringResource(it) } ?: stringResource(R.string.filter_no_generic, option.label)
-            FilterChip(selected = option.key in active, onClick = { onToggle(option.key) }, label = { Text(label) })
+private fun FilterRow(
+    options: List<DishFilters.Option>,
+    active: Set<String>,
+    excludedCodeCount: Int,
+    onToggle: (String) -> Unit,
+    onOpenSheet: () -> Unit,
+) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        AssistChip(
+            onClick = onOpenSheet,
+            label = {
+                Text(
+                    if (excludedCodeCount > 0) stringResource(R.string.filter_button_count, excludedCodeCount)
+                    else stringResource(R.string.filter_button),
+                )
+            },
+            modifier = Modifier.padding(start = 16.dp),
+        )
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            items(options, key = { it.key }) { option ->
+                val label = filterLabelRes(option.key)?.let { stringResource(it) } ?: stringResource(R.string.filter_no_generic, option.label)
+                FilterChip(selected = option.key in active, onClick = { onToggle(option.key) }, label = { Text(label) })
+            }
         }
     }
 }

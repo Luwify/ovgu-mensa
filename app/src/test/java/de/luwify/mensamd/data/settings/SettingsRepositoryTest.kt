@@ -72,4 +72,27 @@ class SettingsRepositoryTest {
             scope.cancel()
         }
     }
+
+    @Test
+    fun excludedCodes_andPriceGroup_persist() = runBlocking {
+        val file = File(tmp.root, "view.preferences_pb")
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        try {
+            val repo = SettingsRepository(PreferenceDataStoreFactory.create(scope = scope) { file })
+            assertEquals(emptySet<String>(), repo.excludedCodes.first())
+            assertEquals(0, repo.priceGroup.first())
+
+            repo.setCodesExcluded(setOf("a1", "a2", "g"), true)
+            repo.setCodesExcluded(setOf("a2"), false)
+            assertEquals(setOf("a1", "g"), repo.excludedCodes.first())
+            repo.setPriceGroup(2)
+            assertEquals(2, repo.priceGroup.first())
+
+            repo.clearExcludedCodes()
+            assertEquals(emptySet<String>(), repo.excludedCodes.first())
+            assertEquals(2, repo.priceGroup.first()) // clearing codes leaves the price group alone
+        } finally {
+            scope.cancel()
+        }
+    }
 }

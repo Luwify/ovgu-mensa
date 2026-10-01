@@ -43,4 +43,14 @@
     <string name="filter_no_suppe">No soup</string>
     <string name="filter_no_generic">No %1$s</string>
     <string name="no_matching_dishes">No matching dishes</string>
+    <string name="filter_button">Filter</string>
+    <string name="filter_button_count">Filter (%1$d)</string>
+    <string name="sheet_title">Filters</string>
+    <string name="price_group_title">Price group</string>
+    <string name="exclude_title">Exclude additives &amp; allergens</string>
+    <string name="exclude_hint">Dishes that contain a selected code are hidden.</string>
+    <string name="allergen_note">Dishes without codes are not guaranteed to be free of allergens.</string>
+    <string name="clear_selection">Clear selection</string>
+    <string name="code_family_a">Gluten</string>
+    <string name="code_family_h">Nuts</string>
 </resources>

@@ -84,4 +84,27 @@ class DishFiltersTest {
         assertTrue(noFish.none { d -> d.tags.any { it.key == "fisch" } })
         assertTrue(noFish.size < days.flatMap { it.dishes }.size)
     }
+
+    private fun withCodes(name: String, vararg codes: String) = dish(name).copy(codes = codes.toList())
+
+    @Test
+    fun excludedCodes_hideDishesContainingAnyOfThem() {
+        val bread = withCodes("Brot", "a1", "g")
+        val rice = withCodes("Reis")
+        val egg = withCodes("Ei", "c")
+        val d = listOf(MenuDay(day.date, listOf(bread, rice, egg)))
+        fun names(codes: Set<String>) = DishFilters.apply(d, emptySet(), codes).single().dishes.map { it.name.de }
+        assertEquals(listOf("Brot", "Reis", "Ei"), names(emptySet()))
+        assertEquals(listOf("Reis", "Ei"), names(setOf("a1")))
+        assertEquals(listOf("Reis"), names(setOf("a1", "c")))
+        assertEquals(listOf("Brot", "Reis", "Ei"), names(setOf("zz"))) // a code nobody lists hides nothing
+    }
+
+    @Test
+    fun codesAndTagsCombine_andAnEmptiedDayIsKept() {
+        val d = listOf(MenuDay(day.date, listOf(withCodes("Käse", "g").copy(tags = listOf(Tag("vegetarisch", "v"))))))
+        val r = DishFilters.apply(d, setOf("vegetarisch"), setOf("g"))
+        assertEquals(1, r.size)
+        assertTrue(r.single().dishes.isEmpty())
+    }
 }

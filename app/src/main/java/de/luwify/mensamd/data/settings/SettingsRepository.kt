@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
@@ -51,5 +52,33 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
             val next = if (key in current) current - key else current + key
             prefs[filtersKey] = next.joinToString(",")
         }
+    }
+
+    private val excludedCodesKey = stringPreferencesKey("excluded_codes")
+
+    /** Additive/allergen codes whose dishes are hidden; shared by all Mensen. */
+    val excludedCodes: Flow<Set<String>> = store.data.map { prefs ->
+        prefs[excludedCodesKey]?.split(',')?.filter { it.isNotEmpty() }?.toSet().orEmpty()
+    }
+
+    /** Selects or deselects several codes at once (a family like a1-a6), atomically. */
+    suspend fun setCodesExcluded(codes: Set<String>, excluded: Boolean) {
+        store.edit { prefs ->
+            val current = prefs[excludedCodesKey]?.split(',')?.filter { it.isNotEmpty() }?.toSet().orEmpty()
+            prefs[excludedCodesKey] = (if (excluded) current + codes else current - codes).joinToString(",")
+        }
+    }
+
+    suspend fun clearExcludedCodes() {
+        store.edit { it.remove(excludedCodesKey) }
+    }
+
+    private val priceGroupKey = intPreferencesKey("price_group")
+
+    /** Index into the legend's price columns (0 = students, the default). */
+    val priceGroup: Flow<Int> = store.data.map { (it[priceGroupKey] ?: 0).coerceAtLeast(0) }
+
+    suspend fun setPriceGroup(index: Int) {
+        store.edit { it[priceGroupKey] = index.coerceAtLeast(0) }
     }
 }

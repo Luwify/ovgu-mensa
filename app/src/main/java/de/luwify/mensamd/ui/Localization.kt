@@ -42,3 +42,11 @@ fun filterLabelRes(key: String): Int? = when (key) {
     "suppe" -> R.string.filter_no_suppe
     else -> null
 }
+
+/** Own title for a family of numbered allergens (a1-a6, h1-h9); null falls back to the code range. */
+@StringRes
+fun codeFamilyRes(family: String): Int? = when (family) {
+    "a" -> R.string.code_family_a
+    "h" -> R.string.code_family_h
+    else -> null
+}

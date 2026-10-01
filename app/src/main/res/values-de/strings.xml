@@ -41,4 +41,14 @@
     <string name="filter_no_suppe">Ohne Suppe</string>
     <string name="filter_no_generic">Ohne %1$s</string>
     <string name="no_matching_dishes">Keine passenden Gerichte</string>
+    <string name="filter_button">Filter</string>
+    <string name="filter_button_count">Filter (%1$d)</string>
+    <string name="sheet_title">Filter</string>
+    <string name="price_group_title">Preisgruppe</string>
+    <string name="exclude_title">Zusatzstoffe &amp; Allergene ausschließen</string>
+    <string name="exclude_hint">Gerichte, die einen ausgewählten Code enthalten, werden ausgeblendet.</string>
+    <string name="allergen_note">Gerichte ohne Codes sind nicht garantiert frei von Allergenen.</string>
+    <string name="clear_selection">Auswahl löschen</string>
+    <string name="code_family_a">Gluten</string>
+    <string name="code_family_h">Schalenfrüchte</string>
 </resources>

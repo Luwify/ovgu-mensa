@@ -3,6 +3,7 @@ package de.luwify.mensamd.ui
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import de.luwify.mensamd.AppContainer
+import de.luwify.mensamd.data.settings.ViewPrefs
 import de.luwify.mensamd.model.Mensa
 import de.luwify.mensamd.model.MensaCatalog
 import de.luwify.mensamd.model.resolveOrder
@@ -25,11 +26,11 @@ sealed interface AppScreen {
     data object Picker : AppScreen
 
     /**
-     * [mensas] is in the user's tab order; [defaultId] is independent of that order; [filters] are
-     * the active filter keys shared by all Mensen. Filters ride along here so the first frame is
+     * [mensas] is in the user's tab order; [defaultId] is independent of that order; [prefs] are
+     * the filters and price group shared by all Mensen. They ride along here so the first frame is
      * already filtered, not unfiltered for a moment.
      */
-    data class Main(val mensas: List<Mensa>, val defaultId: String, val filters: Set<String>) : AppScreen
+    data class Main(val mensas: List<Mensa>, val defaultId: String, val prefs: ViewPrefs) : AppScreen
 }
 
 class MainViewModel(private val container: AppContainer) : ViewModel() {
@@ -37,9 +38,12 @@ class MainViewModel(private val container: AppContainer) : ViewModel() {
         container.settings.defaultMensaId,
         container.settings.mensaOrder,
         container.settings.activeFilters,
-    ) { defaultId, order, filters ->
+        container.settings.excludedCodes,
+        container.settings.priceGroup,
+    ) { defaultId, order, tags, codes, priceGroup ->
         val default = defaultId?.let(MensaCatalog::byId)
-        if (default == null) AppScreen.Picker else AppScreen.Main(resolveOrder(order), default.id, filters)
+        if (default == null) AppScreen.Picker
+        else AppScreen.Main(resolveOrder(order), default.id, ViewPrefs(tags, codes, priceGroup))
     }.stateIn(viewModelScope, SharingStarted.Eagerly, AppScreen.Loading)
 
     private val menus = ConcurrentHashMap<String, StateFlow<MenuUiState?>>()
@@ -62,6 +66,18 @@ class MainViewModel(private val container: AppContainer) : ViewModel() {
 
     fun setOrder(ids: List<String>) {
         viewModelScope.launch { container.settings.setMensaOrder(ids) }
+    }
+
+    fun setPriceGroup(index: Int) {
+        viewModelScope.launch { container.settings.setPriceGroup(index) }
+    }
+
+    fun setCodesExcluded(codes: Set<String>, excluded: Boolean) {
+        viewModelScope.launch { container.settings.setCodesExcluded(codes, excluded) }
+    }
+
+    fun clearExcludedCodes() {
+        viewModelScope.launch { container.settings.clearExcludedCodes() }
     }
 
     fun toggleFilter(key: String) {
