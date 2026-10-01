@@ -79,7 +79,10 @@ half4 main(float2 xy) {
     // Fall-off (1 - d/R)^4 with R = 4 x the living reach: close to exp(-d/reach) near the card, but exactly zero
     // at R with a zero slope, so the glow has no edge anywhere (the draw area is larger than R).
     float maxReach = 4.0 * reach * (0.55 + 0.75 * live) * shorter + tail;
-    float k = pow(max(1.0 - d / maxReach, 0.0), 4.0);
+    // Toward the tail the curve also gets flatter (exponent 4 -> 1.6), or the extra reach would only add a very faint
+    // outer region; at the edge (d = 0) it is still 1, and at rest unchanged.
+    float tailShare = tailExtra > 0.0 ? tail / tailExtra : 0.0;
+    float k = pow(max(1.0 - d / maxReach, 0.0), mix(4.0, 1.6, tailShare));
     // Iridescent gold: the hue drifts around the card and shifts a little with distance.
     half3 col = palette(a / 6.2831853 + time * 0.045 + d / (reach * 7.0));
     // Nothing over the card itself (the overlay lies above it); a 1.5 px soft edge matches the card's anti-aliasing.

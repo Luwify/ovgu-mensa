@@ -22,12 +22,12 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import androidx.compose.animation.core.spring
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.platform.LocalDensity
@@ -198,6 +198,9 @@ object SparkleMath {
     /** Time constant of the low-pass filter on the scroll velocity. */
     const val TRAIL_TAU_MS = 70f
 
+    /** Time constant with which the trail follows its target (per frame). */
+    const val TRAIL_FOLLOW_MS = 50f
+
     /** No scroll step for this long: the scroll has stopped and the aura springs back. */
     const val RELEASE_MS = 60L
 
@@ -236,7 +239,7 @@ fun auraFor(background: Color): List<Color> = if (background.luminance() < 0.4f)
 /**
  * How much the super aura trails, from the list's scroll speed: each scroll step gives a velocity (dp/s), low-pass
  * filtered ([SparkleMath.TRAIL_TAU_MS]) so it doesn't flicker, mapped through a saturating curve
- * ([SparkleMath.trailForVelocity]) and followed by a critically damped spring. When the steps stop, it springs back to
+ * ([SparkleMath.trailForVelocity]) and followed per frame ([SparkleMath.TRAIL_FOLLOW_MS]). When the steps stop, it springs back to
  * rest with a little overshoot, so the wobble scales with the stretch it comes from. One per list; [trail] is read
  * only while drawing.
  */
@@ -257,6 +260,10 @@ class ScrollDrag(private val scope: CoroutineScope, private val pxPerDp: Float) 
 
     fun trail(): Float = trail.value
 
+    private var target = 0f
+    private var follower: Job? = null
+    private var releasing = false
+
     private fun onStep(dyPx: Float) {
         val now = System.nanoTime()
         val gapMs = if (lastStep == 0L) Float.MAX_VALUE else (now - lastStep) / 1_000_000f
@@ -264,14 +271,27 @@ class ScrollDrag(private val scope: CoroutineScope, private val pxPerDp: Float) 
         if (gapMs > SparkleMath.NEW_GESTURE_MS) velocity = 0f // a new gesture starts from rest
         val dtMs = gapMs.coerceIn(4f, 50f)
         velocity = SparkleMath.lowPass(velocity, (dyPx / pxPerDp) / (dtMs / 1000f), dtMs, SparkleMath.TRAIL_TAU_MS)
-        val target = SparkleMath.trailForVelocity(velocity)
-        job?.cancel()
-        job = scope.launch {
-            trail.animateTo(target, spring(dampingRatio = 1f, stiffness = 300f))
-            delay(SparkleMath.RELEASE_MS) // no further step: the scroll stopped
+        target = SparkleMath.trailForVelocity(velocity)
+        // One follower per gesture; a step only moves the target. (Restarting an animation at every step, as before,
+        // cancelled it before its first frame, so the trail hardly moved.) A step during the release takes over again.
+        if (follower?.isActive == true && !releasing) return
+        follower?.cancel()
+        releasing = false
+        follower = scope.launch {
+            var last = 0L
+            while (true) {
+                val frame = withFrameNanos { it }
+                val dt = if (last == 0L) 8f else (frame - last) / 1_000_000f
+                last = frame
+                trail.snapTo(SparkleMath.lowPass(trail.value, target, dt, SparkleMath.TRAIL_FOLLOW_MS))
+                if ((System.nanoTime() - lastStep) / 1_000_000 > SparkleMath.RELEASE_MS) break // the scroll stopped
+            }
+            releasing = true
             velocity = 0f
+            target = 0f
             // Underdamped: it swings past rest by about a third of the stretch, then settles.
             trail.animateTo(0f, spring(dampingRatio = 0.3f, stiffness = 140f))
+            releasing = false
         }
     }
 }
