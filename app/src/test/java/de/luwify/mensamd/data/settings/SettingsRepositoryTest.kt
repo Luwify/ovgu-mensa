@@ -246,4 +246,27 @@ class SettingsRepositoryTest {
             scope.shutDown()
         }
     }
+
+    @Test
+    fun customOverrides_encodeDecodeAndPersist() = runBlocking {
+        val o = mapOf(ColorRole.CARD to 0x1A1A1A, ColorRole.BACKGROUND to 0x000000, ColorRole.FAVORITE to 0xFF6B9D)
+        val text = CustomThemeSpec.encodeOverrides(o)
+        assertEquals("bg=000000,card=1A1A1A,heart=FF6B9D", text)
+        assertEquals(o, CustomThemeSpec.decodeOverrides(text))
+        // broken or unknown entries are skipped, not fatal
+        assertEquals(mapOf(ColorRole.CARD to 0x123456), CustomThemeSpec.decodeOverrides("card=123456,nope=FFFFFF,bg=12,tag=ZZZZZZ,,x"))
+        assertEquals(emptyMap<ColorRole, Int>(), CustomThemeSpec.decodeOverrides(null))
+
+        val file = File(tmp.root, "overrides.preferences_pb")
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        try {
+            val repo = SettingsRepository(PreferenceDataStoreFactory.create(scope = scope) { file })
+            repo.setCustomTheme(CustomThemeSpec(overrides = o))
+            assertEquals(o, repo.customTheme.first().overrides)
+            repo.setCustomTheme(CustomThemeSpec())
+            assertEquals(emptyMap<ColorRole, Int>(), repo.customTheme.first().overrides)
+        } finally {
+            scope.shutDown()
+        }
+    }
 }

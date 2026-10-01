@@ -2,6 +2,7 @@ package de.luwify.mensamd.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -93,82 +94,90 @@ fun SettingsScreen(vm: MainViewModel, mensas: List<Mensa>, defaultId: String, pr
     val notifySettings by vm.notifySettings.collectAsStateWithLifecycle()
     val notifyMensas = remember(mensas) { mensas.filter { it.format == PageFormat.DATED } }
     val bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    var showColors by rememberSaveable { mutableStateOf(false) }
+    val theme by vm.theme.collectAsStateWithLifecycle()
 
-    Surface(Modifier.fillMaxSize()) {
-        Column(Modifier.fillMaxSize()) {
-            Row(
-                Modifier
-                    .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal))
-                    .height(56.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                IconButton(onClick = onBack) {
-                    Icon(BackIcon, contentDescription = stringResource(R.string.card_back))
+    Box(Modifier.fillMaxSize()) {
+        Surface(Modifier.fillMaxSize()) {
+            Column(Modifier.fillMaxSize()) {
+                Row(
+                    Modifier
+                        .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal))
+                        .height(56.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    IconButton(onClick = onBack) {
+                        Icon(BackIcon, contentDescription = stringResource(R.string.card_back))
+                    }
+                    Text(stringResource(R.string.settings_title), style = MaterialTheme.typography.titleLarge)
                 }
-                Text(stringResource(R.string.settings_title), style = MaterialTheme.typography.titleLarge)
-            }
-            LazyColumn(
-                Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal)),
-                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = bottom + 24.dp),
-            ) {
-                item(key = "price-title") { SheetHeading(stringResource(R.string.price_group_title)) }
-                item(key = "price-picker") {
-                    // The legend's group names differ per page only in wording; our own labels keep this page page-independent.
-                    val groups = listOf(R.string.price_students, R.string.price_staff, R.string.price_guests)
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        groups.forEachIndexed { index, label ->
-                            MensaFilterChip(selected = prefs.priceGroup == index, onClick = { vm.setPriceGroup(index) }, label = { Text(stringResource(label)) })
+                LazyColumn(
+                    Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal)),
+                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = bottom + 24.dp),
+                ) {
+                    item(key = "price-title") { SheetHeading(stringResource(R.string.price_group_title)) }
+                    item(key = "price-picker") {
+                        // The legend's group names differ per page only in wording; our own labels keep this page page-independent.
+                        val groups = listOf(R.string.price_students, R.string.price_staff, R.string.price_guests)
+                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            groups.forEachIndexed { index, label ->
+                                MensaFilterChip(selected = prefs.priceGroup == index, onClick = { vm.setPriceGroup(index) }, label = { Text(stringResource(label)) })
+                            }
                         }
                     }
-                }
 
-                item(key = "layout-title") { SheetHeading(stringResource(R.string.layout_title)) }
-                item(key = "layout-picker") {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        MensaFilterChip(selected = !prefs.compact, onClick = { vm.setCompactMode(false) }, label = { Text(stringResource(R.string.display_normal)) })
-                        MensaFilterChip(selected = prefs.compact, onClick = { vm.setCompactMode(true) }, label = { Text(stringResource(R.string.display_compact)) })
+                    item(key = "layout-title") { SheetHeading(stringResource(R.string.layout_title)) }
+                    item(key = "layout-picker") {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            MensaFilterChip(selected = !prefs.compact, onClick = { vm.setCompactMode(false) }, label = { Text(stringResource(R.string.display_normal)) })
+                            MensaFilterChip(selected = prefs.compact, onClick = { vm.setCompactMode(true) }, label = { Text(stringResource(R.string.display_compact)) })
+                        }
                     }
-                }
 
-                item(key = "theme-title") { SheetHeading(stringResource(R.string.theme_title)) }
-                item(key = "theme-picker") {
-                    val theme = LocalThemeMode.current
-                    Column {
-                        SettingsDropdown(
-                            label = stringResource(R.string.theme_label),
-                            options = listOf(
-                                ThemeMode.SYSTEM to stringResource(R.string.theme_system),
-                                ThemeMode.SOFT to stringResource(R.string.theme_soft),
-                                ThemeMode.AMOLED to stringResource(R.string.theme_amoled),
-                                ThemeMode.CUSTOM to stringResource(R.string.theme_custom),
+                    item(key = "theme-title") { SheetHeading(stringResource(R.string.theme_title)) }
+                    item(key = "theme-picker") {
+                        val theme = LocalThemeMode.current
+                        Column {
+                            SettingsDropdown(
+                                label = stringResource(R.string.theme_label),
+                                options = listOf(
+                                    ThemeMode.SYSTEM to stringResource(R.string.theme_system),
+                                    ThemeMode.SOFT to stringResource(R.string.theme_soft),
+                                    ThemeMode.AMOLED to stringResource(R.string.theme_amoled),
+                                    ThemeMode.CUSTOM to stringResource(R.string.theme_custom),
+                                ),
+                                selected = theme,
+                                onSelect = vm::setThemeMode,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                            if (theme == ThemeMode.CUSTOM) {
+                                val choice by vm.theme.collectAsStateWithLifecycle()
+                                choice?.let { CustomThemeEditor(it.custom, vm::setCustomTheme, onAdvanced = { showColors = true }) }
+                            }
+                        }
+                    }
+
+                    notifySettings?.let { settings ->
+                        notifySection(
+                            NotifySheet(
+                                settings = settings,
+                                mensas = notifyMensas,
+                                allowed = access.allowed,
+                                onEnabled = vm::setNotificationsEnabled,
+                                onTime = vm::setNotifyTime,
+                                onWatch = vm::setNotifyMensa,
+                                onAllow = access.request,
+                                onTest = { if (access.allowed) vm.postTestNotification(defaultId) else access.request() },
                             ),
-                            selected = theme,
-                            onSelect = vm::setThemeMode,
-                            modifier = Modifier.fillMaxWidth(),
+                            language,
                         )
-                        if (theme == ThemeMode.CUSTOM) {
-                            val choice by vm.theme.collectAsStateWithLifecycle()
-                            choice?.let { CustomThemeEditor(it.custom, vm::setCustomTheme) }
-                        }
                     }
                 }
-
-                notifySettings?.let { settings ->
-                    notifySection(
-                        NotifySheet(
-                            settings = settings,
-                            mensas = notifyMensas,
-                            allowed = access.allowed,
-                            onEnabled = vm::setNotificationsEnabled,
-                            onTime = vm::setNotifyTime,
-                            onWatch = vm::setNotifyMensa,
-                            onAllow = access.request,
-                            onTest = { if (access.allowed) vm.postTestNotification(defaultId) else access.request() },
-                        ),
-                        language,
-                    )
-                }
             }
+        }
+        // The advanced color editor on top; only while the custom theme is active (it edits that theme live).
+        if (showColors && theme?.mode == ThemeMode.CUSTOM) {
+            theme?.let { ColorEditorScreen(it.custom, onChange = { spec -> vm.setCustomTheme(spec) }, onBack = { showColors = false }) }
         }
     }
 }

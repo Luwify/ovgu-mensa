@@ -49,4 +49,39 @@ class ColorInputTest {
     fun defaultAccent_isTheVioletSwatch() {
         assertEquals(de.luwify.mensamd.data.settings.CustomThemeSpec.DEFAULT_ACCENT, de.luwify.mensamd.data.settings.hueToAccent(265))
     }
+
+    @Test
+    fun hsv_roundTrips() {
+        for (rgb in listOf(0xFF0000, 0x00FF00, 0x0000FF, 0x7839D0, 0x808080, 0x000000, 0xFFFFFF, 0x1E88E5)) {
+            val (h, s, v) = ColorInput.toHsv(rgb)
+            assertEquals(ColorInput.formatHex(rgb), ColorInput.formatHex(ColorInput.fromHsv(h, s, v)))
+        }
+        assertEquals(Triple(0f, 1f, 1f), ColorInput.toHsv(0xFF0000))
+        assertEquals(240f, ColorInput.toHsv(0x0000FF).first, 0.01f)
+    }
+
+    @Test
+    fun ringAngle_isHue_clockwiseFromTheRight() {
+        assertEquals(0f, ColorInput.hueAt(10f, 0f), 0.01f)
+        assertEquals(90f, ColorInput.hueAt(0f, 10f), 0.01f) // below the center (screen y grows downward)
+        assertEquals(180f, ColorInput.hueAt(-10f, 0f), 0.01f)
+        assertEquals(270f, ColorInput.hueAt(0f, -10f), 0.01f)
+    }
+
+    @Test
+    fun square_mapsSaturationRightAndBrightnessUp_clampedOutside() {
+        assertEquals(0f to 1f, ColorInput.saturationValueAt(0f, 0f, 100f))
+        assertEquals(1f to 0f, ColorInput.saturationValueAt(100f, 100f, 100f))
+        assertEquals(0.5f to 0.75f, ColorInput.saturationValueAt(50f, 25f, 100f))
+        assertEquals(1f to 1f, ColorInput.saturationValueAt(140f, -30f, 100f)) // finger left the square while dragging
+    }
+
+    @Test
+    fun shades_areTenLightToDark_ofTheSameHue() {
+        val shades = ColorInput.shades(0x1E88E5)
+        assertEquals(10, shades.size)
+        val lum = shades.map { androidx.compose.ui.graphics.Color(0xFF000000.toInt() or it).let { c -> c.red + c.green + c.blue } }
+        assert(lum.zipWithNext().all { (a, b) -> a > b }) { "light to dark: $lum" }
+        assert(shades.all { kotlin.math.abs(ColorInput.hue(it) - ColorInput.hue(0x1E88E5)) <= 2 })
+    }
 }

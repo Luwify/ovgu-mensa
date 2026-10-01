@@ -127,6 +127,7 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
     /** Before the accent could be typed as a color only a hue was stored; still read, so nobody loses theirs. */
     private val legacyCustomHueKey = intPreferencesKey("custom_theme_hue")
     private val customGlowKey = booleanPreferencesKey("custom_theme_glow")
+    private val customOverridesKey = stringPreferencesKey("custom_theme_overrides")
 
     /** The user's own theme (used when the theme mode is CUSTOM). */
     val customTheme: Flow<CustomThemeSpec> = store.data.map { prefs ->
@@ -136,6 +137,7 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
                 ?: prefs[legacyCustomHueKey]?.let { hueToAccent(it) }
                 ?: CustomThemeSpec.DEFAULT_ACCENT,
             glow = prefs[customGlowKey] ?: false,
+            overrides = CustomThemeSpec.decodeOverrides(prefs[customOverridesKey]),
         )
     }
 
@@ -145,6 +147,8 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
             it[customAccentKey] = spec.accent and 0xFFFFFF
             it.remove(legacyCustomHueKey)
             it[customGlowKey] = spec.glow
+            if (spec.overrides.isEmpty()) it.remove(customOverridesKey)
+            else it[customOverridesKey] = CustomThemeSpec.encodeOverrides(spec.overrides)
         }
     }
 

@@ -42,6 +42,12 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 import de.luwify.mensamd.R
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Surface
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.res.pluralStringResource
+import de.luwify.mensamd.ui.theme.ChevronDownIcon
 import de.luwify.mensamd.data.settings.CustomBase
 import de.luwify.mensamd.data.settings.CustomThemeSpec
 import de.luwify.mensamd.data.settings.hueToAccent
@@ -65,7 +71,7 @@ private fun rgbColor(rgb: Int) = Color(0xFF000000.toInt() or (rgb and 0xFFFFFF))
  */
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
-fun CustomThemeEditor(spec: CustomThemeSpec, onChange: (CustomThemeSpec, Boolean) -> Unit) {
+fun CustomThemeEditor(spec: CustomThemeSpec, onChange: (CustomThemeSpec, Boolean) -> Unit, onAdvanced: () -> Unit) {
     val latest by rememberUpdatedState(spec)
     Column(Modifier.fillMaxWidth().padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Label(R.string.custom_base)
@@ -118,6 +124,7 @@ fun CustomThemeEditor(spec: CustomThemeSpec, onChange: (CustomThemeSpec, Boolean
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
+        AdvancedRow(spec.overrides.size, onAdvanced)
 
         Row(
             Modifier
@@ -194,4 +201,23 @@ private fun ColorFields(accent: Int, onAccent: (Int) -> Unit) {
 @Composable
 private fun Label(@StringRes text: Int) {
     Text(stringResource(text), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+}
+
+/** Opens the advanced color editor; shows how many colors are set by hand. */
+@Composable
+private fun AdvancedRow(customized: Int, onClick: () -> Unit) {
+    Surface(onClick = onClick, shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surfaceContainerHigh, modifier = Modifier.fillMaxWidth()) {
+        Row(Modifier.heightIn(min = 56.dp).padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(stringResource(R.string.color_advanced), style = MaterialTheme.typography.bodyLarge)
+                Text(
+                    if (customized == 0) stringResource(R.string.color_advanced_hint)
+                    else pluralStringResource(R.plurals.color_advanced_count, customized, customized),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Icon(ChevronDownIcon, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.rotate(-90f))
+        }
+    }
 }

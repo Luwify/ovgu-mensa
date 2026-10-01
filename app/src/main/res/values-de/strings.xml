@@ -126,4 +126,31 @@
     <string name="theme_title">Design</string>
     <string name="theme_label">Farbschema</string>
     <string name="custom_accent_adjusted">Leicht angepasst, damit Text auf diesem Hintergrund lesbar bleibt.</string>
+    <string name="color_advanced">Erweiterte Farben</string>
+    <string name="color_advanced_hint">Hintergrund, Karten, Text und mehr einzeln festlegen</string>
+    <plurals name="color_advanced_count">
+        <item quantity="one">%d Farbe von Hand festgelegt</item>
+        <item quantity="other">%d Farben von Hand festgelegt</item>
+    </plurals>
+    <string name="color_editor_title">Farbeditor</string>
+    <string name="color_section_general">Allgemein</string>
+    <string name="color_section_cards">Gerichtkarten</string>
+    <string name="color_accent">Akzent</string>
+    <string name="color_accent_hint">Tabs, Auswahl, Schaltflächen</string>
+    <string name="color_background">Hintergrund</string>
+    <string name="color_card">Karten</string>
+    <string name="color_text">Text</string>
+    <string name="color_card_border">Kartenrand</string>
+    <string name="color_card_border_hint">Beim Leuchtrand auch dessen Leuchten</string>
+    <string name="color_price">Preis</string>
+    <string name="color_price_hint">Feld des gewählten Preises</string>
+    <string name="color_tag">Tags</string>
+    <string name="color_tag_hint">Fisch, Knoblauch, …</string>
+    <string name="color_badge">Hinweise</string>
+    <string name="color_badge_hint">Save the meal, Aktionstheke, …</string>
+    <string name="color_favorite">Favoritenherz</string>
+    <string name="color_auto">Automatisch</string>
+    <string name="color_adjusted">%1$s, für Lesbarkeit angepasst</string>
+    <string name="color_reset_all">Alle Farben zurücksetzen</string>
+    <string name="color_picker">Farbwähler: Farbkreis und Feld für Sättigung und Helligkeit</string>
 </resources>

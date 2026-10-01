@@ -133,4 +133,31 @@
     <string name="custom_green" translatable="false">G</string>
     <string name="custom_blue" translatable="false">B</string>
     <string name="custom_accent_adjusted">Adjusted slightly so text stays readable on this background.</string>
+    <string name="color_advanced">Advanced colors</string>
+    <string name="color_advanced_hint">Set background, cards, text and more one by one</string>
+    <plurals name="color_advanced_count">
+        <item quantity="one">%d color set by hand</item>
+        <item quantity="other">%d colors set by hand</item>
+    </plurals>
+    <string name="color_editor_title">Color editor</string>
+    <string name="color_section_general">General</string>
+    <string name="color_section_cards">Dish cards</string>
+    <string name="color_accent">Accent</string>
+    <string name="color_accent_hint">Tabs, selection, buttons</string>
+    <string name="color_background">Background</string>
+    <string name="color_card">Cards</string>
+    <string name="color_text">Text</string>
+    <string name="color_card_border">Card border</string>
+    <string name="color_card_border_hint">With the glow border also its glow</string>
+    <string name="color_price">Price</string>
+    <string name="color_price_hint">Field of the selected price</string>
+    <string name="color_tag">Tags</string>
+    <string name="color_tag_hint">Fish, garlic, …</string>
+    <string name="color_badge">Notes</string>
+    <string name="color_badge_hint">Save the meal, promotional counter, …</string>
+    <string name="color_favorite">Favorite heart</string>
+    <string name="color_auto">Automatic</string>
+    <string name="color_adjusted">%1$s, adjusted for readability</string>
+    <string name="color_reset_all">Reset all colors</string>
+    <string name="color_picker">Color picker: hue ring and saturation/brightness square</string>
 </resources>

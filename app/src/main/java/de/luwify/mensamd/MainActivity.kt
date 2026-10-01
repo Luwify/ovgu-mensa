@@ -25,7 +25,10 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import de.luwify.mensamd.card.NfcCardScanner
 import android.content.Intent
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.foundation.isSystemInDarkTheme
+import de.luwify.mensamd.data.settings.ColorRole
 import de.luwify.mensamd.data.settings.CustomBase
+import de.luwify.mensamd.ui.theme.CustomTheme
 import de.luwify.mensamd.data.settings.ThemeMode
 import de.luwify.mensamd.notify.FavoriteNotifier
 import de.luwify.mensamd.ui.CardScreen
@@ -52,18 +55,24 @@ class MainActivity : ComponentActivity() {
             val theme by viewModel.theme.collectAsStateWithLifecycle()
             // AMOLED is always dark: black bars with light icons whatever the system setting is. A custom theme
             // with a fixed base gets matching bar icons; everything else follows the system (auto).
-            val customBase = theme?.takeIf { it.mode == ThemeMode.CUSTOM }?.custom?.base
-            DisposableEffect(theme?.mode, customBase) {
+            val custom = theme?.takeIf { it.mode == ThemeMode.CUSTOM }?.custom
+            val systemDark = isSystemInDarkTheme()
+            // Fixed when the custom theme doesn't simply follow the system (a set base or a hand-picked background).
+            val customDark = custom?.takeIf { it.base != CustomBase.SYSTEM || ColorRole.BACKGROUND in it.overrides }
+                ?.let { CustomTheme.isDark(it, systemDark) }
+            val blackBars = theme?.mode == ThemeMode.AMOLED ||
+                (custom?.base == CustomBase.BLACK && ColorRole.BACKGROUND !in custom.overrides)
+            DisposableEffect(theme?.mode, blackBars, customDark) {
                 when {
-                    theme?.mode == ThemeMode.AMOLED || customBase == CustomBase.BLACK -> enableEdgeToEdge(
+                    blackBars -> enableEdgeToEdge(
                         statusBarStyle = SystemBarStyle.dark(Color.BLACK),
                         navigationBarStyle = SystemBarStyle.dark(Color.BLACK),
                     )
-                    customBase == CustomBase.DARK -> enableEdgeToEdge(
+                    customDark == true -> enableEdgeToEdge(
                         statusBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
                         navigationBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
                     )
-                    customBase == CustomBase.LIGHT -> enableEdgeToEdge(
+                    customDark == false -> enableEdgeToEdge(
                         statusBarStyle = SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT),
                         navigationBarStyle = SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT),
                     )

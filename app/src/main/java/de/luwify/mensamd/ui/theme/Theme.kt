@@ -170,7 +170,7 @@ fun MensaTheme(
             mensa = remember { AmoledTheme.mensaColors() }
         }
         ThemeMode.CUSTOM -> {
-            val dark = custom.isDark(darkTheme)
+            val dark = CustomTheme.isDark(custom, darkTheme)
             colorScheme = remember(custom, dark) { CustomTheme.scheme(custom, dark) }
             shapes = Shapes()
             mensa = remember(custom, dark, colorScheme) { CustomTheme.mensaColors(custom, dark, colorScheme) }

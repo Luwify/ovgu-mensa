@@ -2,6 +2,7 @@ package de.luwify.mensamd.ui.theme
 
 import androidx.compose.material3.ColorScheme
 import androidx.compose.ui.graphics.Color
+import de.luwify.mensamd.data.settings.ColorRole
 import androidx.compose.ui.graphics.luminance
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -178,5 +179,60 @@ class ThemeContrastTest {
         for (c in listOf(s.background, s.surfaceContainerLowest, s.secondaryContainer)) {
             assertTrue("gray: $c", kotlin.math.abs(c.red - c.green) < 0.01f && kotlin.math.abs(c.green - c.blue) < 0.01f)
         }
+    }
+
+    /**
+     * Colors set by hand in the advanced editor are wishes: whatever they are (random subsets of roles, random
+     * colors, every base, glow on/off), every text pair must still pass. Seeded, so a failure is reproducible.
+     */
+    @Test
+    fun customOverrides_neverBreakReadability() {
+        val random = java.util.Random(20261001)
+        val roles = de.luwify.mensamd.data.settings.ColorRole.entries
+        val failures = mutableListOf<String>()
+        repeat(400) { run ->
+            val overrides = roles.filter { random.nextInt(3) == 0 }.associateWith { random.nextInt(0x1000000) }
+            val spec = de.luwify.mensamd.data.settings.CustomThemeSpec(
+                base = de.luwify.mensamd.data.settings.CustomBase.entries[random.nextInt(4)],
+                accent = random.nextInt(0x1000000),
+                glow = random.nextBoolean(),
+                overrides = overrides,
+            )
+            val dark = CustomTheme.isDark(spec, systemDark = random.nextBoolean())
+            val s = CustomTheme.scheme(spec, dark)
+            val m = CustomTheme.mensaColors(spec, dark, s)
+            val local = mutableListOf<String>()
+            // a hand-picked hairline (no glow) is decorative and may be invisible on purpose
+            val edgeMin = if (spec.glow) 3.0 else 1.0
+            pairs(s, m, edgeMin, local)
+            check("heart/card", m.favorite, m.cardContainer!!, 3.0, local)
+            local.forEach { failures += "run $run $spec dark=$dark: $it" }
+        }
+        val kinds = failures.groupBy { it.substringAfterLast("dark=").substringAfter(": ").substringBefore(":") }.mapValues { it.value.size }
+        assertTrue("${failures.size} failures by kind $kinds, e.g. ${failures.take(3)}", failures.isEmpty())
+    }
+
+    @Test
+    fun customOverrides_areUsedAsIsWhereTheyFit() {
+        val spec = de.luwify.mensamd.data.settings.CustomThemeSpec(
+            base = de.luwify.mensamd.data.settings.CustomBase.DARK,
+            overrides = mapOf(ColorRole.BACKGROUND to 0x0A1020, ColorRole.CARD to 0x18233A, ColorRole.PRICE to 0x2B4C7E, ColorRole.FAVORITE to 0xFF6B9D),
+        )
+        val s = CustomTheme.scheme(spec, true)
+        val m = CustomTheme.mensaColors(spec, true, s)
+        assertTrue(s.background == Color(0xFF0A1020))
+        assertTrue(m.cardContainer == Color(0xFF18233A))
+        assertTrue(m.price.container == Color(0xFF2B4C7E))
+        assertTrue(m.favorite == Color(0xFFFF6B9D))
+    }
+
+    @Test
+    fun customLightBackgroundByHand_makesTheThemeLight_evenOnADarkBase() {
+        val spec = de.luwify.mensamd.data.settings.CustomThemeSpec(
+            base = de.luwify.mensamd.data.settings.CustomBase.BLACK,
+            overrides = mapOf(de.luwify.mensamd.data.settings.ColorRole.BACKGROUND to 0xF5F0E6),
+        )
+        assertTrue(!CustomTheme.isDark(spec, systemDark = true))
+        assertTrue(CustomTheme.isDark(spec.copy(overrides = emptyMap()), systemDark = false))
     }
 }

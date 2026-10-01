@@ -7,6 +7,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import de.luwify.mensamd.data.settings.ColorRole
 import de.luwify.mensamd.data.settings.CustomBase
 import de.luwify.mensamd.data.settings.CustomThemeSpec
 import kotlin.math.abs
@@ -33,25 +34,42 @@ object CustomTheme {
         return h to (s / 0.62f).coerceIn(0f, 1.4f)
     }
 
+    /**
+     * Light or dark. A background set by hand decides by its own brightness (otherwise no text color could be read
+     * both on that page and on cards made for the other mode); else the base (and for "Wie System" the system).
+     */
+    fun isDark(spec: CustomThemeSpec, systemDark: Boolean): Boolean =
+        spec.overrides[ColorRole.BACKGROUND]?.let { Color(0xFF000000.toInt() or it).luminance() < 0.18f } ?: spec.isDark(systemDark)
+
     fun scheme(spec: CustomThemeSpec, dark: Boolean): ColorScheme {
         val (h, k) = hueAndScale(spec)
         val t = (h + 40f) % 360f // tertiary (badges): a neighbor of the accent
         val black = spec.base == CustomBase.BLACK
-        return if (!dark) light(h, t, k, accentColor(spec)) else dark(h, t, k, accentColor(spec), black)
+        val o = overrides(spec)
+        return if (!dark) light(h, t, k, accentColor(spec), o) else dark(h, t, k, accentColor(spec), black, o)
     }
 
-    private fun light(h: Float, t: Float, k: Float, accent: Color): ColorScheme {
-        // Page one step below the cards, like the System theme: cards stand out by their fill.
-        val card = tone(h, 0.30f, 0.995f, k)
+    private fun overrides(spec: CustomThemeSpec): Map<ColorRole, Color> =
+        spec.overrides.mapValues { Color(0xFF000000.toInt() or (it.value and 0xFFFFFF)) }
+
+    private fun light(h: Float, t: Float, k: Float, accent: Color, o: Map<ColorRole, Color>): ColorScheme {
+        // Page one step below the cards, like the System theme: cards stand out by their fill. A page the user set
+        // pushes a generated card away from it instead.
+        // Surfaces set by hand are wishes too: page and cards share one text color, so each is moved just far
+        // enough from this mode's text to keep it readable (a mid-gray card in a light theme gets lighter).
+        val modeText = listOf(tone(h, 0.15f, 0.12f, k))
+        val card = o[ColorRole.CARD]?.withContrast(TEXT, modeText)
+            ?: tone(h, 0.30f, 0.995f, k).let { c -> o[ColorRole.BACKGROUND]?.let { c.withContrast(1.17, listOf(it)) } ?: c }
         // Yellow is brighter than blue at the same HSL lightness: darken the page until it reads against the card.
-        val page = tone(h, 0.18f, 0.93f, k).withContrast(1.17, listOf(card))
+        val page = o[ColorRole.BACKGROUND]?.withContrast(TEXT, modeText) ?: tone(h, 0.18f, 0.93f, k).withContrast(1.17, listOf(card))
         val sheet = tone(h, 0.20f, 0.97f, k)
         val surfaces = listOf(page, card, sheet)
         // The user's exact color wherever it is readable; otherwise darkened just enough.
         val primary = accent.withContrast(TEXT, surfaces)
-        val primaryContainer = tone(h, 0.65f, 0.87f, k)
-        val secondaryContainer = tone(h, 0.28f, 0.88f, k)
+        val primaryContainer = o[ColorRole.PRICE] ?: tone(h, 0.65f, 0.87f, k)
+        val secondaryContainer = o[ColorRole.TAG] ?: tone(h, 0.28f, 0.88f, k).withContrast(1.1, listOf(card))
         val tertiaryContainer = tone(t, 0.60f, 0.89f, k)
+        val text = (o[ColorRole.TEXT] ?: tone(h, 0.15f, 0.12f, k)).withContrast(TEXT, surfaces)
         return lightColorScheme(
             primary = primary,
             onPrimary = Color.White.withContrast(TEXT, listOf(primary)),
@@ -62,20 +80,21 @@ object CustomTheme {
             onSecondary = Color.White,
             secondaryContainer = secondaryContainer,
             onSecondaryContainer = tone(h, 0.25f, 0.18f, k).withContrast(TEXT, listOf(secondaryContainer)),
-            tertiary = tone(t, 0.55f, 0.36f, k).withContrast(TEXT, surfaces),
+            tertiary = (o[ColorRole.BADGE] ?: tone(t, 0.55f, 0.36f, k)).withContrast(TEXT, surfaces),
             onTertiary = Color.White,
             tertiaryContainer = tertiaryContainer,
             onTertiaryContainer = tone(t, 0.60f, 0.16f, k).withContrast(TEXT, listOf(tertiaryContainer)),
             background = page,
-            onBackground = tone(h, 0.15f, 0.12f, k).withContrast(TEXT, surfaces),
+            onBackground = text,
             surface = page,
-            onSurface = tone(h, 0.15f, 0.12f, k).withContrast(TEXT, surfaces),
+            onSurface = text,
             surfaceVariant = tone(h, 0.16f, 0.88f, k),
-            onSurfaceVariant = tone(h, 0.10f, 0.34f, k).withContrast(TEXT, surfaces + secondaryContainer),
+            // The chips have their own text color; a hand-picked chip tone can't be expected to suit this one too.
+            onSurfaceVariant = tone(h, 0.10f, 0.34f, k).withContrast(TEXT, if (ColorRole.TAG in o) surfaces else surfaces + secondaryContainer),
             surfaceTint = Color.Transparent,
             inverseSurface = tone(h, 0.12f, 0.20f, k),
             inverseOnSurface = tone(h, 0.20f, 0.95f, k),
-            error = Color(0xFFB3261E),
+            error = Color(0xFFB3261E).withContrast(TEXT, listOf(page)),
             onError = Color.White,
             errorContainer = Color(0xFFF9DEDC),
             onErrorContainer = Color(0xFF410E0B),
@@ -92,18 +111,21 @@ object CustomTheme {
         )
     }
 
-    private fun dark(h: Float, t: Float, k: Float, accent: Color, black: Boolean): ColorScheme {
+    private fun dark(h: Float, t: Float, k: Float, accent: Color, black: Boolean, o: Map<ColorRole, Color>): ColorScheme {
         // Black: pure black page and a barely lifted card, like AMOLED. Dark: a tinted near-black page.
-        val page = if (black) Color.Black else tone(h, 0.15f, 0.05f, k)
+        val modeText = listOf(tone(h, 0.12f, 0.90f, k))
+        val page = o[ColorRole.BACKGROUND]?.withContrast(TEXT, modeText) ?: if (black) Color.Black else tone(h, 0.15f, 0.05f, k)
         // Blue is darker than yellow at the same HSL lightness: lift the card until it reads against the page.
-        val card = if (black) tone(h, 0.08f, 0.065f, k) else tone(h, 0.14f, 0.12f, k).withContrast(1.2, listOf(page))
+        val card = o[ColorRole.CARD]?.withContrast(TEXT, modeText)
+            ?: if (black && ColorRole.BACKGROUND !in o) tone(h, 0.08f, 0.065f, k) else tone(h, 0.14f, 0.12f, k).withContrast(1.2, listOf(page))
         val sheet = if (black) tone(h, 0.08f, 0.08f, k) else tone(h, 0.14f, 0.09f, k)
-        val chip = if (black) tone(h, 0.12f, 0.15f, k) else tone(h, 0.16f, 0.21f, k)
+        val chip = o[ColorRole.TAG] ?: (if (black) tone(h, 0.12f, 0.15f, k) else tone(h, 0.16f, 0.21f, k)).withContrast(1.1, listOf(card))
         val surfaces = listOf(page, card, sheet)
         // The user's exact color wherever it is readable; otherwise lightened just enough.
         val primary = accent.withContrast(TEXT, surfaces)
-        val primaryContainer = tone(h, 0.45f, 0.28f, k)
+        val primaryContainer = o[ColorRole.PRICE] ?: tone(h, 0.45f, 0.28f, k)
         val tertiaryContainer = tone(t, 0.35f, 0.28f, k)
+        val text = (o[ColorRole.TEXT] ?: tone(h, 0.12f, 0.90f, k)).withContrast(TEXT, surfaces)
         return darkColorScheme(
             primary = primary,
             onPrimary = tone(h, 0.70f, 0.14f, k).withContrast(TEXT, listOf(primary)),
@@ -114,20 +136,21 @@ object CustomTheme {
             onSecondary = tone(h, 0.25f, 0.15f, k),
             secondaryContainer = chip,
             onSecondaryContainer = tone(h, 0.18f, 0.84f, k).withContrast(TEXT, listOf(chip)),
-            tertiary = tone(t, 0.60f, 0.79f, k).withContrast(TEXT, surfaces),
+            tertiary = (o[ColorRole.BADGE] ?: tone(t, 0.60f, 0.79f, k)).withContrast(TEXT, surfaces),
             onTertiary = tone(t, 0.60f, 0.15f, k),
             tertiaryContainer = tertiaryContainer,
             onTertiaryContainer = tone(t, 0.70f, 0.90f, k).withContrast(TEXT, listOf(tertiaryContainer)),
             background = page,
-            onBackground = tone(h, 0.12f, 0.90f, k).withContrast(TEXT, surfaces),
+            onBackground = text,
             surface = page,
-            onSurface = tone(h, 0.12f, 0.90f, k).withContrast(TEXT, surfaces),
+            onSurface = text,
             surfaceVariant = tone(h, 0.10f, 0.20f, k),
-            onSurfaceVariant = tone(h, 0.10f, 0.72f, k).withContrast(TEXT, surfaces + chip),
+            // The chips have their own text color; a hand-picked chip tone can't be expected to suit this one too.
+            onSurfaceVariant = tone(h, 0.10f, 0.72f, k).withContrast(TEXT, if (ColorRole.TAG in o) surfaces else surfaces + chip),
             surfaceTint = Color.Transparent,
             inverseSurface = tone(h, 0.12f, 0.90f, k),
             inverseOnSurface = tone(h, 0.12f, 0.12f, k),
-            error = Color(0xFFFFB4A9),
+            error = Color(0xFFFFB4A9).withContrast(TEXT, listOf(page)),
             onError = Color(0xFF561E18),
             errorContainer = Color(0xFF73332B),
             onErrorContainer = Color(0xFFFFDAD5),
@@ -146,15 +169,18 @@ object CustomTheme {
 
     fun mensaColors(spec: CustomThemeSpec, dark: Boolean, scheme: ColorScheme): MensaColors {
         val card = if (dark) scheme.surfaceContainer else scheme.surfaceContainerLowest
-        // Glow: the accent as a real 3:1 border, plus a faint halo (the AMOLED look, in the user's color).
-        val glowEdge = accentColor(spec).withContrast(BORDER, listOf(scheme.background, card))
+        val o = overrides(spec)
+        // Glow: the accent (or the user's border color) as a real 3:1 border, plus a faint halo (the AMOLED look).
+        val glowEdge = (o[ColorRole.CARD_BORDER] ?: accentColor(spec)).withContrast(BORDER, listOf(scheme.background, card))
         return MensaColors(
             cardContainer = card,
-            cardBorder = if (spec.glow) glowEdge else scheme.outlineVariant,
+            // Without glow the edge is a decorative hairline: the user's color as it is.
+            cardBorder = if (spec.glow) glowEdge else o[ColorRole.CARD_BORDER] ?: scheme.outlineVariant,
             cardElevation = 0.dp,
             veganContainer = if (dark) Color(0xFF264D2A) else Color(0xFFCDEBCF),
             veganContent = if (dark) Color(0xFFC8F0CA) else Color(0xFF14501A),
-            footprint = if (dark) FootprintStops.dark else FootprintStops.light,
+            // Fixed stops, but a card set by hand could be any tone: keep them readable on it.
+            footprint = (if (dark) FootprintStops.dark else FootprintStops.light).map { it.withContrast(TEXT, listOf(card)) },
             price = ControlColors(scheme.primaryContainer, scheme.onPrimaryContainer, null),
             tag = ControlColors(scheme.secondaryContainer, scheme.onSecondaryContainer, null),
             filterButton = ControlColors(Color.Transparent, scheme.onSurface, scheme.outline),
@@ -162,7 +188,7 @@ object CustomTheme {
             chipSelected = ControlColors(Color.Transparent, scheme.primary, scheme.primary),
             linkText = scheme.primary,
             headingText = scheme.primary,
-            favorite = if (dark) FavoriteColors.dark else FavoriteColors.light,
+            favorite = (o[ColorRole.FAVORITE] ?: if (dark) FavoriteColors.dark else FavoriteColors.light).withContrast(BORDER, listOf(card)),
             cardBorderWidth = if (spec.glow) 1.dp else Dp.Hairline,
             cardGlow = if (spec.glow) glowEdge.copy(alpha = if (dark) 0.22f else 0.16f) else null,
         )
