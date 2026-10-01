@@ -356,13 +356,15 @@ fun FavoriteEffects(
         }
     }
     Box(
-        modifier.drawWithContent {
-            if (legendary) drawLegendaryGlow(shape, gold)
-            drawContent()
-            if (legendary) drawLegendaryEdge(shape, gold, if (animate) clock else 0L, animate)
-            val p = burst.progress.value
-            if (p < 1f) drawBurst(heartCenter(size), p, gold[1], favoriteColor)
-        },
+        modifier
+            // The gold glow: one smooth gradient (EdgeGlow), about as strong and wide as the old two rings.
+            .then(if (legendary) Modifier.edgeGlow(gold[1], shape, reach = 9.dp, strength = 0.5f, power = 2f) else Modifier)
+            .drawWithContent {
+                drawContent()
+                if (legendary) drawLegendaryEdge(shape, gold, if (animate) clock else 0L, animate)
+                val p = burst.progress.value
+                if (p < 1f) drawBurst(heartCenter(size), p, gold[1], favoriteColor)
+            },
     ) { content() }
 }
 
@@ -385,13 +387,6 @@ internal fun DrawScope.drawParallelRing(radius: Float, distance: Float, width: F
         cornerRadius = androidx.compose.ui.geometry.CornerRadius(r, r),
         style = Stroke(width),
     )
-}
-
-private fun DrawScope.drawLegendaryGlow(shape: Shape, gold: List<Color>) {
-    val r = cornerRadiusOf(shape)
-    // Two soft rings centered 3.5 and 1.5 dp outside the edge.
-    drawParallelRing(r, 3.5.dp.toPx(), 7.dp.toPx(), androidx.compose.ui.graphics.SolidColor(gold[1].copy(alpha = 0.16f)))
-    drawParallelRing(r, 1.5.dp.toPx(), 3.dp.toPx(), androidx.compose.ui.graphics.SolidColor(gold[1].copy(alpha = 0.38f)))
 }
 
 private fun DrawScope.drawLegendaryEdge(shape: Shape, gold: List<Color>, timeMs: Long, animate: Boolean) {

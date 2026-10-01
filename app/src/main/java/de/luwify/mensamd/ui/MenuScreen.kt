@@ -487,12 +487,9 @@ private fun CompactCardBody(
  * alpha, the outer one 5dp much fainter, so it fades outward. Drawn behind the card in the same layer (no blur, no
  * shadow, no offscreen buffer): scrolling costs two more outlines per card.
  */
-private fun Modifier.cardGlow(color: Color, shape: androidx.compose.ui.graphics.Shape): Modifier = drawBehind {
-    // Each ring parallel to the card edge with its own radius, so the corners line up.
-    val r = cornerRadiusOf(shape)
-    drawParallelRing(r, 2.5.dp.toPx(), 5.dp.toPx(), androidx.compose.ui.graphics.SolidColor(color.copy(alpha = color.alpha * 0.35f)))
-    drawParallelRing(r, 1.dp.toPx(), 2.dp.toPx(), androidx.compose.ui.graphics.SolidColor(color))
-}
+private fun Modifier.cardGlow(color: Color, shape: androidx.compose.ui.graphics.Shape): Modifier =
+    // One smooth gradient (EdgeGlow) instead of two stacked rings; about as strong near the edge and as wide.
+    edgeGlow(color, shape, reach = 6.dp, strength = 1.35f, power = 1.8f)
 
 /** Space between the card text and the heart: more than the 12dp its touch area reaches beyond the icon. */
 private val HEART_GAP = 14.dp

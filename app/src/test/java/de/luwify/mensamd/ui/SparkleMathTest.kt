@@ -202,4 +202,19 @@ class SparkleMathTest {
         assertTrue(shape.halfHeightGrow < 0f)
         assertTrue(shape.roundness > 0f && shape.radiusTop > 30f)
     }
+
+    @Test
+    fun edgeGlow_fallsSmoothlyToZero_andTheFallbackStepsAreSmall() {
+        assertEquals(1f, edgeGlowFalloff(0f, 2f), 0f)
+        assertEquals(0f, edgeGlowFalloff(1f, 2f), 0f)
+        assertEquals(0f, edgeGlowFalloff(1.5f, 2f), 0f)
+        assertTrue(edgeGlowFalloff(0.97f, 2f) < 0.001f) // no edge at the end of the reach
+        val v = (0..50).map { edgeGlowFalloff(it / 50f, 1.8f) }
+        assertTrue(v.zipWithNext().all { (a, b) -> b <= a })
+        // the fallback's rings (side by side, each at the curve's alpha for its middle) step down in small steps
+        val n = EDGE_GLOW_FALLBACK_FILLS
+        val ringAlphas = (0 until n).map { 0.5f * edgeGlowFalloff((it + 0.5f) / n, 2f) }
+        assertTrue(ringAlphas.zipWithNext().all { (a, b) -> b <= a })
+        assertTrue("largest step ${ringAlphas.zipWithNext().maxOf { (a, b) -> a - b }}", ringAlphas.zipWithNext().all { (a, b) -> a - b < 0.08f })
+    }
 }
