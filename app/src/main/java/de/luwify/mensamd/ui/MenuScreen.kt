@@ -2,6 +2,10 @@ package de.luwify.mensamd.ui
 
 import android.text.format.DateUtils
 import androidx.compose.foundation.background
+import androidx.compose.ui.platform.LocalWindowInfo
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.res.painterResource
 import androidx.compose.material3.Icon
 import de.luwify.mensamd.data.settings.ViewPrefs
@@ -234,21 +238,69 @@ private fun FullCardBody(
     priceGroup: Int,
     footprint: DayFootprint?,
 ) {
+    val density = LocalDensity.current
+    // The window, not the screen: correct in split-screen too.
+    val windowWidthDp = with(density) { LocalWindowInfo.current.containerSize.width.toDp().value.toInt() }
+    var pricesExpanded by rememberSaveable { mutableStateOf(false) }
+    val tags: @Composable () -> Unit = {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            dish.tags.forEach { TagLabel(it) }
+        }
+    }
+    val prices: @Composable () -> Unit = {
+        Prices(dish.prices, priceGroup, legend, language, euro, pricesExpanded) { pricesExpanded = !pricesExpanded }
+    }
+
     Column(Modifier.padding(horizontal = 16.dp, vertical = 14.dp).animateContentSize(), verticalArrangement = Arrangement.spacedBy(5.dp)) {
         if (dish.badges.isNotEmpty()) {
             FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 dish.badges.forEach { BadgeLabel(it.forLanguage(language)) }
             }
         }
+        // The name always keeps the full card width.
         Text(dish.name.forLanguage(language), style = MaterialTheme.typography.titleMedium.copy(lineHeight = 20.sp))
-        if (dish.tags.isNotEmpty()) {
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                dish.tags.forEach { TagLabel(it) }
+        when {
+            dish.tags.isEmpty() -> prices()
+            dish.prices.isEmpty() -> tags()
+            // Collapsed pill on a normal window: tags right-aligned on the price row, or wrapped
+            // below it if they don't fit. Expanded prices, narrow windows and large fonts: below.
+            tagsBesidePrice(windowWidthDp, density.fontScale) && !pricesExpanded -> PriceTagsRow(prices, tags)
+            else -> {
+                prices()
+                tags()
             }
         }
-        Prices(dish.prices, priceGroup, legend, language, euro)
         Footprint(dish, footprint)
         if (dish.codes.isNotEmpty()) CodeMeanings(dish.codes, codeIndex, language)
+    }
+}
+
+/**
+ * Price pill on the left, [tags] right-aligned on the same row if pill, gap and the tags in one
+ * line fit; otherwise the tags go on a row of their own below. The pill is never squeezed.
+ */
+@Composable
+private fun PriceTagsRow(price: @Composable () -> Unit, tags: @Composable () -> Unit) {
+    Layout(content = { price(); tags() }) { measurables, constraints ->
+        val maxWidth = constraints.maxWidth
+        val gap = 12.dp.roundToPx()
+        val rowGap = 5.dp.roundToPx()
+        val pricePlaceable = measurables[0].measure(Constraints(maxWidth = maxWidth))
+        val naturalTagsWidth = measurables[1].maxIntrinsicWidth(10_000)
+        if (fitsBesidePrice(pricePlaceable.width, gap, naturalTagsWidth, maxWidth)) {
+            val tagsPlaceable = measurables[1].measure(Constraints(minWidth = naturalTagsWidth, maxWidth = naturalTagsWidth))
+            val height = maxOf(pricePlaceable.height, tagsPlaceable.height)
+            layout(maxWidth, height) {
+                pricePlaceable.placeRelative(0, (height - pricePlaceable.height) / 2)
+                tagsPlaceable.placeRelative(maxWidth - tagsPlaceable.width, (height - tagsPlaceable.height) / 2)
+            }
+        } else {
+            val tagsPlaceable = measurables[1].measure(Constraints(maxWidth = maxWidth))
+            layout(maxWidth, pricePlaceable.height + rowGap + tagsPlaceable.height) {
+                pricePlaceable.placeRelative(0, 0)
+                tagsPlaceable.placeRelative(0, pricePlaceable.height + rowGap)
+            }
+        }
     }
 }
 
@@ -294,17 +346,24 @@ private fun CompactCardBody(dish: Dish, legend: Legend, language: String, euro: 
 /**
  * Collapsed: only the selected group's price in a tonal pill, with an arrow to its right. Expanded:
  * the pill gets its group label and the other prices appear inline to the right, labeled.
- * The expanded state is saved per lazy-list key like the code meanings.
+ * The expanded state is owned by the card (it moves the tags) and saved per lazy-list key.
  */
 @Composable
-private fun Prices(prices: List<Int>, priceGroup: Int, legend: Legend, language: String, euro: NumberFormat) {
+private fun Prices(
+    prices: List<Int>,
+    priceGroup: Int,
+    legend: Legend,
+    language: String,
+    euro: NumberFormat,
+    expanded: Boolean,
+    onToggle: () -> Unit,
+) {
     val split = splitPrices(prices, priceGroup) ?: return
     val fallback = listOf(R.string.price_students, R.string.price_staff, R.string.price_guests)
     @Composable
     fun label(index: Int) = legend.priceGroups.getOrNull(index)?.forLanguage(language)
         ?: fallback.getOrNull(index)?.let { stringResource(it) }.orEmpty()
 
-    var expanded by rememberSaveable { mutableStateOf(false) }
     // One row: [selected price] [arrow] [other prices...]. If it is too wide for a narrow screen
     // it scrolls sideways instead of wrapping below.
     Row(Modifier.horizontalScroll(rememberScrollState()), verticalAlignment = Alignment.CenterVertically) {
@@ -328,7 +387,7 @@ private fun Prices(prices: List<Int>, priceGroup: Int, legend: Legend, language:
                 style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier
-                    .clickable(role = Role.Button, onClickLabel = description) { expanded = !expanded }
+                    .clickable(role = Role.Button, onClickLabel = description, onClick = onToggle)
                     .padding(horizontal = 12.dp, vertical = 8.dp),
             )
             if (expanded) {
