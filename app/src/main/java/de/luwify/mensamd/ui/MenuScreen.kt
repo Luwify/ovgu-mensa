@@ -605,7 +605,9 @@ private fun TagLabel(tag: Tag, dense: Boolean = false) {
 
 @Composable
 private fun UpdatedFooter(updatedAt: Long, failed: Boolean) {
-    val relative = DateUtils.getRelativeTimeSpanString(updatedAt, System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS).toString()
+    // The system text starts with a capital ("Vor 5 Minuten"); it follows "Aktualisiert", so lowercase it.
+    val relative = DateUtils.getRelativeTimeSpanString(updatedAt, System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS)
+        .toString().replaceFirstChar { it.lowercase() }
     val text = stringResource(R.string.last_updated, relative) + if (failed) " · " + stringResource(R.string.update_failed) else ""
     Text(
         text,
