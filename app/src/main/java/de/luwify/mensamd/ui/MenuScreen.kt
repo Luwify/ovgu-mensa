@@ -2,6 +2,9 @@ package de.luwify.mensamd.ui
 
 import android.text.format.DateUtils
 import androidx.compose.foundation.background
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.ui.res.painterResource
 import androidx.compose.material3.Icon
 import de.luwify.mensamd.data.settings.ViewPrefs
@@ -240,10 +243,30 @@ private fun FullCardBody(
                 dish.badges.forEach { BadgeLabel(it.forLanguage(language)) }
             }
         }
-        Text(dish.name.forLanguage(language), style = MaterialTheme.typography.titleMedium.copy(lineHeight = 20.sp))
-        if (dish.tags.isNotEmpty()) {
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                dish.tags.forEach { TagLabel(it) }
+        val density = LocalDensity.current
+        // The window, not the screen: correct in split-screen too.
+        val screenWidthDp = with(density) { LocalWindowInfo.current.containerSize.width.toDp().value.toInt() }
+        val sideTags = dish.tags.isNotEmpty() && tagsOnRight(screenWidthDp, density.fontScale)
+        val name = dish.name.forLanguage(language)
+        val nameStyle = MaterialTheme.typography.titleMedium.copy(lineHeight = 20.sp)
+        if (sideTags) {
+            // Name on the left, tags wrapped in a right-aligned column of at most a third of the width.
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(name, style = nameStyle, modifier = Modifier.weight(1f))
+                FlowRow(
+                    modifier = Modifier.widthIn(max = tagColumnMaxWidthDp(screenWidthDp).dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.End),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    dish.tags.forEach { TagLabel(it) }
+                }
+            }
+        } else {
+            Text(name, style = nameStyle)
+            if (dish.tags.isNotEmpty()) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    dish.tags.forEach { TagLabel(it) }
+                }
             }
         }
         Prices(dish.prices, priceGroup, legend, language, euro)
