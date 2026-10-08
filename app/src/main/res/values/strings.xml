@@ -167,4 +167,7 @@
     <string name="super_unlocked_title">Super sparkle unlocked!</string>
     <string name="super_unlocked_text">The aura of your favorites now stretches and wobbles when you scroll.</string>
     <string name="super_unlocked_hint">Tap to continue</string>
+    <string name="language_title">Language</string>
+    <string name="language_label">App language</string>
+    <string name="language_system">System default</string>
 </resources>

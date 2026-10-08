@@ -160,4 +160,7 @@
     <string name="super_unlocked_title">Super-Funkeln freigeschaltet!</string>
     <string name="super_unlocked_text">Die Aura deiner Favoriten zieht sich jetzt beim Scrollen mit und schwingt nach.</string>
     <string name="super_unlocked_hint">Tippen zum Fortfahren</string>
+    <string name="language_title">Sprache</string>
+    <string name="language_label">App-Sprache</string>
+    <string name="language_system">Systemstandard</string>
 </resources>

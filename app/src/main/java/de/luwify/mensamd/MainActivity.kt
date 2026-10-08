@@ -46,6 +46,8 @@ class MainActivity : ComponentActivity() {
 
     private val cardScanner by lazy { NfcCardScanner(NfcAdapter.getDefaultAdapter(this)) }
 
+    override fun attachBaseContext(newBase: android.content.Context) = super.attachBaseContext(AppLanguage.wrap(newBase))
+
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)

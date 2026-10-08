@@ -35,6 +35,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import de.luwify.mensamd.AppLanguage
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -155,6 +156,28 @@ fun SettingsScreen(vm: MainViewModel, mensas: List<Mensa>, defaultId: String, pr
                                 vm.setSuperSparkle(on)
                             }
                         }
+                    }
+
+                    item(key = "language-title") { SheetHeading(stringResource(R.string.language_title)) }
+                    item(key = "language-picker") {
+                        val context = LocalContext.current
+                        var chosen by remember { mutableStateOf(AppLanguage.current(context)) }
+                        SettingsDropdown(
+                            label = stringResource(R.string.language_label),
+                            options = listOf(
+                                AppLanguage.SYSTEM to stringResource(R.string.language_system),
+                                AppLanguage.GERMAN to "Deutsch",
+                                AppLanguage.ENGLISH to "English",
+                            ),
+                            selected = chosen,
+                            onSelect = {
+                                chosen = it
+                                AppLanguage.set(context, it)
+                                // From API 33 the system recreates the activity itself.
+                                if (android.os.Build.VERSION.SDK_INT < 33) (context as? android.app.Activity)?.recreate()
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
                     }
 
                     item(key = "theme-title") { SheetHeading(stringResource(R.string.theme_title)) }
