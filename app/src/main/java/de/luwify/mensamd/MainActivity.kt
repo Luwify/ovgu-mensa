@@ -22,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import de.luwify.mensamd.card.CardScanState
 import de.luwify.mensamd.card.NfcCardScanner
 import android.content.Intent
 import androidx.compose.runtime.LaunchedEffect
@@ -87,6 +88,17 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    // Reader mode while the app is in the foreground: a held card opens the card screen instead of the popup.
+    override fun onResume() {
+        super.onResume()
+        cardScanner.start(this)
+    }
+
+    override fun onPause() {
+        cardScanner.stop(this)
+        super.onPause()
+    }
+
     /** A tap on the favorites notification (activity already running). */
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
@@ -117,13 +129,20 @@ private fun MensaRoot(viewModel: MainViewModel, cardScanner: NfcCardScanner) {
                     showSettings = false
                 }
             }
+            val scan by cardScanner.state.collectAsStateWithLifecycle()
+            LaunchedEffect(scan) {
+                if (scan == CardScanState.Reading || scan == CardScanState.Unsupported) showCard = true
+            }
             Box(Modifier.fillMaxSize()) {
                 MainScreen(
                     viewModel, s, showCardIcon = cardScanner.available,
                     onOpenCard = { showCard = true }, onOpenSettings = { showSettings = true },
                 )
                 if (showSettings) SettingsScreen(viewModel, s.mensas, s.defaultId, s.prefs, onBack = { showSettings = false })
-                if (showCard) CardScreen(cardScanner, onBack = { showCard = false })
+                if (showCard) CardScreen(cardScanner, onBack = {
+                    showCard = false
+                    cardScanner.reset()
+                })
             }
         }
     }

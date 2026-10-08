@@ -4,7 +4,6 @@ import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.provider.Settings
 import androidx.activity.compose.BackHandler
-import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -41,7 +40,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import de.luwify.mensamd.R
 import de.luwify.mensamd.card.CardBalance
@@ -52,14 +50,9 @@ import de.luwify.mensamd.ui.theme.BackIcon
 import de.luwify.mensamd.ui.theme.CardIcon
 import java.util.Locale
 
-/** The "Karte" screen: scans only while it is open and resumed. */
+/** The "Karte" screen. The scanner runs while the activity is resumed (see `MainActivity`); it opens this screen on a scan. */
 @Composable
 fun CardScreen(scanner: NfcCardScanner, onBack: () -> Unit) {
-    val activity = LocalActivity.current
-    LifecycleResumeEffect(scanner, activity) {
-        activity?.let(scanner::start)
-        onPauseOrDispose { activity?.let(scanner::stop) }
-    }
     BackHandler(onBack = onBack)
     val state by scanner.state.collectAsStateWithLifecycle()
 

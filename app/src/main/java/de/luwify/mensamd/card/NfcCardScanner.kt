@@ -58,6 +58,11 @@ class NfcCardScanner(private val adapter: NfcAdapter?) {
         _state.value = if (adapter == null) CardScanState.NoNfc else CardScanState.Waiting
     }
 
+    /** Back to "waiting" (the card screen was closed): a finished result must not linger or reopen the screen. */
+    fun reset() {
+        if (active) _state.value = CardScanState.Waiting
+    }
+
     /** Runs on an NFC binder thread; blocking I/O is fine here. */
     private fun onTag(tag: Tag) {
         val isoDep = IsoDep.get(tag)
