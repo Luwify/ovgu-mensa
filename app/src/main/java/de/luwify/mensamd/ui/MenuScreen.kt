@@ -151,9 +151,9 @@ private fun MenuList(
     val euro = remember(locale) { NumberFormat.getCurrencyInstance(locale).apply { currency = Currency.getInstance("EUR") } }
     val bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     val codeIndex = remember(ui.legend) { ui.legend.codes.associateBy { it.code } }
-    // "Favoriten funkeln": the favorites' aura (SuperAuraOverlay). The unlocked Super-Funkeln adds the jelly drag
-    // while scrolling (ScrollDrag); nothing installed otherwise, so the aura stays still.
-    val drag = if (prefs.superSparkle) rememberScrollDrag() else null
+    // "Favoriten funkeln": the favorites' aura (SuperAuraOverlay). The aura also gets the jelly drag
+    // while scrolling (ScrollDrag).
+    val drag = if (prefs.legendary) rememberScrollDrag() else null
     val listState = rememberLazyListState()
     // The aura is drawn in one layer above the list (see SuperAuraOverlay), not by the cards themselves.
     val favoriteKeys = remember(rows, prefs.favorites, prefs.legendary) {

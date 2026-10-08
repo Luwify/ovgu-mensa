@@ -155,14 +155,6 @@ object SparkleMath {
         return floatArrayOf(pos, out, 3.5f + 2.5f * hash(cycle + 104729), flash)
     }
 
-    /**
-     * Fast taps on the sparkle switch: the taps within [windowMs] before [now], newest last. Five of them unlock
-     * the super sparkle.
-     */
-    fun recentTaps(taps: List<Long>, now: Long, windowMs: Long = 3000L): List<Long> = taps.filter { now - it in 0..windowMs }
-
-    const val UNLOCK_TAPS = 5
-
     /** The aura's maximum reach in units of its base reach: 4 x the living factor's maximum (0.55 + 0.75 x 1.1). */
     const val AURA_REACH_FACTOR = 4f * 1.375f
 

@@ -96,8 +96,6 @@ fun SettingsScreen(vm: MainViewModel, mensas: List<Mensa>, defaultId: String, pr
     val notifyMensas = remember(mensas) { mensas.filter { it.format == PageFormat.DATED } }
     val bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     var showColors by rememberSaveable { mutableStateOf(false) }
-    var showUnlock by rememberSaveable { mutableStateOf(false) }
-    var sparkleTaps by remember { mutableStateOf(emptyList<Long>()) }
     val theme by vm.theme.collectAsStateWithLifecycle()
 
     Box(Modifier.fillMaxSize()) {
@@ -137,25 +135,7 @@ fun SettingsScreen(vm: MainViewModel, mensas: List<Mensa>, defaultId: String, pr
                         }
                     }
                     item(key = "legendary") {
-                        SwitchRow(stringResource(R.string.legendary_title), stringResource(R.string.legendary_hint), prefs.legendary) { on ->
-                            vm.setLegendaryFavorites(on)
-                            // Hidden: five fast taps unlock super sparkle (with a reveal, like a 5-star pull).
-                            val now = android.os.SystemClock.uptimeMillis()
-                            sparkleTaps = SparkleMath.recentTaps(sparkleTaps + now, now)
-                            if (!prefs.superUnlocked && sparkleTaps.size >= SparkleMath.UNLOCK_TAPS) {
-                                sparkleTaps = emptyList()
-                                vm.unlockSuperSparkle()
-                                showUnlock = true
-                            }
-                        }
-                    }
-                    if (prefs.superUnlocked) {
-                        item(key = "super-sparkle") {
-                            SwitchRow(stringResource(R.string.super_title), stringResource(R.string.super_hint), prefs.superSparkle && prefs.legendary) { on ->
-                                if (on) vm.setLegendaryFavorites(true)
-                                vm.setSuperSparkle(on)
-                            }
-                        }
+                        SwitchRow(stringResource(R.string.legendary_title), stringResource(R.string.legendary_hint), prefs.legendary, vm::setLegendaryFavorites)
                     }
 
                     item(key = "language-title") { SheetHeading(stringResource(R.string.language_title)) }
@@ -226,7 +206,6 @@ fun SettingsScreen(vm: MainViewModel, mensas: List<Mensa>, defaultId: String, pr
         if (showColors && theme?.mode == ThemeMode.CUSTOM) {
             theme?.let { ColorEditorScreen(it.custom, onChange = { spec -> vm.setCustomTheme(spec) }, onBack = { showColors = false }) }
         }
-        if (showUnlock) SuperSparkleUnlock(onDone = { showUnlock = false })
     }
 }
 

@@ -121,28 +121,6 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
         store.edit { it[legendaryKey] = on }
     }
 
-    private val superUnlockedKey = booleanPreferencesKey("super_sparkle_unlocked")
-    private val superSparkleKey = booleanPreferencesKey("super_sparkle")
-
-    /** Whether the hidden super sparkle was unlocked (it stays unlocked). */
-    val superSparkleUnlocked: Flow<Boolean> = store.data.map { it[superUnlockedKey] ?: false }
-
-    /** Super-Funkeln: the aura also stretches and wobbles while scrolling; on as soon as it is unlocked. */
-    val superSparkle: Flow<Boolean> = store.data.map { (it[superUnlockedKey] ?: false) && (it[superSparkleKey] ?: true) }
-
-    /** The easter egg: unlocks super sparkle and switches it and the normal sparkle on, in one edit. */
-    suspend fun unlockSuperSparkle() {
-        store.edit {
-            it[superUnlockedKey] = true
-            it[superSparkleKey] = true
-            it[legendaryKey] = true
-        }
-    }
-
-    suspend fun setSuperSparkle(on: Boolean) {
-        store.edit { it[superSparkleKey] = on }
-    }
-
     private val themeKey = stringPreferencesKey("theme_mode")
 
     /** System colors (default) or the own Soft palette. */

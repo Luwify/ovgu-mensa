@@ -161,12 +161,7 @@
     <string name="color_reset_all">Reset all colors</string>
     <string name="color_picker">Color picker: hue ring and saturation/brightness square</string>
     <string name="legendary_title">Sparkling favorites</string>
-    <string name="legendary_hint">Your favorites get a shimmering gold aura with sparkles</string>
-    <string name="super_title">Super sparkle ✨</string>
-    <string name="super_hint">The aura also stretches and wobbles like jelly when you scroll</string>
-    <string name="super_unlocked_title">Super sparkle unlocked!</string>
-    <string name="super_unlocked_text">The aura of your favorites now stretches and wobbles when you scroll.</string>
-    <string name="super_unlocked_hint">Tap to continue</string>
+    <string name="legendary_hint">Your favorites get a shimmering gold aura with sparkles that stretches and wobbles like jelly when you scroll</string>
     <string name="language_title">Language</string>
     <string name="language_label">App language</string>
     <string name="language_system">System default</string>

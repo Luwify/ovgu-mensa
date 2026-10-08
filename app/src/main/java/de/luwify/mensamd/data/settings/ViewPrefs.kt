@@ -16,8 +16,4 @@ data class ViewPrefs(
     val filterOrder: List<String> = emptyList(),
     /** "Favoriten funkeln": favorite dishes get the shimmering gold aura with sparkles. */
     val legendary: Boolean = true,
-    /** The hidden super sparkle (5 fast taps on the sparkle switch) was found. */
-    val superUnlocked: Boolean = false,
-    /** Super-Funkeln: the aura also stretches and wobbles while scrolling (only with [legendary] and once unlocked). */
-    val superSparkle: Boolean = false,
 )

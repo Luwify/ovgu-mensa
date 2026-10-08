@@ -66,28 +66,6 @@ class SparkleMathTest {
     }
 
     @Test
-    fun unlock_needsFiveTapsWithinThreeSeconds() {
-        var taps = emptyList<Long>()
-        for (t in listOf(1000L, 1400L, 1800L, 2200L)) taps = SparkleMath.recentTaps(taps + t, t)
-        assertEquals(4, taps.size)
-        taps = SparkleMath.recentTaps(taps + 2600L, 2600L)
-        assertTrue(taps.size >= SparkleMath.UNLOCK_TAPS)
-        // slow taps never get there
-        var slow = emptyList<Long>()
-        for (t in listOf(0L, 1000L, 2000L, 3000L, 4000L, 5000L)) slow = SparkleMath.recentTaps(slow + t, t)
-        assertTrue(slow.size < SparkleMath.UNLOCK_TAPS)
-    }
-
-    @Test
-    fun unlockReveal_starsPopInOrder_andSettle() {
-        val t = UnlockTimeline.STARS_START + 2 * UnlockTimeline.STAR_STEP + 0.1f
-        assertTrue(UnlockTimeline.pop(t, UnlockTimeline.STARS_START) == 1f) // first star settled
-        assertTrue(UnlockTimeline.pop(t, UnlockTimeline.STARS_START + 4 * UnlockTimeline.STAR_STEP) == 0f) // last not yet
-        assertEquals(1.3f, UnlockTimeline.pop(0.6f * 0.28f, 0f), 0.001f) // overshoot
-        assertEquals(1f, UnlockTimeline.pop(UnlockTimeline.TOTAL, 0f), 0f)
-    }
-
-    @Test
     fun auraBand_startsBelowThePinnedHeader_orAtTheTop() {
         // pinned header at the top (offset 0, 48 px), then cards
         assertEquals(48, SparkleMath.pinnedHeaderBottom(listOf(0 to 48, 60 to 300, 372 to 300), listOf(true, false, false)))

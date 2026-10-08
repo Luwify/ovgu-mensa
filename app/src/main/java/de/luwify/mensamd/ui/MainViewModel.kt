@@ -55,8 +55,6 @@ class MainViewModel(private val container: AppContainer) : ViewModel() {
     ) { tags, codes, priceGroup, compact, favorites -> ViewPrefs(tags, codes, priceGroup, compact, favorites) }
         .combine(container.settings.filterOrder) { prefs, order -> prefs.copy(filterOrder = order) }
         .combine(container.settings.legendaryFavorites) { prefs, legendary -> prefs.copy(legendary = legendary) }
-        .combine(container.settings.superSparkleUnlocked) { prefs, unlocked -> prefs.copy(superUnlocked = unlocked) }
-        .combine(container.settings.superSparkle) { prefs, on -> prefs.copy(superSparkle = on && prefs.legendary) }
 
     val screen: StateFlow<AppScreen> = combine(
         container.settings.defaultMensaId,
@@ -158,14 +156,6 @@ class MainViewModel(private val container: AppContainer) : ViewModel() {
 
     fun setCardGlow(on: Boolean) {
         viewModelScope.launch { container.settings.setCardGlow(on) }
-    }
-
-    fun unlockSuperSparkle() {
-        viewModelScope.launch { container.settings.unlockSuperSparkle() }
-    }
-
-    fun setSuperSparkle(on: Boolean) {
-        viewModelScope.launch { container.settings.setSuperSparkle(on) }
     }
 
     fun setLegendaryFavorites(on: Boolean) {
