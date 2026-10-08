@@ -154,7 +154,7 @@
     <string name="color_reset_all">Alle Farben zurücksetzen</string>
     <string name="color_picker">Farbwähler: Farbkreis und Feld für Sättigung und Helligkeit</string>
     <string name="legendary_title">Favoriten funkeln</string>
-    <string name="legendary_hint">Deine Favoriten bekommen eine schimmernde goldene Aura mit Funkeln, die beim Scrollen wie Wackelpudding mitzieht und nachschwingt</string>
+    <string name="legendary_hint">Deine Favoriten bekommen eine schimmernde goldene Aura mit Funkeln</string>
     <string name="language_title">Sprache</string>
     <string name="language_label">App-Sprache</string>
     <string name="language_system">Systemstandard</string>
