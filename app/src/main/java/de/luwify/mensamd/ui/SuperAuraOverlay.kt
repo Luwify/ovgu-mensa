@@ -40,8 +40,6 @@ fun SuperAuraOverlay(
     drag: ScrollDrag?,
     modifier: Modifier = Modifier,
 ) {
-    val context = LocalContext.current
-    val animate = remember(context) { animationsEnabled(context) }
     val background = LocalMensaColors.current.cardContainer ?: MaterialTheme.colorScheme.surface
     val colors = remember(background) { auraFor(background) }
     val shape = CardDefaults.shape
@@ -51,7 +49,7 @@ fun SuperAuraOverlay(
         derivedStateOf { listState.layoutInfo.visibleItemsInfo.any { it.key in favoriteKeys } }
     }
     var clock by remember { mutableLongStateOf(SystemClock.uptimeMillis()) }
-    if (anyVisible && animate) {
+    if (anyVisible) {
         val lifecycle = LocalLifecycleOwner.current.lifecycle
         LaunchedEffect(lifecycle) {
             lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
@@ -69,7 +67,7 @@ fun SuperAuraOverlay(
         val top = SparkleMath.pinnedHeaderBottom(items.map { it.offset to it.size }, items.map { headerKeys(it.key) }).toFloat()
         val bottom = info.viewportSize.height.toFloat()
         val inset = 16.dp.toPx()
-        val trail = if (animate && drag != null) drag.trail() else 0f
+        val trail = drag?.trail() ?: 0f
         val visible = HashSet<Any>()
         for (item in items) {
             if (item.key !in favoriteKeys) continue
@@ -79,7 +77,7 @@ fun SuperAuraOverlay(
             val shader = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) shaders.getOrPut(item.key) { AuraShader(colors) } else null
             translate(inset, item.offset.toFloat()) {
                 // The visible band in the card's own coordinates.
-                drawSuperAura(card, radius, colors, shader, clock, trail, animate, top - item.offset, bottom - item.offset)
+                drawSuperAura(card, radius, colors, shader, clock, trail, top - item.offset, bottom - item.offset)
             }
         }
         shaders.keys.retainAll(visible)

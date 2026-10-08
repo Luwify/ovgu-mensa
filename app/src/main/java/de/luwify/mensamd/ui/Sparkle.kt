@@ -28,6 +28,8 @@ import kotlinx.coroutines.launch
 import androidx.compose.animation.core.spring
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.withFrameNanos
+import androidx.compose.ui.MotionDurationScale
+import kotlinx.coroutines.withContext
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.platform.LocalDensity
@@ -282,7 +284,7 @@ class ScrollDrag(private val scope: CoroutineScope, private val pxPerDp: Float) 
             velocity = 0f
             target = 0f
             // Underdamped: it swings past rest by about a third of the stretch, then settles.
-            trail.animateTo(0f, spring(dampingRatio = 0.3f, stiffness = 140f))
+            atNormalSpeed { trail.animateTo(0f, spring(dampingRatio = 0.3f, stiffness = 140f)) }
             releasing = false
         }
     }
@@ -295,9 +297,15 @@ fun rememberScrollDrag(): ScrollDrag {
     return remember(scope, density) { ScrollDrag(scope, density.density) }
 }
 
-/** False when the user turned animations off in Android's settings: then no burst and a still frame. */
-fun animationsEnabled(context: Context): Boolean =
-    Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) > 0f
+/**
+ * Runs [block] at normal speed even when Android's animator duration scale is 0 (some Xiaomi/HyperOS setups, battery
+ * savers and "remove animations" options set it): the favorites' effects are opt-in in this app's own settings, so
+ * the system scale must not silently switch them off.
+ */
+private suspend fun <T> atNormalSpeed(block: suspend () -> T): T =
+    withContext(object : MotionDurationScale {
+        override val scaleFactor: Float get() = 1f
+    }) { block() }
 
 /** The burst of one card: started from the heart, drawn by [FavoriteEffects] (so the card's clip can't cut it). */
 @Stable
@@ -309,7 +317,7 @@ class FavoriteBurst {
 
     suspend fun play() {
         progress.snapTo(0f)
-        progress.animateTo(1f, tween(SparkleMath.BURST_MS, easing = LinearOutSlowInEasing))
+        atNormalSpeed { progress.animateTo(1f, tween(SparkleMath.BURST_MS, easing = LinearOutSlowInEasing)) }
     }
 }
 
@@ -349,7 +357,6 @@ internal fun DrawScope.drawSuperAura(
     shader: AuraShader?,
     timeMs: Long,
     trail: Float,
-    animate: Boolean,
     fadeTop: Float,
     fadeBottom: Float,
 ) {
@@ -367,12 +374,11 @@ internal fun DrawScope.drawSuperAura(
         val tail = tailPx * kotlin.math.abs(trail)
         val above = base + if (trail < 0f) tail else 0f
         val below = base + if (trail > 0f) tail else 0f
-        shader.update(w, h, r, timeMs / 1000f, trail, tailPx, reach, if (animate) 0.85f else 0.7f, fadeTop, fadeBottom, fade)
+        shader.update(w, h, r, timeMs / 1000f, trail, tailPx, reach, 0.85f, fadeTop, fadeBottom, fade)
         drawRect(shader.brush, topLeft = Offset(-base, -above), size = Size(w + 2 * base, h + above + below))
     } else {
         drawFallbackAura(w, h, r, colors, trail, reach, fadeTop, fadeBottom, fade)
     }
-    if (!animate) return
     // Sparkles inside the glow: each flashes for a moment somewhere along the card, then elsewhere.
     for (i in 0 until 6) {
         val (pos, out, sizeDp, alpha) = SparkleMath.sparkleSpot(i, timeMs).let { listOf(it[0], it[1], it[2], it[3]) }

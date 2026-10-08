@@ -500,12 +500,11 @@ private val HEART_GAP = 14.dp
 private fun FavoriteButton(favorite: Boolean, onToggle: () -> Unit, above: Dp, burst: FavoriteBurst) {
     val icon = 24.dp
     val target = 48.dp
-    val context = LocalContext.current
     // Only a heart the user just filled bursts (the same dish on other days just turns red).
     LaunchedEffect(favorite) {
         if (favorite && burst.pending) {
             burst.pending = false
-            if (animationsEnabled(context)) burst.play()
+            burst.play()
         }
     }
     Box(
