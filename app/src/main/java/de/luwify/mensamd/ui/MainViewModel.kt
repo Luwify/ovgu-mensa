@@ -179,8 +179,9 @@ class MainViewModel(private val container: AppContainer) : ViewModel() {
         viewModelScope.launch { container.settings.setCardGlow(on) }
     }
 
-    val stundenplanBannerHidden: StateFlow<Boolean> =
-        container.settings.stundenplanBannerHidden.stateIn(viewModelScope, SharingStarted.Eagerly, false)
+    /** The user's banner choice (null = never chosen); the settings combine it with "installed". */
+    val stundenplanBannerHidden: StateFlow<Boolean?> =
+        container.settings.stundenplanBannerHidden.stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
     val companion get() = container.companion
 

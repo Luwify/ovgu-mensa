@@ -36,7 +36,7 @@ import de.luwify.mensamd.data.update.phase
 import de.luwify.mensamd.ui.theme.LocalMensaColors
 
 /**
- * The note about Stundenplan MD at the bottom of the settings: "Open" if it is installed, else "Download" (installed by the
+ * The note about Stundenplan MD at the top of the settings: "Open" if it is installed, else "Download" (installed by the
  * updater's checked download), with progress and, if anything fails, a way to the release page. Nothing when hidden.
  */
 @Composable

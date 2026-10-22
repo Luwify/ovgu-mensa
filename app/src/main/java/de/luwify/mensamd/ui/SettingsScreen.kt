@@ -58,6 +58,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import de.luwify.mensamd.R
+import de.luwify.mensamd.update.CompanionPolicy
 import de.luwify.mensamd.favorites.FavoriteNotifications
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
@@ -106,6 +107,9 @@ fun SettingsScreen(vm: MainViewModel, mensas: List<Mensa>, defaultId: String, pr
     var openVersion by rememberSaveable { mutableStateOf<Int?>(null) }
     var showLicenses by rememberSaveable { mutableStateOf(false) }
     var showFavorites by rememberSaveable { mutableStateOf(false) }
+    val bannerChoice by vm.stundenplanBannerHidden.collectAsStateWithLifecycle()
+    val stundenplanInstalled by vm.companion.installed.collectAsStateWithLifecycle()
+    val bannerHidden = CompanionPolicy.hidden(bannerChoice, stundenplanInstalled)
 
     Box(Modifier.fillMaxSize()) {
         Surface(Modifier.fillMaxSize()) {
@@ -125,6 +129,11 @@ fun SettingsScreen(vm: MainViewModel, mensas: List<Mensa>, defaultId: String, pr
                     Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal)),
                     contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = bottom + 24.dp),
                 ) {
+                    // Stundenplan MD first, but only while it isn't installed (unless the user chose otherwise).
+                    item(key = "stundenplan-banner") {
+                        StundenplanBanner(vm.companion, bannerHidden, onHide = { vm.setStundenplanBannerHidden(true) }, modifier = Modifier.padding(top = 8.dp))
+                    }
+
                     item(key = "price-title") { SheetHeading(stringResource(R.string.price_group_title)) }
                     item(key = "price-picker") {
                         // The legend's group names differ per page only in wording; our own labels keep this page page-independent.
@@ -220,16 +229,11 @@ fun SettingsScreen(vm: MainViewModel, mensas: List<Mensa>, defaultId: String, pr
                         onAutoCheck = updates::setAutoCheck,
                     )
 
-                    // The Stundenplan MD banner (as the Mensa MD banner in Stundenplan MD): its switch, then the card.
+                    // The switch for the Stundenplan MD banner at the top (on by default only while it isn't installed).
                     item(key = "stundenplan-banner-setting") {
-                        val hiddenBanner by vm.stundenplanBannerHidden.collectAsStateWithLifecycle()
-                        SwitchRow(stringResource(R.string.stundenplan_setting), stringResource(R.string.stundenplan_setting_hint), !hiddenBanner) {
+                        SwitchRow(stringResource(R.string.stundenplan_setting), stringResource(R.string.stundenplan_setting_hint), !bannerHidden) {
                             vm.setStundenplanBannerHidden(!it)
                         }
-                    }
-                    item(key = "stundenplan-banner") {
-                        val hiddenBanner by vm.stundenplanBannerHidden.collectAsStateWithLifecycle()
-                        StundenplanBanner(vm.companion, hiddenBanner, onHide = { vm.setStundenplanBannerHidden(true) }, modifier = Modifier.padding(top = 24.dp))
                     }
 
                     item(key = "about-title") { SheetHeading(stringResource(R.string.about_title)) }

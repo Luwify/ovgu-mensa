@@ -66,8 +66,8 @@ git-ignored `CLAUDE.local.md` at the repo root, which Claude Code loads after th
   settings. No exact alarms: Doze/App standby can delay the run (maintenance windows). Favorites are never logged.
 - **Settings page** (gear icon in the top bar, overlay `SettingsScreen` in `MensaRoot` like the card screen): price group,
   card layout (normal/compact chips), design (color scheme drop-down + custom theme editor), favorites ("Favoriten
-  verwalten" -> overview), favorites notifications, version (in-app updater, see below), the Stundenplan MD banner
-  (switch + card), about (licenses and source code). The filter sheet ("Filter" button) has only the allergen exclusion.
+  verwalten" -> overview), favorites notifications, version (in-app updater, see below) + the switch for the Stundenplan MD
+  banner (the card itself is the first item, see its section), about (licenses and source code). The filter sheet ("Filter" button) has only the allergen exclusion.
 - **Chip order:** long-press + drag reorders the filter chips like the Mensa tabs (shared `RowReorder` helper for both);
   global, stored as `filter_order`. A drag on one page is merged by `DishFilters.mergeOrder`: chips not on that page keep
   their place; keys the stored order doesn't know follow in the default order (vegan, vegetarisch, kuchen, favoriten, ...).
@@ -269,7 +269,7 @@ update's dialogs in `MensaRoot`, so they show above the settings and card overla
   note, MensaGuthaben/FareBot credits, libraries, jsoup MIT text from `res/raw/license_jsoup.txt`). New third-party code,
   libraries or icons go into NOTICE and this screen.
 
-## Stundenplan MD banner (settings, bottom, above "Über die App")
+## Stundenplan MD banner (settings, top)
 Ported from Stundenplan MD's Mensa MD banner; **keep both copies in sync** (same mapping as the updater). Pure:
 `update/Companion.kt` = Stundenplan's `:core` `update/Companion.kt` with `CompanionApp.STUNDENPLAN` (package
 `de.luwify.stundenplanmd`, manifest of `Luwify/ovgu-stundenplan`, release page, pinned certificate =
@@ -280,8 +280,11 @@ App: `data/update/Companion.kt` (`CompanionInstaller`: installed check via `<que
 so `InstallResultReceiver` routes the result; "unknown apps" via the shared `UnknownSourcesDialog`; `Failure.Unavailable`
 when the manifest offers nothing for this device), `ui/StundenplanBanner` (+ `StundenplanDialogs`). Icon
 `ic_stundenplan.xml` = Stundenplan's adaptive launcher icon in one vector. Hide flag: settings key
-`stundenplan_banner_hidden` (X on the card, switch "Hinweis auf Stundenplan MD anzeigen" above it). Mensa-only
-differences: card colors from `LocalMensaColors`, `toUri()` for the release page (lint `UseKtx`).
+`stundenplan_banner_hidden` (X on the card, switch "Hinweis auf Stundenplan MD anzeigen" after the "Version" section);
+unset = never chosen: then `CompanionPolicy.hidden` hides the card while Stundenplan MD is installed, so by default it
+shows (first item of the settings) only to people who don't have it. Mensa-only differences: that default and the
+position (Stundenplan MD: plain flag, card at the bottom), card colors from `LocalMensaColors`, `toUri()` for the
+release page (lint `UseKtx`).
 
 ## Data-source findings (investigated 2026-09-30 with curl)
 - **No API/feed.** The site is WordPress; `/wp-json/` has no menu routes. The OpenMensa entries

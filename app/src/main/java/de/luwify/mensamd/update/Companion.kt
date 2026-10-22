@@ -33,6 +33,13 @@ enum class BannerState { HIDDEN, OPEN, DOWNLOAD, BUSY, FAILED }
 enum class CompanionPhase { IDLE, DOWNLOADING, VERIFYING, INSTALLING, FAILED }
 
 object CompanionPolicy {
+    /**
+     * Mensa MD only (Stundenplan MD's banner has a plain flag): whether the banner is hidden, from the user's [choice]
+     * (X or switch; null = never chosen) and whether the app is [installed]. Without a choice it shows only while
+     * the app isn't installed, so it stops advertising an app the user already has.
+     */
+    fun hidden(choice: Boolean?, installed: Boolean): Boolean = choice ?: installed
+
     /** The banner: hidden by the user, "Open" once installed, else the download button, its progress or its failure. */
     fun banner(hidden: Boolean, installed: Boolean, phase: CompanionPhase): BannerState = when {
         hidden && phase == CompanionPhase.IDLE -> BannerState.HIDDEN

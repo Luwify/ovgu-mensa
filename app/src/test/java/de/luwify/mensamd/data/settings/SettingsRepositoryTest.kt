@@ -177,12 +177,12 @@ class SettingsRepositoryTest {
     }
 
     @Test
-    fun stundenplanBanner_shownUntilHidden_andShownAgain() = runBlocking {
+    fun stundenplanBanner_noChoiceUntilChosen_thenTheChoice() = runBlocking {
         val file = File(tmp.root, "banner.preferences_pb")
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         try {
             val repo = SettingsRepository(PreferenceDataStoreFactory.create(scope = scope) { file })
-            assertEquals(false, repo.stundenplanBannerHidden.first())
+            assertNull(repo.stundenplanBannerHidden.first())
             repo.setStundenplanBannerHidden(true)
             assertEquals(true, repo.stundenplanBannerHidden.first())
             repo.setStundenplanBannerHidden(false)
