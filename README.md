@@ -50,7 +50,7 @@ Min SDK 26, target SDK 37. Single module `:app`; see `CLAUDE.md` for the archite
 
 ## License
 
-Mensa MD is licensed under the **GNU General Public License, version 3 or (at your option) any later version**
+Mensa MD is licensed under the **GNU General Public License, version 3 or any later version**
 (GPL-3.0-or-later); see [LICENSE](LICENSE).
 
 The card reader is a Kotlin translation of parts of
