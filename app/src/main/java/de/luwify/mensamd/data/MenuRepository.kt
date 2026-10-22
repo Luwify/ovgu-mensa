@@ -18,6 +18,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.channelFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -78,6 +82,16 @@ class MenuRepository(
         loadCache(id)
         launch { refreshIfStale(id) }
         e.state.collect { send(it) }
+    }
+
+    /**
+     * The state of every Mensa in [ids], in that order (caches loaded if needed), updated whenever one changes;
+     * never fetches. For the favorites overview, which only uses what the app already has.
+     */
+    fun observeCached(ids: List<String>): Flow<List<Pair<String, MenuState>>> = flow {
+        ids.forEach { loadCache(it) }
+        if (ids.isEmpty()) emit(emptyList())
+        else emitAll(combine(ids.map { id -> entry(id).state.map { id to it } }) { it.toList() })
     }
 
     /** For app foreground: refreshes only when missing or older than the stale threshold. */

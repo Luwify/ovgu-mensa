@@ -221,6 +221,26 @@ class MenuRepositoryTest {
     }
 
     @Test
+    fun observeCached_emitsTheCaches_neverFetches_andFollowsRefreshes() = runTest {
+        val cache = FakeCache(CachedMenu(now - 40 * minute, oldPage))
+        val fetcher = FakeFetcher(html)
+        val repo = repo(fetcher, cache)
+        val seen = mutableListOf<List<Pair<String, MenuState>>>()
+        backgroundScope.launch { repo.observeCached(listOf(id, "stendal")).toList(seen) }
+        runCurrent()
+
+        assertEquals(0, fetcher.calls)
+        assertEquals(listOf(id, "stendal"), seen.last().map { it.first })
+        assertEquals(oldPage, seen.last()[0].second.page)
+        // The fake cache answers every id the same; what matters is that nothing was fetched.
+        assertEquals(oldPage, seen.last()[1].second.page)
+
+        repo.refresh(id)
+        runCurrent()
+        assertEquals(freshPage, seen.last()[0].second.page)
+    }
+
+    @Test
     fun zeroDaysFetch_overCacheWithDays_keepsCache() = runTest {
         val cache = FakeCache(CachedMenu(now - 40 * minute, oldPage))
         val states = collect(repo(FakeFetcher("<html><body>Wartungsarbeiten</body></html>"), cache))

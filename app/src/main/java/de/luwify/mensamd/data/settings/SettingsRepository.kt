@@ -12,7 +12,12 @@ import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import de.luwify.mensamd.favorites.FavoriteInfo
 import de.luwify.mensamd.favorites.FavoriteNotifications
+import kotlinx.serialization.SerializationException
+import kotlinx.serialization.builtins.MapSerializer
+import kotlinx.serialization.builtins.serializer
+import kotlinx.serialization.json.Json
 import java.time.LocalDate
 import java.time.LocalTime
 
@@ -176,15 +181,55 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
      */
     val favorites: Flow<Set<String>> = store.data.map { it[favoritesKey].orEmpty() }
 
-    /** Atomic toggle; returns true if [key] is a favorite afterwards. */
-    suspend fun toggleFavorite(key: String): Boolean {
+    private val favoriteInfoKey = stringPreferencesKey("favorite_info")
+    private val infoJson = Json { ignoreUnknownKeys = true }
+    private val infoSerializer = MapSerializer(String.serializer(), FavoriteInfo.serializer())
+
+    private fun decodeInfo(text: String?): Map<String, FavoriteInfo> = if (text == null) emptyMap() else try {
+        infoJson.decodeFromString(infoSerializer, text)
+    } catch (_: SerializationException) {
+        emptyMap() // unreadable: names come back as the overview finds the dishes again
+    } catch (_: IllegalArgumentException) {
+        emptyMap()
+    }
+
+    /** Name and tags per favorite key, for the favorites overview (see `FavoriteInfo`). JSON, keys = favorite keys. */
+    val favoriteInfo: Flow<Map<String, FavoriteInfo>> = store.data.map { decodeInfo(it[favoriteInfoKey]) }
+
+    /**
+     * Atomic toggle; returns true if [key] is a favorite afterwards. Adding stores [info] (when given), removing
+     * drops the stored info.
+     */
+    suspend fun toggleFavorite(key: String, info: FavoriteInfo? = null): Boolean {
         var added = false
         store.edit { prefs ->
             val current = prefs[favoritesKey].orEmpty()
             added = key !in current
             prefs[favoritesKey] = if (added) current + key else current - key
+            val infos = decodeInfo(prefs[favoriteInfoKey])
+            val next = if (added) (if (info != null) infos + (key to info) else infos) else infos - key
+            if (next != infos) prefs[favoriteInfoKey] = infoJson.encodeToString(infoSerializer, next)
         }
         return added
+    }
+
+    /** Makes [key] a favorite (undo of a removal), with its [info]. */
+    suspend fun addFavorite(key: String, info: FavoriteInfo?) {
+        store.edit { prefs ->
+            prefs[favoritesKey] = prefs[favoritesKey].orEmpty() + key
+            if (info != null) prefs[favoriteInfoKey] = infoJson.encodeToString(infoSerializer, decodeInfo(prefs[favoriteInfoKey]) + (key to info))
+        }
+    }
+
+    /** Stores newer infos for favorites; keys that are no longer favorites are ignored. */
+    suspend fun saveFavoriteInfo(updates: Map<String, FavoriteInfo>) {
+        if (updates.isEmpty()) return
+        store.edit { prefs ->
+            val favorites = prefs[favoritesKey].orEmpty()
+            val infos = decodeInfo(prefs[favoriteInfoKey])
+            val next = infos + updates.filterKeys { it in favorites }
+            if (next != infos) prefs[favoriteInfoKey] = infoJson.encodeToString(infoSerializer, next)
+        }
     }
 
     private val notifyEnabledKey = booleanPreferencesKey("notify_enabled")

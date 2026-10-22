@@ -33,6 +33,7 @@ import de.luwify.mensamd.ui.theme.CustomTheme
 import de.luwify.mensamd.data.settings.ThemeMode
 import de.luwify.mensamd.notify.FavoriteNotifier
 import de.luwify.mensamd.ui.CardScreen
+import de.luwify.mensamd.ui.FavoritesScreen
 import de.luwify.mensamd.ui.AppScreen
 import de.luwify.mensamd.ui.MainViewModel
 import de.luwify.mensamd.ui.MainScreen
@@ -109,7 +110,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun handleOpenIntent(intent: Intent?) {
-        intent?.getStringExtra(FavoriteNotifier.EXTRA_MENSA_ID)?.let(viewModel::requestOpen)
+        intent?.getStringExtra(FavoriteNotifier.EXTRA_MENSA_ID)?.let { viewModel.requestOpen(it) }
     }
 }
 
@@ -126,10 +127,12 @@ private fun MensaRoot(viewModel: MainViewModel, cardScanner: NfcCardScanner) {
             // A notification tap goes to the menu, also from the card screen.
             val openRequest by viewModel.openRequest.collectAsStateWithLifecycle()
             var showSettings by rememberSaveable { mutableStateOf(false) }
+            var showFavorites by rememberSaveable { mutableStateOf(false) }
             LaunchedEffect(openRequest) {
                 if (openRequest != null) {
                     showCard = false
                     showSettings = false
+                    showFavorites = false
                 }
             }
             val scan by cardScanner.state.collectAsStateWithLifecycle()
@@ -140,7 +143,9 @@ private fun MensaRoot(viewModel: MainViewModel, cardScanner: NfcCardScanner) {
                 MainScreen(
                     viewModel, s, showCardIcon = cardScanner.available,
                     onOpenCard = { showCard = true }, onOpenSettings = { showSettings = true },
+                    onOpenFavorites = { showFavorites = true },
                 )
+                if (showFavorites) FavoritesScreen(viewModel, s.mensas, onBack = { showFavorites = false })
                 if (showSettings) SettingsScreen(viewModel, s.mensas, s.defaultId, s.prefs, onBack = { showSettings = false })
                 if (showCard) CardScreen(cardScanner, onBack = {
                     showCard = false

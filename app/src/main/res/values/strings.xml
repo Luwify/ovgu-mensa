@@ -87,6 +87,12 @@
     <string name="favorites_empty">No favorites yet. Tap the heart on a dish and it shows up here, on every day and in every Mensa that serves it.</string>
     <string name="favorite_add">Add to favorites</string>
     <string name="favorite_remove">Remove from favorites</string>
+    <string name="favorites_title">Favorites</string>
+    <string name="favorites_not_on_menu">Not on the menu right now</string>
+    <string name="favorites_overview_empty">No favorites yet. Tap the heart on a dish in the menu, and it shows up here with the next day it is served.</string>
+    <string name="favorites_overview_note">Based on the menus the app has already loaded.</string>
+    <string name="favorites_removed">“%1$s” removed</string>
+    <string name="undo">Undo</string>
 
     <string name="notify_title_single">Tomorrow at the Mensa</string>
     <plurals name="notify_title_many">

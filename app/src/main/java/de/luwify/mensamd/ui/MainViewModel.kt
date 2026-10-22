@@ -19,12 +19,22 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import de.luwify.mensamd.favorites.FavoriteEntry
+import de.luwify.mensamd.favorites.FavoriteInfo
 import de.luwify.mensamd.favorites.FavoriteNotifications
+import de.luwify.mensamd.favorites.FavoriteOverview
+import de.luwify.mensamd.favorites.Favorites
+import de.luwify.mensamd.model.Dish
+import kotlinx.coroutines.flow.Flow
+import java.text.Collator
+import java.time.LocalDate
 import java.time.LocalTime
+import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 
 sealed interface AppScreen {
@@ -43,6 +53,9 @@ sealed interface AppScreen {
 }
 
 /** The "Benachrichtigungen" part of the filter sheet. */
+/** Open this Mensa, and scroll to [date] when given. */
+data class OpenRequest(val mensaId: String, val date: LocalDate? = null)
+
 data class NotifySettings(val enabled: Boolean, val watched: Set<String>, val time: LocalTime)
 
 class MainViewModel(private val container: AppContainer) : ViewModel() {
@@ -94,10 +107,15 @@ class MainViewModel(private val container: AppContainer) : ViewModel() {
     val permissionRequested: StateFlow<Boolean?> = container.settings.notificationPermissionRequested
         .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
-    private val _openRequest = MutableStateFlow<String?>(null)
+    private val _openRequest = MutableStateFlow<OpenRequest?>(null)
 
-    /** A Mensa tab to switch to (from a notification tap); consumed by the main screen. */
-    val openRequest: StateFlow<String?> = _openRequest.asStateFlow()
+    /** A Mensa tab (and maybe a day) to switch to, from a notification or the favorites overview; consumed by the main screen. */
+    val openRequest: StateFlow<OpenRequest?> = _openRequest.asStateFlow()
+
+    private val _dayRequest = MutableStateFlow<OpenRequest?>(null)
+
+    /** A day to scroll to once that Mensa's list is shown (set by the main screen from [openRequest]). */
+    val dayRequest: StateFlow<OpenRequest?> = _dayRequest.asStateFlow()
 
     init {
         // Off the main thread: the first WorkManager call initializes it.
@@ -181,8 +199,38 @@ class MainViewModel(private val container: AppContainer) : ViewModel() {
         viewModelScope.launch { container.settings.clearExcludedCodes() }
     }
 
-    fun toggleFavorite(key: String) {
-        viewModelScope.launch { container.settings.toggleFavorite(key) }
+    /** The heart on a card: also stores the dish's name and tags for the favorites overview. */
+    fun toggleFavorite(dish: Dish) {
+        viewModelScope.launch { container.settings.toggleFavorite(Favorites.key(dish), FavoriteInfo.of(dish)) }
+    }
+
+    /** Removal from the favorites overview; [restoreFavorite] is its undo. */
+    fun removeFavorite(entry: FavoriteEntry) {
+        viewModelScope.launch {
+            if (entry.key in container.settings.favorites.first()) container.settings.toggleFavorite(entry.key)
+        }
+    }
+
+    fun restoreFavorite(entry: FavoriteEntry) {
+        viewModelScope.launch { container.settings.addFavorite(entry.key, FavoriteInfo(entry.name, entry.tags)) }
+    }
+
+    /**
+     * The favorites overview over the cached menus of [mensaIds] (tab order), names sorted for [language]. Never
+     * fetches. Name/tag infos found on a menu are stored on the way (see [FavoriteOverview.infoUpdates]).
+     */
+    fun favoriteOverview(mensaIds: List<String>, today: LocalDate, language: String): Flow<List<FavoriteEntry>> {
+        val names = Collator.getInstance(Locale.forLanguageTag(language))
+        return combine(
+            container.menuRepository.observeCached(mensaIds),
+            container.settings.favorites,
+            container.settings.favoriteInfo,
+        ) { menus, favorites, saved ->
+            val entries = FavoriteOverview.entries(favorites, menus.map { it.first to it.second.page }, today, saved, language, names)
+            val updates = FavoriteOverview.infoUpdates(entries, saved)
+            if (updates.isNotEmpty()) viewModelScope.launch { container.settings.saveFavoriteInfo(updates) }
+            entries
+        }.flowOn(Dispatchers.Default)
     }
 
     fun setNotificationsEnabled(enabled: Boolean) {
@@ -212,12 +260,18 @@ class MainViewModel(private val container: AppContainer) : ViewModel() {
         viewModelScope.launch { container.settings.setNotifyTime(time) }
     }
 
-    fun requestOpen(mensaId: String) {
-        _openRequest.value = mensaId
+    fun requestOpen(mensaId: String, date: LocalDate? = null) {
+        _openRequest.value = OpenRequest(mensaId, date)
     }
 
+    /** The pager is on the requested Mensa; a requested day is handed on to that Mensa's list. */
     fun consumeOpenRequest() {
+        _dayRequest.value = _openRequest.value?.takeIf { it.date != null }
         _openRequest.value = null
+    }
+
+    fun consumeDayRequest() {
+        _dayRequest.value = null
     }
 
     /** The chips of one page after a drag; merged into the stored order (chips of other pages keep their place). */

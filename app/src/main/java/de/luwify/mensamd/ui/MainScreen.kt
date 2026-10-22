@@ -20,6 +20,7 @@ import de.luwify.mensamd.data.settings.ViewPrefs
 import androidx.compose.foundation.layout.Row
 import androidx.compose.ui.unit.dp
 import de.luwify.mensamd.R
+import de.luwify.mensamd.model.Dish
 import androidx.compose.ui.res.stringResource
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.Text
@@ -72,6 +73,7 @@ fun MainScreen(
     showCardIcon: Boolean,
     onOpenCard: () -> Unit,
     onOpenSettings: () -> Unit,
+    onOpenFavorites: () -> Unit,
 ) {
     val mensas = screen.mensas
     val latestMensas by rememberUpdatedState(mensas)
@@ -79,13 +81,13 @@ fun MainScreen(
     val scope = rememberCoroutineScope()
 
     // A notification tap that started the app opens its Mensa right away, not the default one first.
-    val startId = remember { vm.openRequest.value ?: screen.defaultId }
+    val startId = remember { vm.openRequest.value?.mensaId ?: screen.defaultId }
     val pager = rememberPagerState(initialPage = mensas.indexOfFirst { it.id == startId }.coerceAtLeast(0)) {
         latestMensas.size
     }
     val openRequest by vm.openRequest.collectAsStateWithLifecycle()
     LaunchedEffect(openRequest) {
-        val id = openRequest ?: return@LaunchedEffect
+        val id = openRequest?.mensaId ?: return@LaunchedEffect
         val index = latestMensas.indexOfFirst { it.id == id }
         if (index >= 0 && index != pager.currentPage) pager.scrollToPage(index)
         vm.consumeOpenRequest()
@@ -98,10 +100,10 @@ fun MainScreen(
     var explain by rememberSaveable { mutableStateOf(false) }
     val latestFavorites by rememberUpdatedState(screen.prefs.favorites)
     val shouldExplain by rememberUpdatedState(explained == false && notify?.enabled != false && access.needsRuntimePermission)
-    val onToggleFavorite: (String) -> Unit = remember(vm) {
-        { key ->
+    val onToggleFavorite: (Dish) -> Unit = remember(vm) {
+        { dish ->
             val first = latestFavorites.isEmpty()
-            vm.toggleFavorite(key)
+            vm.toggleFavorite(dish)
             if (first && shouldExplain) explain = true
         }
     }
@@ -149,6 +151,9 @@ fun MainScreen(
                         onReorder = vm::setOrder,
                         modifier = Modifier.weight(1f),
                     )
+                    IconButton(onClick = onOpenFavorites) {
+                        Icon(painterResource(R.drawable.ic_favorite), contentDescription = stringResource(R.string.favorites_title))
+                    }
                     if (showCardIcon) {
                         IconButton(onClick = onOpenCard) {
                             Icon(CardIcon, contentDescription = stringResource(R.string.card_title))
@@ -198,7 +203,7 @@ private fun MensaPage(
     mensaId: String,
     today: LocalDate,
     prefs: ViewPrefs,
-    onToggleFavorite: (String) -> Unit,
+    onToggleFavorite: (Dish) -> Unit,
 ) {
     val flow = remember(mensaId) { vm.menuFor(mensaId) }
     val ui by flow.collectAsStateWithLifecycle()
@@ -241,7 +246,14 @@ private fun MensaPage(
                 FilterRow(options, prefs.tagFilters, prefs.excludedCodes.size, vm::toggleFilter, vm::reorderFilters) { showSheet = true }
             }
             Box(Modifier.weight(1f).fillMaxWidth()) {
-                if (current != null) MenuBody(current, shown, shownFixed, today, prefs, footprints, onToggleFavorite) { vm.refresh(mensaId) }
+                if (current != null) {
+                    val dayRequest by vm.dayRequest.collectAsStateWithLifecycle()
+                    MenuBody(
+                        current, shown, shownFixed, today, prefs, footprints, onToggleFavorite,
+                        scrollTo = dayRequest?.takeIf { it.mensaId == mensaId }?.date,
+                        onScrolled = vm::consumeDayRequest,
+                    ) { vm.refresh(mensaId) }
+                }
             }
         }
         if (showSheet && current != null) {

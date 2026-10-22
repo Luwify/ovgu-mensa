@@ -97,7 +97,9 @@ fun MenuBody(
     today: LocalDate,
     prefs: ViewPrefs,
     footprints: Map<LocalDate, DayFootprint>,
-    onToggleFavorite: (String) -> Unit,
+    onToggleFavorite: (Dish) -> Unit,
+    scrollTo: LocalDate? = null,
+    onScrolled: () -> Unit = {},
     onRetry: () -> Unit,
 ) {
     when {
@@ -108,13 +110,13 @@ fun MenuBody(
             val rows = remember(days, ui.lastUpdatedMillis, ui.refreshFailed, ui.fromFallback) {
                 buildRows(days, ui.lastUpdatedMillis, ui.refreshFailed, ui.fromFallback)
             }
-            MenuList(ui, rows, today, prefs, footprints, onToggleFavorite)
+            MenuList(ui, rows, today, prefs, footprints, onToggleFavorite, scrollTo, onScrolled)
         }
         fixed.isNotEmpty() -> {
             val rows = remember(fixed, ui.lastUpdatedMillis, ui.refreshFailed, ui.fromFallback) {
                 buildFixedRows(fixed, ui.lastUpdatedMillis, ui.refreshFailed, ui.fromFallback)
             }
-            MenuList(ui, rows, today, prefs, footprints, onToggleFavorite)
+            MenuList(ui, rows, today, prefs, footprints, onToggleFavorite, scrollTo, onScrolled)
         }
         !ui.hasData && ui.refreshFailed -> Message(stringResource(R.string.error_no_data), onRetry)
         ui.hasData && !ui.isRefreshing -> Message(stringResource(R.string.empty_no_upcoming), null)
@@ -149,7 +151,9 @@ private fun MenuList(
     today: LocalDate,
     prefs: ViewPrefs,
     footprints: Map<LocalDate, DayFootprint>,
-    onToggleFavorite: (String) -> Unit,
+    onToggleFavorite: (Dish) -> Unit,
+    scrollTo: LocalDate?,
+    onScrolled: () -> Unit,
 ) {
     val locale = LocalConfiguration.current.locales[0]
     val euro = remember(locale) { NumberFormat.getCurrencyInstance(locale).apply { currency = Currency.getInstance("EUR") } }
@@ -159,6 +163,14 @@ private fun MenuList(
     // while scrolling (ScrollDrag).
     val drag = if (prefs.legendary) rememberScrollDrag() else null
     val listState = rememberLazyListState()
+    // A day picked in the favorites overview: jump to its header (one list item per row). A day that is gone
+    // (filtered out, or past by now) leaves the list where it is.
+    LaunchedEffect(scrollTo, rows) {
+        if (scrollTo == null) return@LaunchedEffect
+        val index = rows.indexOfFirst { it is ListRow.Header && it.date == scrollTo }
+        if (index >= 0) listState.scrollToItem(index)
+        onScrolled()
+    }
     // The aura is drawn in one layer above the list (see SuperAuraOverlay), not by the cards themselves.
     val favoriteKeys = remember(rows, prefs.favorites, prefs.legendary) {
         if (!prefs.legendary) emptySet()
@@ -184,7 +196,7 @@ private fun MenuList(
                     is ListRow.DishRow -> item(key = row.key, contentType = "dish") {
                         DishCard(
                             row.dish, ui.legend, codeIndex, locale.language, euro, prefs.priceGroup, row.date?.let { footprints[it] },
-                            prefs.compact, row.favoriteKey in prefs.favorites, { onToggleFavorite(row.favoriteKey) },
+                            prefs.compact, row.favoriteKey in prefs.favorites, { onToggleFavorite(row.dish) },
                             Modifier.padding(horizontal = 16.dp),
                         )
                     }
@@ -721,7 +733,7 @@ private fun CodeMeanings(codes: List<String>, codeIndex: Map<String, LegendCode>
  * color so it stays readable on both the light and the deep green chip.
  */
 @Composable
-private fun TagLabel(tag: Tag, dense: Boolean = false) {
+internal fun TagLabel(tag: Tag, dense: Boolean = false) {
     val label = tagLabelRes(tag.key)?.let { stringResource(it) } ?: tag.label
     val colors = LocalMensaColors.current
     val isVegan = tag.key == "vegan"

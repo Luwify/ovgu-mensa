@@ -84,6 +84,12 @@
     <string name="favorites_empty">Noch keine Favoriten. Tippe bei einem Gericht auf das Herz, dann erscheint es hier, an jedem Tag und in jeder Mensa, die es anbietet.</string>
     <string name="favorite_add">Zu Favoriten hinzufügen</string>
     <string name="favorite_remove">Aus Favoriten entfernen</string>
+    <string name="favorites_title">Favoriten</string>
+    <string name="favorites_not_on_menu">Derzeit nicht im Plan</string>
+    <string name="favorites_overview_empty">Noch keine Favoriten. Tippe im Speiseplan bei einem Gericht auf das Herz, dann erscheint es hier mit dem nächsten Tag, an dem die Mensa es anbietet.</string>
+    <string name="favorites_overview_note">Nach den Speiseplänen, die die App schon geladen hat.</string>
+    <string name="favorites_removed">„%1$s“ entfernt</string>
+    <string name="undo">Rückgängig</string>
 
     <string name="notify_title_single">Morgen in der Mensa</string>
     <plurals name="notify_title_many">

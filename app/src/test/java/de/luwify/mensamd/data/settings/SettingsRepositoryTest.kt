@@ -2,6 +2,10 @@ package de.luwify.mensamd.data.settings
 
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringPreferencesKey
+import de.luwify.mensamd.favorites.FavoriteInfo
+import de.luwify.mensamd.model.LocalizedText
+import de.luwify.mensamd.model.Tag
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -139,6 +143,47 @@ class SettingsRepositoryTest {
             assertEquals(setOf("reis, gemüse", "schnitzel"), repo.favorites.first())
             assertEquals(false, repo.toggleFavorite("schnitzel"))
             assertEquals(setOf("reis, gemüse"), repo.favorites.first())
+        } finally {
+            scope.shutDown()
+        }
+    }
+
+    @Test
+    fun favoriteInfo_storedOnAdd_droppedOnRemove_restoredByUndo() = runBlocking {
+        val file = File(tmp.root, "favinfo.preferences_pb")
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        try {
+            val repo = SettingsRepository(PreferenceDataStoreFactory.create(scope = scope) { file })
+            val info = FavoriteInfo(LocalizedText("Reis, Gemüse", "Rice, vegetables"), listOf(Tag("vegan", "vegan")))
+            assertEquals(emptyMap<String, FavoriteInfo>(), repo.favoriteInfo.first())
+            repo.toggleFavorite("reis, gemüse", info)
+            assertEquals(mapOf("reis, gemüse" to info), repo.favoriteInfo.first())
+
+            repo.toggleFavorite("reis, gemüse")
+            assertEquals(emptySet<String>(), repo.favorites.first())
+            assertEquals(emptyMap<String, FavoriteInfo>(), repo.favoriteInfo.first())
+
+            repo.addFavorite("reis, gemüse", info)
+            assertEquals(setOf("reis, gemüse"), repo.favorites.first())
+            assertEquals(mapOf("reis, gemüse" to info), repo.favoriteInfo.first())
+
+            // Updates only for keys that are still favorites.
+            val newer = info.copy(tags = emptyList())
+            repo.saveFavoriteInfo(mapOf("reis, gemüse" to newer, "schnitzel" to info))
+            assertEquals(mapOf("reis, gemüse" to newer), repo.favoriteInfo.first())
+        } finally {
+            scope.shutDown()
+        }
+    }
+
+    @Test
+    fun favoriteInfo_unreadable_isEmpty() = runBlocking {
+        val file = File(tmp.root, "favbad.preferences_pb")
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        try {
+            val store = PreferenceDataStoreFactory.create(scope = scope) { file }
+            store.edit { it[stringPreferencesKey("favorite_info")] = "{not json" }
+            assertEquals(emptyMap<String, FavoriteInfo>(), SettingsRepository(store).favoriteInfo.first())
         } finally {
             scope.shutDown()
         }
