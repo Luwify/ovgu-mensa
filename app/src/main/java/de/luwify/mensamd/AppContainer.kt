@@ -6,6 +6,9 @@ import de.luwify.mensamd.data.cache.FileMenuCache
 import de.luwify.mensamd.data.remote.HttpMenuFetcher
 import de.luwify.mensamd.data.settings.SettingsRepository
 import de.luwify.mensamd.data.settings.settingsRepository
+import de.luwify.mensamd.data.update.Updates
+import de.luwify.mensamd.data.update.buildUpdateSource
+import de.luwify.mensamd.data.update.updateSettings
 import de.luwify.mensamd.notify.FavoriteNotifier
 import de.luwify.mensamd.notify.FavoriteScheduler
 import java.io.File
@@ -16,6 +19,9 @@ class AppContainer(context: Context) {
     private val app = context.applicationContext
 
     val settings: SettingsRepository by lazy { settingsRepository(app) }
+
+    /** The in-app updater (GitHub releases of this app), shared by every screen; see `data/update`. */
+    val updates: Updates by lazy { Updates(app, updateSettings(app), buildUpdateSource(app)) }
 
     val menuRepository: MenuRepository by lazy {
         val version = runCatching { app.packageManager.getPackageInfo(app.packageName, 0).versionName }.getOrNull() ?: "0"

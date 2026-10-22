@@ -46,6 +46,9 @@ sealed interface AppScreen {
 data class NotifySettings(val enabled: Boolean, val watched: Set<String>, val time: LocalTime)
 
 class MainViewModel(private val container: AppContainer) : ViewModel() {
+    /** The in-app updater (process-wide, see [AppContainer.updates]). */
+    val updates = container.updates
+
     private val prefs = combine(
         container.settings.activeFilters,
         container.settings.excludedCodes,

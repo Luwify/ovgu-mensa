@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name" translatable="false">Mensa MD</string>
+    <string name="launcher_label" translatable="false">Mensa MD</string>
 
     <string name="picker_title">Choose your Mensa</string>
 
@@ -165,4 +166,70 @@
     <string name="language_title">Language</string>
     <string name="language_label">App language</string>
     <string name="language_system">System default</string>
+
+    <!-- In-app updater (same strings as Stundenplan MD; keep in sync) -->
+    <string name="back">Back</string>
+    <string name="cancel">Cancel</string>
+    <string name="close">Close</string>
+    <string name="settings_version">Version</string>
+    <string name="app_version">App version</string>
+    <string name="version_overview">Version history</string>
+    <string name="check_updates">Check for updates</string>
+    <string name="check_never">Not checked yet</string>
+    <string name="check_running">Checking …</string>
+    <string name="check_last">Last checked: %1$s</string>
+    <string name="check_up_to_date">Up to date · last checked: %1$s</string>
+    <string name="check_failed">Server not reachable · last result from %1$s</string>
+    <string name="check_failed_never">Server not reachable</string>
+    <string name="check_too_new">This version can\'t read the version list any more: please update the app by hand.</string>
+    <string name="update_row">Update to %1$s</string>
+    <string name="auto_check">Check automatically</string>
+    <string name="auto_check_hint">At most every 6 hours when the app is opened or comes back to the foreground. Only the version list of the release repo is loaded, without identifiers.</string>
+    <string name="version_installed">installed</string>
+    <string name="version_title">Version %1$s</string>
+    <string name="version_changes">Changes</string>
+    <string name="version_actions">Actions</string>
+    <string name="version_install">Install</string>
+    <string name="version_needs_android">Needs a newer Android version</string>
+    <string name="version_list_empty">No version list yet: check for updates first.</string>
+    <string name="update_snackbar">Version %1$s is available</string>
+    <string name="update_show">Show</string>
+    <string name="update_dialog_title">Update available</string>
+    <string name="update_dialog_text">The app can be updated from version %1$s to %2$s.</string>
+    <string name="update_dialog_changes">Changes:</string>
+    <string name="update_dont_show_again">Don\'t show again</string>
+    <string name="update_skip">Skip</string>
+    <string name="update_downloading">Downloading version %1$s</string>
+    <string name="update_verifying">Checking version %1$s</string>
+    <string name="update_installing">Installing version %1$s</string>
+    <string name="update_minimize">Minimize</string>
+    <string name="update_percent">%1$d %%</string>
+    <string name="update_running_row">Downloading %1$s · %2$d %%</string>
+    <string name="update_failed_title">Update not installed</string>
+    <string name="update_failed_network">The download failed. Check the connection and try again.</string>
+    <string name="update_failed_check">The downloaded file failed the check and was deleted:</string>
+    <string name="update_problem_size">Its size differs from the version list</string>
+    <string name="update_problem_hash">Its checksum (SHA-256) differs from the version list</string>
+    <string name="update_problem_unreadable">It isn\'t a readable app file</string>
+    <string name="update_problem_package">It is a different app</string>
+    <string name="update_problem_not_newer">It isn\'t newer than the installed version</string>
+    <string name="update_problem_version">Its version differs from the version list</string>
+    <string name="update_problem_signer">It is signed with a different key than the installed app</string>
+    <string name="update_failed_install">Android didn\'t install the update.</string>
+    <string name="unknown_sources_title">Allow installing updates</string>
+    <string name="unknown_sources_text">To install updates, Android needs your permission for this app to install apps (\"Install unknown apps\"). The next screen opens that setting: turn it on for Mensa MD and come back, the update then starts.\n\nEvery update is checked (checksum and signature) and you confirm it before it is installed.</string>
+    <string name="unknown_sources_open">Open setting</string>
+    <string name="settings_update_badge">Settings, update available</string>
+    <string name="version_is_installed">This version is installed.</string>
+    <string name="version_older">Android can\'t go back to an older version.</string>
+
+    <!-- About / licenses -->
+    <string name="about_title">About</string>
+    <string name="about_licenses">Licenses and source code</string>
+    <string name="licenses_free_software">Free software under the GNU General Public License, version 3 or (at your option) any later version. It comes with ABSOLUTELY NO WARRANTY.</string>
+    <string name="licenses_source">Source code and license text:</string>
+    <string name="licenses_not_affiliated">Not affiliated with or endorsed by the Otto-von-Guericke-Universität Magdeburg or the Studentenwerk Magdeburg. The menus are read from the Studentenwerk\'s public pages.</string>
+    <string name="licenses_card_title">Card reader</string>
+    <string name="licenses_card_text">The card balance reader is translated to Kotlin and modified from MensaGuthaben, which contains code from FareBot. Both are licensed under the GNU GPL, version 3 or later.</string>
+    <string name="licenses_libraries_title">Libraries and icons</string>
 </resources>

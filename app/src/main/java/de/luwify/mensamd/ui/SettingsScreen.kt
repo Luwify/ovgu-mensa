@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
@@ -41,6 +42,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
@@ -83,8 +85,8 @@ class NotifySheet(
 )
 
 /**
- * The settings page (gear icon in the top bar): preferences that are not filters. Price group, layout, theme and
- * favorites notifications; all global. An overlay in `MensaRoot` like the card screen, closed with back.
+ * The settings page (gear icon in the top bar): preferences that are not filters. Price group, layout, theme,
+ * favorites notifications, version (updater) and about; all global. An overlay in `MensaRoot` like the card screen, closed with back.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -97,6 +99,12 @@ fun SettingsScreen(vm: MainViewModel, mensas: List<Mensa>, defaultId: String, pr
     val bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     var showColors by rememberSaveable { mutableStateOf(false) }
     val theme by vm.theme.collectAsStateWithLifecycle()
+    val updates = vm.updates
+    val update by updates.state.collectAsStateWithLifecycle()
+    val download by updates.download.collectAsStateWithLifecycle()
+    var showVersions by rememberSaveable { mutableStateOf(false) }
+    var openVersion by rememberSaveable { mutableStateOf<Int?>(null) }
+    var showLicenses by rememberSaveable { mutableStateOf(false) }
 
     Box(Modifier.fillMaxSize()) {
         Surface(Modifier.fillMaxSize()) {
@@ -199,6 +207,25 @@ fun SettingsScreen(vm: MainViewModel, mensas: List<Mensa>, defaultId: String, pr
                             language,
                         )
                     }
+
+                    versionSection(
+                        update, download,
+                        onOverview = { showVersions = true },
+                        onOpen = { openVersion = it.versionCode },
+                        onCheck = updates::checkNow,
+                        onAutoCheck = updates::setAutoCheck,
+                    )
+
+                    item(key = "about-title") { SheetHeading(stringResource(R.string.about_title)) }
+                    item(key = "about-licenses") {
+                        Row(
+                            Modifier.fillMaxWidth().clickable(role = Role.Button) { showLicenses = true }.heightIn(min = 56.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(stringResource(R.string.about_licenses), Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
+                            Icon(painterResource(R.drawable.ic_chevron_right), null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
                 }
             }
         }
@@ -206,6 +233,11 @@ fun SettingsScreen(vm: MainViewModel, mensas: List<Mensa>, defaultId: String, pr
         if (showColors && theme?.mode == ThemeMode.CUSTOM) {
             theme?.let { ColorEditorScreen(it.custom, onChange = { spec -> vm.setCustomTheme(spec) }, onBack = { showColors = false }) }
         }
+        if (showVersions) VersionOverviewScreen(update, onOpen = { openVersion = it.versionCode }, onBack = { showVersions = false })
+        update.manifest?.releases?.firstOrNull { it.versionCode == openVersion }?.let { release ->
+            VersionDetailScreen(release, updates, onBack = { openVersion = null })
+        }
+        if (showLicenses) LicensesScreen(update.installed.name, onBack = { showLicenses = false })
     }
 }
 
@@ -333,7 +365,7 @@ private fun NotifyTimeRow(time: LocalTime, onTime: (LocalTime) -> Unit) {
 
 /** A setting with a title, an explanation and a switch; the whole row toggles. */
 @Composable
-private fun SwitchRow(title: String, hint: String, checked: Boolean, onChange: (Boolean) -> Unit) {
+internal fun SwitchRow(title: String, hint: String, checked: Boolean, onChange: (Boolean) -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()

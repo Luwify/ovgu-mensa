@@ -38,6 +38,7 @@ import de.luwify.mensamd.ui.MainViewModel
 import de.luwify.mensamd.ui.MainScreen
 import de.luwify.mensamd.ui.MensaPickerScreen
 import de.luwify.mensamd.ui.SettingsScreen
+import de.luwify.mensamd.ui.UpdatePrompts
 import de.luwify.mensamd.ui.theme.MensaTheme
 
 class MainActivity : ComponentActivity() {
@@ -92,6 +93,8 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         cardScanner.start(this)
+        // Back from the "install unknown apps" setting: the updater goes on if it was granted.
+        (application as MensaApp).container.updates.onResume()
     }
 
     override fun onPause() {
@@ -143,6 +146,7 @@ private fun MensaRoot(viewModel: MainViewModel, cardScanner: NfcCardScanner) {
                     showCard = false
                     cardScanner.reset()
                 })
+                UpdatePrompts(viewModel.updates)
             }
         }
     }

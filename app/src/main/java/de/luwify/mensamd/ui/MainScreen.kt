@@ -41,6 +41,8 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
@@ -153,7 +155,15 @@ fun MainScreen(
                         }
                     }
                     IconButton(onClick = onOpenSettings) {
-                        Icon(painterResource(R.drawable.ic_settings), contentDescription = stringResource(R.string.settings_title))
+                        // A dot on the gear while an update is offered (the settings page has the "Update auf x" row).
+                        val update by vm.updates.state.collectAsStateWithLifecycle()
+                        if (update.offer != null) {
+                            BadgedBox(badge = { Badge() }) {
+                                Icon(painterResource(R.drawable.ic_settings), stringResource(R.string.settings_update_badge))
+                            }
+                        } else {
+                            Icon(painterResource(R.drawable.ic_settings), contentDescription = stringResource(R.string.settings_title))
+                        }
                     }
                 }
             }

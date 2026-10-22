@@ -13,8 +13,13 @@ class SingleDataStoreTest {
     private val sources = root.walkTopDown().filter { it.extension == "kt" }.map { it.name to it.readText() }.toList()
 
     @Test
-    fun exactlyOneDataStoreIsDeclared_andNoneIsCreatedByHand() {
-        assertEquals(1, sources.sumOf { Regex("""\bpreferencesDataStore\(""").findAll(it.second).count() })
+    fun eachDataStoreIsDeclaredOnce_andNoneIsCreatedByHand() {
+        // `settings` (SettingsRepository) and `updates` (the updater's own store, UpdateSettings): one declaration each.
+        val names = sources.flatMap { (_, text) ->
+            Regex("""\bpreferencesDataStore\(\s*name\s*=\s*"([^"]+)"""").findAll(text).map { it.groupValues[1] }.toList()
+        }
+        assertEquals(sources.sumOf { Regex("""\bpreferencesDataStore\(""").findAll(it.second).count() }, names.size)
+        assertEquals(listOf("settings", "updates"), names.sorted())
         assertEquals(0, sources.sumOf { Regex("""PreferenceDataStoreFactory""").findAll(it.second).count() })
     }
 

@@ -6,6 +6,8 @@
     <uses-permission android:name="android.permission.NFC" />
     <!-- Favorites notifications (asked for when the first favorite is set; everything else works without). -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Installing a verified update through PackageInstaller; the user confirms each install. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
     <!-- The card reader is optional: the menus work on phones without NFC. -->
     <uses-feature android:name="android.hardware.nfc" android:required="false" />
@@ -16,7 +18,7 @@
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="false"
         android:icon="@mipmap/ic_launcher"
-        android:label="@string/app_name"
+        android:label="@string/launcher_label"
         android:localeConfig="@xml/locales_config"
         tools:targetApi="33"
         android:supportsRtl="true"
@@ -38,7 +40,7 @@
             android:name=".CardPopupActivity"
             android:exported="true"
             android:theme="@style/Theme.MensaMD.Popup"
-            android:taskAffinity="de.luwify.mensamd.popup"
+            android:taskAffinity="${applicationId}.popup"
             android:launchMode="singleTask"
             android:excludeFromRecents="true"
             android:noHistory="true"
@@ -51,6 +53,11 @@
                 android:name="android.nfc.action.TECH_DISCOVERED"
                 android:resource="@xml/nfc_tech_filter" />
         </activity>
+
+        <!-- Result of an update install session (PackageInstaller). -->
+        <receiver
+            android:name=".data.update.InstallResultReceiver"
+            android:exported="false" />
 
         <!--
           WorkManager starts on demand (MensaApp is its Configuration.Provider) instead of at every process
