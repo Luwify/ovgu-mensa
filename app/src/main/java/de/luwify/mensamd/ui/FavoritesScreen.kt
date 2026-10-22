@@ -67,9 +67,9 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 /**
- * "Favoriten" (heart in the top bar): every favorite with where and when it is next on the menu, from the menus the
+ * "Favoriten" (settings, "Favoriten verwalten"): every favorite with where and when it is next on the menu, from the menus the
  * app already has (never fetches). Soonest first, then the rest alphabetically. A tap opens that Mensa and day; the
- * heart or a swipe removes a favorite, with undo in a snackbar. An overlay in `MensaRoot`, closed with back.
+ * heart or a swipe removes a favorite, with undo in a snackbar. An overlay in [SettingsScreen], closed with back.
  */
 @Composable
 fun FavoritesScreen(vm: MainViewModel, mensas: List<Mensa>, onBack: () -> Unit) {

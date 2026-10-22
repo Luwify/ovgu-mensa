@@ -179,6 +179,15 @@ class MainViewModel(private val container: AppContainer) : ViewModel() {
         viewModelScope.launch { container.settings.setCardGlow(on) }
     }
 
+    val stundenplanBannerHidden: StateFlow<Boolean> =
+        container.settings.stundenplanBannerHidden.stateIn(viewModelScope, SharingStarted.Eagerly, false)
+
+    val companion get() = container.companion
+
+    fun setStundenplanBannerHidden(hidden: Boolean) {
+        viewModelScope.launch { container.settings.setStundenplanBannerHidden(hidden) }
+    }
+
     fun setLegendaryFavorites(on: Boolean) {
         viewModelScope.launch { container.settings.setLegendaryFavorites(on) }
     }

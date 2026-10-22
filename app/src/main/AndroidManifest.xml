@@ -9,6 +9,11 @@
     <!-- Installing a verified update through PackageInstaller; the user confirms each install. -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
+    <!-- The settings banner tells whether Stundenplan MD is installed and opens it (package visibility, API 30+). -->
+    <queries>
+        <package android:name="de.luwify.stundenplanmd" />
+    </queries>
+
     <!-- The card reader is optional: the menus work on phones without NFC. -->
     <uses-feature android:name="android.hardware.nfc" android:required="false" />
 

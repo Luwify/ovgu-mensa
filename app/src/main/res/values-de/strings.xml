@@ -231,4 +231,20 @@
     <string name="licenses_card_title">Kartenleser</string>
     <string name="licenses_card_text">Das Auslesen des Kartenguthabens ist nach Kotlin übersetzt und angepasst aus MensaGuthaben, das Code aus FareBot enthält. Beide stehen unter der GNU GPL, Version 3 oder später.</string>
     <string name="licenses_libraries_title">Bibliotheken und Symbole</string>
+
+    <!-- Stundenplan MD banner (settings, bottom) -->
+    <string name="stundenplan_title">Stundenplan MD</string>
+    <string name="stundenplan_subtitle">Stundenplan der OvGU, mit Freunden teilen</string>
+    <string name="stundenplan_open">Öffnen</string>
+    <string name="stundenplan_download">Herunterladen</string>
+    <string name="stundenplan_hide">Ausblenden</string>
+    <string name="stundenplan_downloading">Wird heruntergeladen</string>
+    <string name="stundenplan_verifying">Download wird geprüft …</string>
+    <string name="stundenplan_installing">Stundenplan MD wird installiert …</string>
+    <string name="stundenplan_github">Auf GitHub öffnen</string>
+    <string name="stundenplan_retry">Erneut versuchen</string>
+    <string name="stundenplan_setting">Hinweis auf Stundenplan MD anzeigen</string>
+    <string name="stundenplan_setting_hint">Eine Karte am Ende der Einstellungen, die Stundenplan MD öffnet oder installiert</string>
+    <string name="companion_unavailable">Für dieses Gerät gibt es keine Version der App.</string>
+    <string name="favorites_manage">Favoriten verwalten</string>
 </resources>

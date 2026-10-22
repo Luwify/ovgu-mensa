@@ -41,7 +41,8 @@ Settings icon
 Updater and licenses icons
   Files:    app/src/main/res/drawable/ic_list.xml ("format_list_bulleted", version overview),
             ic_download.xml (install an update), ic_open_in_new.xml (actions that leave the page),
-            ic_chevron_right.xml (rows that open a page)
+            ic_chevron_right.xml (rows that open a page), ic_close.xml ("close", hides the
+            Stundenplan MD banner)
   Source:   Material Symbols, Outlined, weight 400, 24px, by Google (copied from Stundenplan MD)
             https://fonts.google.com/icons
             https://github.com/google/material-design-icons
@@ -51,6 +52,11 @@ Updater and licenses icons
             app can tint it per theme. The path data is unchanged (ic_list, ic_download and
             ic_open_in_new: taken from the SVG, whose viewBox starts at y = -960, so the path sits
             in a group moved down by 960).
+
+Stundenplan MD icon
+  Files:    app/src/main/res/drawable/ic_stundenplan.xml (the settings banner)
+  Source:   the launcher icon of Stundenplan MD, the author's other app (same license as this app),
+            background and foreground of its adaptive icon combined in one vector.
 
 Only these icons are included; the app has no dependency on any icon library.
 

@@ -73,7 +73,6 @@ fun MainScreen(
     showCardIcon: Boolean,
     onOpenCard: () -> Unit,
     onOpenSettings: () -> Unit,
-    onOpenFavorites: () -> Unit,
 ) {
     val mensas = screen.mensas
     val latestMensas by rememberUpdatedState(mensas)
@@ -151,9 +150,6 @@ fun MainScreen(
                         onReorder = vm::setOrder,
                         modifier = Modifier.weight(1f),
                     )
-                    IconButton(onClick = onOpenFavorites) {
-                        Icon(painterResource(R.drawable.ic_favorite), contentDescription = stringResource(R.string.favorites_title))
-                    }
                     if (showCardIcon) {
                         IconButton(onClick = onOpenCard) {
                             Icon(CardIcon, contentDescription = stringResource(R.string.card_title))

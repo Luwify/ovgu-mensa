@@ -42,7 +42,8 @@ git-ignored `CLAUDE.local.md` at the repo root, which Claude Code loads after th
   Measured on a phone (release, System theme, test data, 2026-10-02, with drag): scroll p99 16 ms, janky 0.69 %; idle 30
   frames/s, frame p50 10 ms / GPU 6 ms. Known: a card hidden under the pinned header can still glow below it while
   scrolling (faded in, no line).
-- **Favorites overview** (heart icon in the top bar, before card and gear; overlay `FavoritesScreen` in `MensaRoot`):
+- **Favorites overview** (settings, section "Favoriten" above the notifications: "Favoriten verwalten"; overlay
+  `FavoritesScreen` in `SettingsScreen`; until 1.1.0 it was a heart in the top bar):
   every favorite with its next serving, from the cached menus of all Mensen only (`MenuRepository.observeCached`, never
   fetches; a Mensa never opened has no cache, so it can't contribute). Pure logic in `favorites/FavoriteOverview`:
   from today on, no weekends (like the pager), earliest date, same date -> tab order; a fixed menu (PIER 16) counts only
@@ -64,8 +65,9 @@ git-ignored `CLAUDE.local.md` at the repo root, which Claude Code loads after th
   once on the first favorite; "Einschalten" uses the system dialog while it can still appear, else the app's notification
   settings. No exact alarms: Doze/App standby can delay the run (maintenance windows). Favorites are never logged.
 - **Settings page** (gear icon in the top bar, overlay `SettingsScreen` in `MensaRoot` like the card screen): price group,
-  card layout (normal/compact chips), design (color scheme drop-down + custom theme editor), favorites notifications,
-  version (in-app updater, see below), about (licenses and source code). The filter sheet ("Filter" button) has only the allergen exclusion.
+  card layout (normal/compact chips), design (color scheme drop-down + custom theme editor), favorites ("Favoriten
+  verwalten" -> overview), favorites notifications, version (in-app updater, see below), the Stundenplan MD banner
+  (switch + card), about (licenses and source code). The filter sheet ("Filter" button) has only the allergen exclusion.
 - **Chip order:** long-press + drag reorders the filter chips like the Mensa tabs (shared `RowReorder` helper for both);
   global, stored as `filter_order`. A drag on one page is merged by `DishFilters.mergeOrder`: chips not on that page keep
   their place; keys the stored order doesn't know follow in the default order (vegan, vegetarisch, kuchen, favoriten, ...).
@@ -266,6 +268,20 @@ update's dialogs in `MensaRoot`, so they show above the settings and card overla
 - Licenses: settings section "Über die App" -> `LicensesScreen` (GPL notice, source link `SOURCE_URL`, not-affiliated
   note, MensaGuthaben/FareBot credits, libraries, jsoup MIT text from `res/raw/license_jsoup.txt`). New third-party code,
   libraries or icons go into NOTICE and this screen.
+
+## Stundenplan MD banner (settings, bottom, above "Über die App")
+Ported from Stundenplan MD's Mensa MD banner; **keep both copies in sync** (same mapping as the updater). Pure:
+`update/Companion.kt` = Stundenplan's `:core` `update/Companion.kt` with `CompanionApp.STUNDENPLAN` (package
+`de.luwify.stundenplanmd`, manifest of `Luwify/ovgu-stundenplan`, release page, pinned certificate =
+`release/signing-cert.sha256`, the same key), `CompanionPolicy` (`banner` state, `release`, `problems`: signer must be
+exactly the pin, not this app's own, so the .preview build installs it the same way); tests `update/CompanionTest`.
+App: `data/update/Companion.kt` (`CompanionInstaller`: installed check via `<queries>`, re-checked in
+`MainActivity.onResume`; download with the updater's `UpdateHttp`; `ApkInstaller.install(packageName, companion = true)`
+so `InstallResultReceiver` routes the result; "unknown apps" via the shared `UnknownSourcesDialog`; `Failure.Unavailable`
+when the manifest offers nothing for this device), `ui/StundenplanBanner` (+ `StundenplanDialogs`). Icon
+`ic_stundenplan.xml` = Stundenplan's adaptive launcher icon in one vector. Hide flag: settings key
+`stundenplan_banner_hidden` (X on the card, switch "Hinweis auf Stundenplan MD anzeigen" above it). Mensa-only
+differences: card colors from `LocalMensaColors`, `toUri()` for the release page (lint `UseKtx`).
 
 ## Data-source findings (investigated 2026-09-30 with curl)
 - **No API/feed.** The site is WordPress; `/wp-json/` has no menu routes. The OpenMensa entries

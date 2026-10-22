@@ -239,4 +239,20 @@
     <string name="licenses_card_title">Card reader</string>
     <string name="licenses_card_text">The card balance reader is translated to Kotlin and modified from MensaGuthaben, which contains code from FareBot. Both are licensed under the GNU GPL, version 3 or later.</string>
     <string name="licenses_libraries_title">Libraries and icons</string>
+
+    <!-- Stundenplan MD banner (settings, bottom) -->
+    <string name="stundenplan_title">Stundenplan MD</string>
+    <string name="stundenplan_subtitle">OvGU timetable, shareable with friends</string>
+    <string name="stundenplan_open">Open</string>
+    <string name="stundenplan_download">Download</string>
+    <string name="stundenplan_hide">Hide</string>
+    <string name="stundenplan_downloading">Downloading</string>
+    <string name="stundenplan_verifying">Checking the download…</string>
+    <string name="stundenplan_installing">Installing Stundenplan MD…</string>
+    <string name="stundenplan_github">Open on GitHub</string>
+    <string name="stundenplan_retry">Try again</string>
+    <string name="stundenplan_setting">Show note about Stundenplan MD</string>
+    <string name="stundenplan_setting_hint">A card at the bottom of the settings that opens or installs Stundenplan MD</string>
+    <string name="companion_unavailable">There is no version of the app available for this device.</string>
+    <string name="favorites_manage">Manage favorites</string>
 </resources>

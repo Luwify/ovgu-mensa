@@ -105,6 +105,7 @@ fun SettingsScreen(vm: MainViewModel, mensas: List<Mensa>, defaultId: String, pr
     var showVersions by rememberSaveable { mutableStateOf(false) }
     var openVersion by rememberSaveable { mutableStateOf<Int?>(null) }
     var showLicenses by rememberSaveable { mutableStateOf(false) }
+    var showFavorites by rememberSaveable { mutableStateOf(false) }
 
     Box(Modifier.fillMaxSize()) {
         Surface(Modifier.fillMaxSize()) {
@@ -192,6 +193,9 @@ fun SettingsScreen(vm: MainViewModel, mensas: List<Mensa>, defaultId: String, pr
                         }
                     }
 
+                    item(key = "favorites-title") { SheetHeading(stringResource(R.string.favorites_title)) }
+                    item(key = "favorites-manage") { ChevronRow(stringResource(R.string.favorites_manage)) { showFavorites = true } }
+
                     notifySettings?.let { settings ->
                         notifySection(
                             NotifySheet(
@@ -216,16 +220,20 @@ fun SettingsScreen(vm: MainViewModel, mensas: List<Mensa>, defaultId: String, pr
                         onAutoCheck = updates::setAutoCheck,
                     )
 
-                    item(key = "about-title") { SheetHeading(stringResource(R.string.about_title)) }
-                    item(key = "about-licenses") {
-                        Row(
-                            Modifier.fillMaxWidth().clickable(role = Role.Button) { showLicenses = true }.heightIn(min = 56.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Text(stringResource(R.string.about_licenses), Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
-                            Icon(painterResource(R.drawable.ic_chevron_right), null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    // The Stundenplan MD banner (as the Mensa MD banner in Stundenplan MD): its switch, then the card.
+                    item(key = "stundenplan-banner-setting") {
+                        val hiddenBanner by vm.stundenplanBannerHidden.collectAsStateWithLifecycle()
+                        SwitchRow(stringResource(R.string.stundenplan_setting), stringResource(R.string.stundenplan_setting_hint), !hiddenBanner) {
+                            vm.setStundenplanBannerHidden(!it)
                         }
                     }
+                    item(key = "stundenplan-banner") {
+                        val hiddenBanner by vm.stundenplanBannerHidden.collectAsStateWithLifecycle()
+                        StundenplanBanner(vm.companion, hiddenBanner, onHide = { vm.setStundenplanBannerHidden(true) }, modifier = Modifier.padding(top = 24.dp))
+                    }
+
+                    item(key = "about-title") { SheetHeading(stringResource(R.string.about_title)) }
+                    item(key = "about-licenses") { ChevronRow(stringResource(R.string.about_licenses)) { showLicenses = true } }
                 }
             }
         }
@@ -238,6 +246,21 @@ fun SettingsScreen(vm: MainViewModel, mensas: List<Mensa>, defaultId: String, pr
             VersionDetailScreen(release, updates, onBack = { openVersion = null })
         }
         if (showLicenses) LicensesScreen(update.installed.name, onBack = { showLicenses = false })
+        // A tap on a favorite opens the menu: requestOpen closes the settings too (MensaRoot).
+        if (showFavorites) FavoritesScreen(vm, mensas, onBack = { showFavorites = false })
+        StundenplanDialogs(vm.companion)
+    }
+}
+
+/** A row that opens a page: label and a chevron. */
+@Composable
+private fun ChevronRow(label: String, onClick: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onClick).heightIn(min = 56.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(label, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
+        Icon(painterResource(R.drawable.ic_chevron_right), null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 

@@ -47,6 +47,8 @@ data class UpdateState(
 )
 
 sealed interface Failure {
+    /** Companion install only: the release repo offers nothing this device can install. */
+    data object Unavailable : Failure
     data object Network : Failure
     data class Check(val problems: List<ApkProblem>) : Failure
     data class Install(val message: String?) : Failure
