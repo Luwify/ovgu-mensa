@@ -1,9 +1,11 @@
 package de.luwify.mensamd
 
+import android.annotation.SuppressLint
 import android.app.LocaleManager
 import android.content.Context
 import android.os.Build
 import android.os.LocaleList
+import androidx.core.content.edit
 import java.util.Locale
 
 /** The in-app language choice. [tag] is null for "follow the system". */
@@ -30,11 +32,15 @@ enum class AppLanguage(val tag: String?) {
                 context.getSystemService(LocaleManager::class.java).applicationLocales =
                     if (language.tag == null) LocaleList.getEmptyLocaleList() else LocaleList.forLanguageTags(language.tag)
             } else {
-                context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString(KEY, language.tag).apply()
+                context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit { putString(KEY, language.tag) }
             }
         }
 
-        /** API < 33 only: wraps an activity's base context with the stored language. */
+        /**
+         * API < 33 only: wraps an activity's base context with the stored language. The app ships as one APK with all
+         * its languages (no App Bundle language splits), so no Play Core language download is needed.
+         */
+        @SuppressLint("AppBundleLocaleChanges")
         fun wrap(base: Context): Context {
             if (Build.VERSION.SDK_INT >= 33) return base
             val tag = current(base).tag ?: return base
