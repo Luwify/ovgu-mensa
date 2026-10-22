@@ -210,9 +210,9 @@ class PierParserTest {
             page("<table>".repeat(500) + "<strong>A</strong> (g) 1,00 l 2,00"),
             page("<p><strong>" + "x".repeat(50_000) + "</strong> (a1) 1,00 l 2,00 l 3,00</p>"),
         )
-        // the real page cut off at many points, and with chunks removed
-        for (cut in 60_000..real.length step 997) inputs += real.substring(0, cut)
-        for (start in 66_000..68_000 step 211) inputs += real.removeRange(start, start + 150)
+        // the real page (the fixture is just the menu block) cut off at many points, and with chunks removed
+        for (cut in 0..real.length step 37) inputs += real.substring(0, cut)
+        for (start in 0..real.length - 150 step 41) inputs += real.removeRange(start, start + 150)
         for (html in inputs) {
             val p = PierParser.parse(html) // must not throw
             assertTrue(p.days.isEmpty())
