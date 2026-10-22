@@ -30,7 +30,6 @@ import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLinkStyles
 import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withLink
 import androidx.compose.ui.unit.dp
@@ -68,7 +67,11 @@ fun LicensesScreen(versionName: String, onBack: () -> Unit) {
     BackHandler(onBack = onBack)
     val bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     val resources = LocalResources.current
-    val jsoupLicense = remember(resources) { resources.openRawResource(R.raw.license_jsoup).bufferedReader().use { it.readText() }.trim() }
+    // The file keeps the original's hard line breaks; on screen each paragraph flows (blank lines stay paragraph breaks).
+    val jsoupLicense = remember(resources) {
+        resources.openRawResource(R.raw.license_jsoup).bufferedReader().use { it.readText() }.trim()
+            .split(Regex("\n\\s*\n")).joinToString("\n\n") { it.replace(Regex("\\s*\n\\s*"), " ") }
+    }
     Surface(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
             Row(
@@ -103,7 +106,7 @@ fun LicensesScreen(versionName: String, onBack: () -> Unit) {
                 Link(APACHE_URL)
 
                 SheetHeading("jsoup: MIT License")
-                Text(jsoupLicense, style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace))
+                Text(jsoupLicense, style = MaterialTheme.typography.bodySmall)
             }
         }
     }
