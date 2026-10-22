@@ -4,7 +4,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class MensaOrderTest {
-    private fun m(id: String) = Mensa(id, LocalizedText(id), null, "https://example.org/$id")
+    private fun m(id: String) = Mensa(id, LocalizedText(id), null, "$id/")
     private val catalog = listOf(m("a"), m("b"), m("c"), m("d"))
 
     private fun ids(stored: List<String>) = resolveOrder(stored, catalog).map { it.id }
@@ -31,7 +31,7 @@ class MensaOrderTest {
         assertEquals(PageFormat.FIXED, pier.format)
         assertEquals("PIER 16", pier.name.de)
         assertEquals("Gebäude 16, Denhardtstr. 2, 39106 Magdeburg", pier.address)
-        assertEquals("https://www.studentenwerk-magdeburg.de/mensen-cafeterien/pier-16-speiseplan/", pier.url)
+        assertEquals("mensen-cafeterien/pier-16-speiseplan/", pier.path)
         assertEquals(listOf("pier16"), MensaCatalog.all.filter { it.format == PageFormat.FIXED }.map { it.id })
     }
 

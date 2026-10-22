@@ -20,7 +20,7 @@ sealed class ListRow(val key: String) {
     class NoMatch(id: String) : ListRow("empty-$id")
     class SubDivider(date: LocalDate) : ListRow("subdivider-$date")
     class DayDivider(date: LocalDate) : ListRow("divider-$date")
-    class Footer(val updatedAt: Long, val failed: Boolean) : ListRow("footer")
+    class Footer(val updatedAt: Long, val failed: Boolean, val fromFallback: Boolean = false) : ListRow("footer")
 
     /** The single "Festes Angebot" label that replaces the day headers of a fixed menu. */
     data object FixedHeader : ListRow("fixed-header")
@@ -34,7 +34,7 @@ sealed class ListRow(val key: String) {
  * sub-headers at all (they would only add noise), and the lunch sub-header only appears when
  * there is a dinner part to tell it apart from.
  */
-fun buildRows(days: List<MenuDay>, updatedAt: Long?, failed: Boolean): List<ListRow> = buildList {
+fun buildRows(days: List<MenuDay>, updatedAt: Long?, failed: Boolean, fromFallback: Boolean = false): List<ListRow> = buildList {
     days.forEachIndexed { index, day ->
         add(ListRow.Header(day.date))
         if (day.dishes.isEmpty()) {
@@ -58,14 +58,14 @@ fun buildRows(days: List<MenuDay>, updatedAt: Long?, failed: Boolean): List<List
         }
         if (index < days.lastIndex) add(ListRow.DayDivider(day.date))
     }
-    if (updatedAt != null) add(ListRow.Footer(updatedAt, failed))
+    if (updatedAt != null) add(ListRow.Footer(updatedAt, failed, fromFallback))
 }
 
 /**
  * Rows of a fixed (undated) menu: one "Festes Angebot" label, then each section with its optional
  * title, dishes (or "no matching dishes" when filters removed them all) and a divider between sections.
  */
-fun buildFixedRows(sections: List<FixedSection>, updatedAt: Long?, failed: Boolean): List<ListRow> = buildList {
+fun buildFixedRows(sections: List<FixedSection>, updatedAt: Long?, failed: Boolean, fromFallback: Boolean = false): List<ListRow> = buildList {
     add(ListRow.FixedHeader)
     sections.forEachIndexed { index, section ->
         section.title?.let { add(ListRow.SectionTitle(index, it)) }
@@ -78,5 +78,5 @@ fun buildFixedRows(sections: List<FixedSection>, updatedAt: Long?, failed: Boole
         if (section.dishes.isEmpty()) add(ListRow.NoMatch("fixed-$index"))
         if (index < sections.lastIndex) add(ListRow.SectionDivider(index))
     }
-    if (updatedAt != null) add(ListRow.Footer(updatedAt, failed))
+    if (updatedAt != null) add(ListRow.Footer(updatedAt, failed, fromFallback))
 }

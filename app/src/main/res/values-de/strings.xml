@@ -8,6 +8,7 @@
     <string name="price_guests">Gäste</string>
     <string name="last_updated">Aktualisiert %1$s</string>
     <string name="update_failed">Aktualisierung fehlgeschlagen</string>
+    <string name="from_fallback_host">Daten vom Ersatzserver</string>
     <string name="error_no_data">Der Speiseplan konnte nicht geladen werden. Prüfe deine Verbindung.</string>
     <string name="retry">Erneut versuchen</string>
     <string name="empty_no_upcoming">Es ist kein kommender Speiseplan veröffentlicht.</string>

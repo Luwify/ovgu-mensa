@@ -3,12 +3,14 @@ package de.luwify.mensamd.data
 import de.luwify.mensamd.data.cache.CachedMenu
 import de.luwify.mensamd.data.cache.MenuCache
 import de.luwify.mensamd.data.remote.MenuFetcher
+import de.luwify.mensamd.data.remote.MenuHosts
 import de.luwify.mensamd.model.Legend
 import de.luwify.mensamd.model.Mensa
 import de.luwify.mensamd.model.MenuPage
 import de.luwify.mensamd.model.PageFormat
 import de.luwify.mensamd.model.MensaCatalog
 import de.luwify.mensamd.parser.MenuPageParser
+import de.luwify.mensamd.parser.PageCheck
 import de.luwify.mensamd.parser.PierParser
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
@@ -35,13 +37,15 @@ data class MenuState(
     val isRefreshing: Boolean = false,
     /** The most recent refresh attempt failed. Cleared when the next attempt starts. */
     val refreshFailed: Boolean = false,
+    /** [page] came from a fallback host ([MenuHosts]), not the main site. */
+    val fromFallback: Boolean = false,
 )
 
 private class EmptyResultException : IOException("page parsed to zero days")
 
 /**
  * Stale-while-revalidate over a JSON cache. The page has no ETag/Last-Modified, so freshness is our
- * own timer ([staleAfterMillis]).
+ * own timer ([staleAfterMillis]). Each fetch tries the [hosts] in [HostFallback] order.
  */
 class MenuRepository(
     private val fetcher: MenuFetcher,
@@ -50,7 +54,10 @@ class MenuRepository(
     private val workDispatcher: CoroutineDispatcher = Dispatchers.IO,
     private val staleAfterMillis: Long = 30 * 60 * 1000L,
     private val catalog: List<Mensa> = MensaCatalog.all,
+    private val hosts: List<String> = MenuHosts.all,
 ) {
+    private val fallback = HostFallback(hosts, clock)
+
     private class Entry {
         val state = MutableStateFlow(MenuState())
         val refreshLock = Mutex()
@@ -90,17 +97,10 @@ class MenuRepository(
             val mensa = catalog.firstOrNull { it.id == id }
             val result = runCatching {
                 requireNotNull(mensa) { "unknown Mensa id: $id" }
-                val html = fetcher.fetch(mensa.url)
+                val (host, parsed) = fetchFromHosts(mensa, cacheHasDishes = e.state.value.page?.isBlank == false)
                 withContext(workDispatcher) {
-                    val parsed = when (mensa.format) {
-                        PageFormat.DATED -> MenuPageParser.parse(html)
-                        PageFormat.FIXED -> PierParser.parse(html)
-                    }
-                    // No dishes over a cache that has some is more likely a broken page or a changed
-                    // layout than a real change: keep what we have and report a failed refresh.
-                    if (parsed.isBlank && e.state.value.page?.isBlank == false) throw EmptyResultException()
                     val page = withBorrowedLegend(mensa, parsed)
-                    val cached = CachedMenu(fetchedAt = clock(), page = page)
+                    val cached = CachedMenu(fetchedAt = clock(), page = page, fromFallback = host != hosts.first())
                     // A failing cache write must not hide a good fetch from the UI.
                     runCatching { cache.write(id, cached) }
                     cached
@@ -110,7 +110,7 @@ class MenuRepository(
             if (failure is CancellationException) throw failure
             val fresh = result.getOrNull()
             e.state.update {
-                if (fresh != null) MenuState(fresh.page, fresh.fetchedAt)
+                if (fresh != null) MenuState(fresh.page, fresh.fetchedAt, fromFallback = fresh.fromFallback)
                 else it.copy(isRefreshing = false, refreshFailed = true)
             }
         } finally {
@@ -118,6 +118,42 @@ class MenuRepository(
             e.state.update { it.copy(isRefreshing = false) }
             e.refreshLock.unlock()
         }
+    }
+
+    /**
+     * The page from the first host that gives a usable one, with that host. A host is skipped when the fetch fails
+     * (no answer within the timeouts, an error status) or its page has no dishes and either lacks the content block
+     * (maintenance or PHP error page, often status 200) or would replace cached dishes (more likely a broken page
+     * or a changed layout than a real change). A page without dishes but with the block over an empty cache is a
+     * closed Mensa and accepted. If no host gives a usable page, a page without dishes is still accepted over an
+     * empty cache (nothing to protect); otherwise the refresh fails and the cache stays.
+     */
+    private suspend fun fetchFromHosts(mensa: Mensa, cacheHasDishes: Boolean): Pair<String, MenuPage> {
+        var blank: Pair<String, MenuPage>? = null
+        var failure: Exception? = null
+        for (host in fallback.order()) {
+            val html = try {
+                fetcher.fetch(host + mensa.path)
+            } catch (c: CancellationException) {
+                throw c
+            } catch (ex: Exception) {
+                failure = ex
+                continue
+            }
+            val parsed = withContext(workDispatcher) { parse(mensa, html) }
+            if (!parsed.isBlank || (!cacheHasDishes && withContext(workDispatcher) { PageCheck.hasContentBlock(html) })) {
+                fallback.succeeded(host)
+                return host to parsed
+            }
+            if (blank == null) blank = host to parsed
+        }
+        if (!cacheHasDishes) blank?.let { return it }
+        throw if (blank != null) EmptyResultException() else checkNotNull(failure)
+    }
+
+    private fun parse(mensa: Mensa, html: String): MenuPage = when (mensa.format) {
+        PageFormat.DATED -> MenuPageParser.parse(html)
+        PageFormat.FIXED -> PierParser.parse(html)
     }
 
     /** The current state (cache loaded if needed), without fetching: for the background favorites check. */
@@ -135,7 +171,9 @@ class MenuRepository(
                 }
                 // A refresh that already finished is newer than anything on disk.
                 if (cached != null) {
-                    e.state.update { if (it.fetchedAt == null) it.copy(page = cached.page, fetchedAt = cached.fetchedAt) else it }
+                    e.state.update {
+                        if (it.fetchedAt == null) it.copy(page = cached.page, fetchedAt = cached.fetchedAt, fromFallback = cached.fromFallback) else it
+                    }
                 }
                 e.cacheLoaded = true
             }

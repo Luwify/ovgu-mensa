@@ -105,11 +105,15 @@ fun MenuBody(
         DishFilters.FAVORITES in prefs.tagFilters && prefs.favorites.isEmpty() && (days.isNotEmpty() || fixed.isNotEmpty()) ->
             Message(stringResource(R.string.favorites_empty), null)
         days.isNotEmpty() -> {
-            val rows = remember(days, ui.lastUpdatedMillis, ui.refreshFailed) { buildRows(days, ui.lastUpdatedMillis, ui.refreshFailed) }
+            val rows = remember(days, ui.lastUpdatedMillis, ui.refreshFailed, ui.fromFallback) {
+                buildRows(days, ui.lastUpdatedMillis, ui.refreshFailed, ui.fromFallback)
+            }
             MenuList(ui, rows, today, prefs, footprints, onToggleFavorite)
         }
         fixed.isNotEmpty() -> {
-            val rows = remember(fixed, ui.lastUpdatedMillis, ui.refreshFailed) { buildFixedRows(fixed, ui.lastUpdatedMillis, ui.refreshFailed) }
+            val rows = remember(fixed, ui.lastUpdatedMillis, ui.refreshFailed, ui.fromFallback) {
+                buildFixedRows(fixed, ui.lastUpdatedMillis, ui.refreshFailed, ui.fromFallback)
+            }
             MenuList(ui, rows, today, prefs, footprints, onToggleFavorite)
         }
         !ui.hasData && ui.refreshFailed -> Message(stringResource(R.string.error_no_data), onRetry)
@@ -198,7 +202,7 @@ private fun MenuList(
                     is ListRow.DayDivider -> item(key = row.key, contentType = "divider") {
                         HorizontalDivider(Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
                     }
-                    is ListRow.Footer -> item(key = row.key, contentType = "footer") { UpdatedFooter(row.updatedAt, row.failed) }
+                    is ListRow.Footer -> item(key = row.key, contentType = "footer") { UpdatedFooter(row.updatedAt, row.failed, row.fromFallback) }
                 }
             }
         }
@@ -750,11 +754,13 @@ private fun TagLabel(tag: Tag, dense: Boolean = false) {
 }
 
 @Composable
-private fun UpdatedFooter(updatedAt: Long, failed: Boolean) {
+private fun UpdatedFooter(updatedAt: Long, failed: Boolean, fromFallback: Boolean) {
     // The system text starts with a capital ("Vor 5 Minuten"); it follows "Aktualisiert", so lowercase it.
     val relative = DateUtils.getRelativeTimeSpanString(updatedAt, System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS)
         .toString().replaceFirstChar { it.lowercase() }
-    val text = stringResource(R.string.last_updated, relative) + if (failed) " · " + stringResource(R.string.update_failed) else ""
+    val text = stringResource(R.string.last_updated, relative) +
+        (if (fromFallback) " · " + stringResource(R.string.from_fallback_host) else "") +
+        (if (failed) " · " + stringResource(R.string.update_failed) else "")
     Text(
         text,
         style = MaterialTheme.typography.labelSmall,

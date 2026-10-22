@@ -18,8 +18,9 @@ class HttpMenuFetcher(versionName: String) : MenuFetcher {
     override suspend fun fetch(url: String): String = withContext(Dispatchers.IO) {
         val conn = URL(url).openConnection() as HttpURLConnection
         try {
-            conn.connectTimeout = 10_000
-            conn.readTimeout = 15_000
+            // Short, so a main site that doesn't answer hands over to a fallback host (MenuHosts) quickly.
+            conn.connectTimeout = 6_000
+            conn.readTimeout = 8_000
             conn.setRequestProperty("User-Agent", userAgent)
             conn.setRequestProperty("Accept-Encoding", "gzip")
             val code = conn.responseCode

@@ -11,6 +11,7 @@
     <string name="price_guests">Guests</string>
     <string name="last_updated">Updated %1$s</string>
     <string name="update_failed">Update failed</string>
+    <string name="from_fallback_host">Data from backup server</string>
     <string name="error_no_data">Couldn\'t load the menu. Check your connection.</string>
     <string name="retry">Retry</string>
     <string name="empty_no_upcoming">No upcoming menu has been published.</string>

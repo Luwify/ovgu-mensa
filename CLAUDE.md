@@ -89,7 +89,7 @@ git-ignored `CLAUDE.local.md` at the repo root, which Claude Code loads after th
 
 ## Known limitations
 - Scraping: no API exists; if the Studentenwerk changes its HTML the parser yields empty results (the cache is kept and
-  "update failed" is shown). PIER 16 is a hand-edited page and only best effort.
+  "update failed" is shown). The fallback host is a test server: it may disappear or serve different data. PIER 16 is a hand-edited page and only best effort.
 - PIER 16 has only 2 prices per dish that can't be mapped to price groups; no legend or CO2e data there; a dish without
   allergen code is not known to be allergen-free.
 - Card: only DESFire/ISO-DEP cards (Intercard, MagnaCarta); no MIFARE Classic, no history, no UID. MagnaCarta is untested
@@ -119,7 +119,17 @@ taken from those projects needs the same treatment.
 - Versions live in `gradle/libs.versions.toml`
 
 ## Architecture (single module `:app`)
-- `data/remote`: `HttpURLConnection` GET (gzip, custom User-Agent) on `Dispatchers.IO`
+- `data/remote`: `HttpURLConnection` GET (gzip, custom User-Agent, connect 6 s / read 8 s) on `Dispatchers.IO`.
+  `MenuHosts.all` = the base URLs in order (main site, then fallbacks; one line each, remove a line to drop a host);
+  `Mensa.path` is relative to them.
+- **Host fallback** (`data/HostFallback`, pure; the loop in `MenuRepository.fetchFromHosts`): a host is skipped when the
+  fetch fails (timeout, error status) or its page has no dishes and either lacks `div.entry-content`
+  (`PageCheck.hasContentBlock`: maintenance/PHP error pages, often 200) or would replace cached dishes. A page with the
+  block but no dishes over an empty cache = closed Mensa, accepted from the main site without asking a fallback. A
+  fallback that worked is tried first for 1 h (in memory, shared by all Mensen, not extended while used), then the
+  main site again; the main site working forgets it. Nothing usable anywhere: as before (cache kept, "update failed").
+  Data from a fallback is marked (`CachedMenu.fromFallback` -> `MenuState` -> footer "Daten vom Ersatzserver").
+  Tests: `HostFallbackTest`, `MenuRepositoryFallbackTest`.
 - `parser`: **pure Kotlin, no Android imports**, JVM unit-testable
   - `MenuPageParser`: day tables, dishes, legend
   - `PierParser`: PIER 16's hand-edited fixed list. **Done**, best effort (see the PIER 16 notes below).
@@ -306,7 +316,12 @@ update's dialogs in `MensaRoot`, so they show above the settings and card overla
   - Model: `MenuPage.fixed` (undated `FixedSection`s) next to `days`; the UI shows one "Festes Angebot" label instead of day headers.
   - It never throws: a changed, empty or garbled page parses to an empty result; over a cached menu that counts as a failed refresh.
 - The `/en/` variant of the pages adds nothing (same German alt texts), so don't fetch it.
-- Test fixtures: every page from 2026-09-30 and a PIER 16 copy from 2026-10-01 in `app/src/test/resources/fixtures/`,
+- **Fallback host** `www.studiwerkmagdeburg.de` (the Studentenwerk's test server; checked 2026-10-22 while the main site
+  was down): the same paths and the same `#content .entry-content` markup on all 9 pages, current days, PIER 16's list
+  identical; the parsers read all of them (fixtures `2026-10-22-fallback/`, `FallbackHostFixturesTest`). Its `/en/`
+  pages redirect (301) to the German ones. It is a test server: its data can differ, hence the footer note.
+- Test fixtures: every page from 2026-09-30, a PIER 16 copy from 2026-10-01 and every page of the fallback host from
+  2026-10-22 (`2026-10-22-fallback/`) in `app/src/test/resources/fixtures/`,
   trimmed to the `div.entry-content` block (the raw markup of that block is unchanged; the site's header, footer and
   scripts are left out). A new fixture is trimmed the same way: only the block the parsers read.
 

@@ -55,8 +55,9 @@ class MenuRepositoryTest {
     // A page that differs from the fixture, so "cache" and "fresh" are distinguishable.
     private val oldPage = MenuPage(freshPage.days.take(1), freshPage.legend)
 
+    // One host: these tests are about caching and refreshing; the host fallback is MenuRepositoryFallbackTest.
     private fun TestScope.repo(fetcher: MenuFetcher, cache: MenuCache, clock: () -> Long = { now }) =
-        MenuRepository(fetcher, cache, clock, UnconfinedTestDispatcher(testScheduler))
+        MenuRepository(fetcher, cache, clock, UnconfinedTestDispatcher(testScheduler), hosts = listOf("https://main.example/"))
 
     private fun TestScope.collect(repo: MenuRepository, mensaId: String = id): List<MenuState> {
         val states = mutableListOf<MenuState>()

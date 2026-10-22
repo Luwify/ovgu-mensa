@@ -2,13 +2,14 @@ package de.luwify.mensamd.model
 
 /**
  * One canteen page. [id] is our own stable slug and what DataStore and the cache file names use;
- * [name] is short because it is the tab label.
+ * [name] is short because it is the tab label. [path] is relative to a host of
+ * [de.luwify.mensamd.data.remote.MenuHosts] (all hosts serve the same paths).
  */
 data class Mensa(
     val id: String,
     val name: LocalizedText,
     val address: String?,
-    val url: String,
+    val path: String,
     val format: PageFormat = PageFormat.DATED,
 )
 
@@ -26,7 +27,7 @@ enum class PageFormat {
  * order (see [resolveOrder]), so nobody's order breaks.
  */
 object MensaCatalog {
-    private const val BASE = "https://www.studentenwerk-magdeburg.de/mensen-cafeterien/"
+    private const val BASE = "mensen-cafeterien/"
 
     val all: List<Mensa> = listOf(
         Mensa("unicampus-unten", LocalizedText("UniCampus unten", "UniCampus lower"), "Pfälzer Straße", BASE + "mensa-unicampus-speiseplan-unten/"),

@@ -17,16 +17,17 @@ appears instantly and refreshes in the background. It can also read the balance 
 - Themes System, Soft, AMOLED and a custom theme; German and English.
 
 **Not affiliated with or endorsed by the Otto-von-Guericke-Universität Magdeburg or the Studentenwerk Magdeburg.**
-The menus are read from the Studentenwerk's public web pages (there is no API); if the site changes or is down, the
-app shows the last menu it has.
+The menus are read from the Studentenwerk's public web pages (there is no API). When the main site doesn't answer,
+the app falls back to the Studentenwerk's test server (www.studiwerkmagdeburg.de) and says so under the menu; if
+neither works, it shows the last menu it has.
 
 ## Download
 
 Get the APK from the [GitHub releases](https://github.com/Luwify/ovgu-mensa/releases/latest) (Android 8.0 or newer)
 and install it ("install unknown apps" has to be allowed for your browser or file manager). The app then finds and
 installs updates itself (Settings → Version); every update is checked against its SHA-256 and the signing key before
-Android asks you to confirm it. The only network requests are the menu pages of the Studentenwerk and the version
-list of this repository's releases, without any identifiers.
+Android asks you to confirm it. The only network requests are the menu pages of the Studentenwerk (main site or its
+test server) and the version list of this repository's releases, without any identifiers.
 
 Signing certificate SHA-256 (CN=Luwify):
 `D7:17:D7:0F:F7:FC:19:6D:0E:5E:FD:BE:D3:39:A4:BF:E0:A0:1C:BF:BB:DD:66:DE:75:11:15:CD:94:15:49:AF`

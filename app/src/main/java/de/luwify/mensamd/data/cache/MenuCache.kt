@@ -6,9 +6,9 @@ import kotlinx.serialization.json.Json
 import java.io.File
 import java.io.IOException
 
-/** The parsed page (legend included) and when we fetched it, in epoch millis. */
+/** The parsed page (legend included), when we fetched it (epoch millis) and whether from a fallback host. */
 @Serializable
-data class CachedMenu(val fetchedAt: Long, val page: MenuPage, val schema: Int = SCHEMA) {
+data class CachedMenu(val fetchedAt: Long, val page: MenuPage, val schema: Int = SCHEMA, val fromFallback: Boolean = false) {
     companion object {
         /** Bump when the model changes incompatibly; older files are then ignored and refetched. */
         const val SCHEMA = 1

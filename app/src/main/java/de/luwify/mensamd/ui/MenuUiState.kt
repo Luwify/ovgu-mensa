@@ -19,6 +19,8 @@ data class MenuUiState(
     val lastUpdatedMillis: Long?,
     val isRefreshing: Boolean,
     val refreshFailed: Boolean,
+    /** The data came from a fallback host: the footer says so. */
+    val fromFallback: Boolean = false,
 ) {
     /** Nothing to show: no cache and no successful fetch yet (loading or error), or a closed Mensa. */
     val hasNoDays: Boolean get() = days.isEmpty()
@@ -32,6 +34,7 @@ fun MenuState.toUiState() = MenuUiState(
     lastUpdatedMillis = fetchedAt,
     isRefreshing = isRefreshing,
     refreshFailed = refreshFailed,
+    fromFallback = fromFallback,
 )
 
 /** What the pager shows: no past days, no weekends, no empty days. Order is kept. */
