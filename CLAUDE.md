@@ -42,6 +42,16 @@ git-ignored `CLAUDE.local.md` at the repo root, which Claude Code loads after th
   Measured on a phone (release, System theme, test data, 2026-10-02, with drag): scroll p99 16 ms, janky 0.69 %; idle 30
   frames/s, frame p50 10 ms / GPU 6 ms. Known: a card hidden under the pinned header can still glow below it while
   scrolling (faded in, no line).
+- **Favorites overview** (heart icon in the top bar, before card and gear; overlay `FavoritesScreen` in `MensaRoot`):
+  every favorite with its next serving, from the cached menus of all Mensen only (`MenuRepository.observeCached`, never
+  fetches; a Mensa never opened has no cache, so it can't contribute). Pure logic in `favorites/FavoriteOverview`:
+  from today on, no weekends (like the pager), earliest date, same date -> tab order; a fixed menu (PIER 16) counts only
+  without a dated serving ("Festes Angebot · PIER 16"). Order: dated soonest first, then fixed, then "Derzeit nicht im
+  Plan", ties and the last groups alphabetical (collator, shown language). Name and tags shown come from the serving,
+  else from `FavoriteInfo` (settings key `favorite_info`, JSON map key -> name de/en + tags; saved on the heart tap,
+  refreshed whenever the overview finds the dish, dropped on removal; favorites from before 1.1.0 have none until
+  then and show the capitalized key). Tap -> `OpenRequest(mensaId, date)`: the pager switches, then `dayRequest`
+  scrolls that Mensa's list to the day header. Removal: heart or swipe, undo in a Long snackbar.
 - **Favorites notifications** (`notify/`, pure logic in `favorites/FavoriteNotifications`): unique one-time WorkManager
   job for the next run time (user-chosen on the settings page, default 18:00, `notify_minute_of_day`; network required) that re-enqueues itself with REPLACE as its last action (no drift like
   periodic work); WorkManager is initialized on demand (`MensaApp` is the `Configuration.Provider`, startup initializer
@@ -141,7 +151,7 @@ taken from those projects needs the same treatment.
   (`max-age=600` only), so freshness uses our own timer: refresh when older than ~30 min,
   on app foreground, or on pull-to-refresh. On failure it keeps the cache and shows "last updated".
 - `data/settings`: one DataStore (`SettingsRepository`, built only by `AppContainer`): default Mensa id, tab order, tag filters,
-  excluded codes, price group, compact mode, theme mode, favorites, notification settings/dedup set (string sets where
+  excluded codes, price group, compact mode, theme mode, favorites (+ their `favorite_info`), notification settings/dedup set (string sets where
   values can contain commas). The first-run picker is shown only when the default is unset. The updater has its own
   DataStore `updates` (`data/update/UpdateSettings`); `SingleDataStoreTest` allows exactly these two names, each declared once.
 - Mensa list is bundled and data-driven (id, name, address, URL, page format `DATED`/`FIXED`), OvGU-relevant ones first.

@@ -89,10 +89,12 @@ fun FavoritesScreen(vm: MainViewModel, mensas: List<Mensa>, onBack: () -> Unit) 
         vm.removeFavorite(entry)
         scope.launch {
             snackbar.currentSnackbarData?.dismiss()
+            // Dish names can be long: the message stays two lines at most. Long, so there is time to undo.
+            val name = entry.name.forLanguage(locale.language).let { if (it.length > 40) it.take(39).trimEnd() + "…" else it }
             val result = snackbar.showSnackbar(
-                res.getString(R.string.favorites_removed, entry.name.forLanguage(locale.language)),
+                res.getString(R.string.favorites_removed, name),
                 actionLabel = res.getString(R.string.undo),
-                duration = SnackbarDuration.Short,
+                duration = SnackbarDuration.Long,
             )
             if (result == SnackbarResult.ActionPerformed) vm.restoreFavorite(entry)
         }
