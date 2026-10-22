@@ -13,3 +13,12 @@
 *.aab
 *.keystore
 *.jks
+
+# Private notes, history backups, old APKs and local-only files: never commit.
+/private/
+/releases/
+/notes/
+/prompt.md
+
+# Private Claude Code notes (devices, paths, release infrastructure): loaded after CLAUDE.md, never commit.
+/CLAUDE.local.md
