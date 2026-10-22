@@ -244,7 +244,7 @@
     <string name="stundenplan_github">Auf GitHub öffnen</string>
     <string name="stundenplan_retry">Erneut versuchen</string>
     <string name="stundenplan_setting">Hinweis auf Stundenplan MD anzeigen</string>
-    <string name="stundenplan_setting_hint">Eine Karte oben in den Einstellungen, die Stundenplan MD installiert oder öffnet; aus, sobald es installiert ist, außer du schaltest sie ein</string>
+    <string name="stundenplan_setting_hint">Eine Karte am Anfang der Einstellungen, die Stundenplan MD öffnet oder installiert. Ohne eigene Wahl erscheint sie nur, solange Stundenplan MD nicht installiert ist</string>
     <string name="companion_unavailable">Für dieses Gerät gibt es keine Version der App.</string>
     <string name="favorites_manage">Favoriten verwalten</string>
 </resources>

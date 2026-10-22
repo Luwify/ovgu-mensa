@@ -280,11 +280,11 @@ App: `data/update/Companion.kt` (`CompanionInstaller`: installed check via `<que
 so `InstallResultReceiver` routes the result; "unknown apps" via the shared `UnknownSourcesDialog`; `Failure.Unavailable`
 when the manifest offers nothing for this device), `ui/StundenplanBanner` (+ `StundenplanDialogs`). Icon
 `ic_stundenplan.xml` = Stundenplan's adaptive launcher icon in one vector. Hide flag: settings key
-`stundenplan_banner_hidden` (X on the card, switch "Hinweis auf Stundenplan MD anzeigen" after the "Version" section);
-unset = never chosen: then `CompanionPolicy.hidden` hides the card while Stundenplan MD is installed, so by default it
-shows (first item of the settings) only to people who don't have it. Mensa-only differences: that default and the
-position (Stundenplan MD: plain flag, card at the bottom), card colors from `LocalMensaColors`, `toUri()` for the
-release page (lint `UseKtx`).
+`stundenplan_banner_hidden` (X on the card, switch "Hinweis auf Stundenplan MD anzeigen" after the "Version" section;
+setter takes null = back to "never chosen"); unset: `CompanionPolicy.wanted` shows the card (first item of the
+settings) only while Stundenplan MD isn't installed. Same as Stundenplan MD's banner. Mensa-only differences: card
+colors from `LocalMensaColors`, `toUri()` for the release page (lint `UseKtx`), no backup (Stundenplan MD keeps the
+choice in its backup), and `CompanionTest` also checks that the banner stays during an install.
 
 ## Data-source findings (investigated 2026-09-30 with curl)
 - **No API/feed.** The site is WordPress; `/wp-json/` has no menu routes. The OpenMensa entries

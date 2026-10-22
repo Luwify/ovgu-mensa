@@ -109,7 +109,7 @@ fun SettingsScreen(vm: MainViewModel, mensas: List<Mensa>, defaultId: String, pr
     var showFavorites by rememberSaveable { mutableStateOf(false) }
     val bannerChoice by vm.stundenplanBannerHidden.collectAsStateWithLifecycle()
     val stundenplanInstalled by vm.companion.installed.collectAsStateWithLifecycle()
-    val bannerHidden = CompanionPolicy.hidden(bannerChoice, stundenplanInstalled)
+    val bannerHidden = !CompanionPolicy.wanted(bannerChoice, stundenplanInstalled)
 
     Box(Modifier.fillMaxSize()) {
         Surface(Modifier.fillMaxSize()) {

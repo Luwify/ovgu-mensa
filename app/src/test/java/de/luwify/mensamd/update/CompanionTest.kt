@@ -46,18 +46,19 @@ class CompanionTest {
         assertEquals(BannerState.OPEN, b(false, true, CompanionPhase.INSTALLING))
     }
 
-    /** Mensa MD only: without a choice the banner shows only while Stundenplan MD isn't installed. */
     @Test
-    fun withoutAChoiceTheBannerShowsOnlyWhileNotInstalled() {
-        assertEquals(false, CompanionPolicy.hidden(choice = null, installed = false))
-        assertEquals(true, CompanionPolicy.hidden(choice = null, installed = true))
-        // The user's choice wins either way.
-        assertEquals(false, CompanionPolicy.hidden(choice = false, installed = true))
-        assertEquals(true, CompanionPolicy.hidden(choice = true, installed = false))
-        // Installed through the banner: hidden by default once the install is done, but not while it runs.
-        val hidden = CompanionPolicy.hidden(choice = null, installed = true)
-        assertEquals(BannerState.HIDDEN, CompanionPolicy.banner(hidden, installed = true, phase = CompanionPhase.IDLE))
-        assertEquals(BannerState.BUSY, CompanionPolicy.banner(CompanionPolicy.hidden(null, false), installed = false, phase = CompanionPhase.INSTALLING))
+    fun theBannerIsWantedWhenChosenOrElseOnlyWhileNotInstalled() {
+        val wanted = CompanionPolicy::wanted
+        assertEquals(true, wanted(null, false))
+        assertEquals(false, wanted(null, true))
+        // An explicit choice wins either way.
+        assertEquals(true, wanted(false, true))
+        assertEquals(false, wanted(true, false))
+        assertEquals(false, wanted(true, true))
+        assertEquals(true, wanted(false, false))
+        // Installed through the banner: hidden without a choice once the install is done, but not while it runs.
+        assertEquals(BannerState.HIDDEN, CompanionPolicy.banner(!wanted(null, true), installed = true, phase = CompanionPhase.IDLE))
+        assertEquals(BannerState.BUSY, CompanionPolicy.banner(!wanted(null, false), installed = false, phase = CompanionPhase.INSTALLING))
     }
 
     @Test

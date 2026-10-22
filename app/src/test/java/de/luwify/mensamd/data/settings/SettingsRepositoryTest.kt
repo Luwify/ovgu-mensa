@@ -187,6 +187,9 @@ class SettingsRepositoryTest {
             assertEquals(true, repo.stundenplanBannerHidden.first())
             repo.setStundenplanBannerHidden(false)
             assertEquals(false, repo.stundenplanBannerHidden.first())
+            // Reset: back to "never chosen".
+            repo.setStundenplanBannerHidden(null)
+            assertNull(repo.stundenplanBannerHidden.first())
         } finally {
             scope.shutDown()
         }

@@ -252,7 +252,7 @@
     <string name="stundenplan_github">Open on GitHub</string>
     <string name="stundenplan_retry">Try again</string>
     <string name="stundenplan_setting">Show note about Stundenplan MD</string>
-    <string name="stundenplan_setting_hint">A card at the top of the settings that installs or opens Stundenplan MD; off by default once it is installed</string>
+    <string name="stundenplan_setting_hint">A card at the top of the settings that opens or installs Stundenplan MD. Without a choice here it shows only while Stundenplan MD is not installed</string>
     <string name="companion_unavailable">There is no version of the app available for this device.</string>
     <string name="favorites_manage">Manage favorites</string>
 </resources>

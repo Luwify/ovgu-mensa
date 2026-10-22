@@ -129,14 +129,14 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
     private val stundenplanBannerHiddenKey = booleanPreferencesKey("stundenplan_banner_hidden")
 
     /**
-     * The user's choice for the Stundenplan MD banner at the top of the settings: true = hidden (X or switch),
-     * false = shown (switch), null = never chosen (then it follows whether Stundenplan MD is installed, see
-     * `CompanionPolicy.hidden`).
+     * The Stundenplan MD banner at the top of the settings: hidden or shown as the user chose, null = never chosen (then
+     * it shows only while Stundenplan MD isn't installed, see CompanionPolicy.wanted). Added key, no step needed.
      */
     val stundenplanBannerHidden: Flow<Boolean?> = store.data.map { it[stundenplanBannerHiddenKey] }
 
-    suspend fun setStundenplanBannerHidden(hidden: Boolean) {
-        store.edit { it[stundenplanBannerHiddenKey] = hidden }
+    /** [hidden] null = back to "never chosen". */
+    suspend fun setStundenplanBannerHidden(hidden: Boolean?) {
+        store.edit { if (hidden == null) it.remove(stundenplanBannerHiddenKey) else it[stundenplanBannerHiddenKey] = hidden }
     }
 
     private val themeKey = stringPreferencesKey("theme_mode")

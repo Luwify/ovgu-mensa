@@ -185,7 +185,7 @@ class MainViewModel(private val container: AppContainer) : ViewModel() {
 
     val companion get() = container.companion
 
-    fun setStundenplanBannerHidden(hidden: Boolean) {
+    fun setStundenplanBannerHidden(hidden: Boolean?) {
         viewModelScope.launch { container.settings.setStundenplanBannerHidden(hidden) }
     }
 
