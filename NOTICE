@@ -38,7 +38,32 @@ Settings icon
   Changes:  the theme-attribute tint was removed and the fill color set to black so the
             app can tint it per theme. The path data is unchanged.
 
+Updater and licenses icons
+  Files:    app/src/main/res/drawable/ic_list.xml ("format_list_bulleted", version overview),
+            ic_download.xml (install an update), ic_open_in_new.xml (actions that leave the page),
+            ic_chevron_right.xml (rows that open a page)
+  Source:   Material Symbols, Outlined, weight 400, 24px, by Google (copied from Stundenplan MD)
+            https://fonts.google.com/icons
+            https://github.com/google/material-design-icons
+  License:  Apache License, Version 2.0
+            https://www.apache.org/licenses/LICENSE-2.0
+  Changes:  the theme-attribute tint was removed and the fill color set to black so the
+            app can tint it per theme. The path data is unchanged (ic_list, ic_download and
+            ic_open_in_new: taken from the SVG, whose viewBox starts at y = -960, so the path sits
+            in a group moved down by 960).
+
 Only these icons are included; the app has no dependency on any icon library.
+
+Libraries (linked into the app, unmodified)
+  jsoup 1.23.2 (org.jsoup:jsoup): HTML parsing of the menu pages.
+            Copyright (c) 2009-2026 Jonathan Hedley, https://jsoup.org
+            License: MIT (full text in app/src/main/res/raw/license_jsoup.txt, shown in the app
+            under Einstellungen > Lizenzen und Quellcode)
+  AndroidX (core, activity, lifecycle, DataStore, WorkManager, profileinstaller) and Jetpack
+            Compose with Material 3, by The Android Open Source Project.
+            License: Apache License, Version 2.0
+  Kotlin standard library, kotlinx.coroutines, kotlinx.serialization, by JetBrains.
+            License: Apache License, Version 2.0
 
 
 Mensa card balance reader (derived code, GPL)

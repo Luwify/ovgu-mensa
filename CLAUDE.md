@@ -54,7 +54,8 @@ git-ignored `CLAUDE.local.md` at the repo root, which Claude Code loads after th
   once on the first favorite; "Einschalten" uses the system dialog while it can still appear, else the app's notification
   settings. No exact alarms: Doze/App standby can delay the run (maintenance windows). Favorites are never logged.
 - **Settings page** (gear icon in the top bar, overlay `SettingsScreen` in `MensaRoot` like the card screen): price group,
-  card layout (normal/compact chips), design (color scheme drop-down + custom theme editor), favorites notifications. The filter sheet ("Filter" button) has only the allergen exclusion.
+  card layout (normal/compact chips), design (color scheme drop-down + custom theme editor), favorites notifications,
+  version (in-app updater, see below), about (licenses and source code). The filter sheet ("Filter" button) has only the allergen exclusion.
 - **Chip order:** long-press + drag reorders the filter chips like the Mensa tabs (shared `RowReorder` helper for both);
   global, stored as `filter_order`. A drag on one page is merged by `DishFilters.mergeOrder`: chips not on that page keep
   their place; keys the stored order doesn't know follow in the default order (vegan, vegetarisch, kuchen, favoriten, ...).
@@ -95,7 +96,7 @@ git-ignored `CLAUDE.local.md` at the repo root, which Claude Code loads after th
   on a real card. Reading needs a card whose balance file is readable without a key.
 - The popup activity matches every ISO-DEP tag: bank cards start it (it finishes silently), and other apps with an IsoDep
   `TECH_DISCOVERED` filter (e.g. an eID app) make Android show a chooser. Reader mode (Karte screen) wins over the popup.
-- Release builds are signed with the debug key (no release keystore yet); there is no CI and no baseline profile.
+- Release builds need the release key (see Releases); there is no CI and no baseline profile.
 - UI languages: de and en only (`localeFilters`).
 
 ## License
@@ -113,7 +114,8 @@ taken from those projects needs the same treatment.
 - Coroutines/Flow, ViewModel, DataStore Preferences (no Navigation library: the card screen is an overlay in `MensaRoot`)
 - Jsoup (HTML parsing), kotlinx.serialization (JSON cache)
 - Manual DI (`AppContainer`), no Hilt/Koin, no OkHttp/Retrofit
-- Package / applicationId: `de.luwify.mensamd`, app name "Mensa MD"
+- Package / applicationId: `de.luwify.mensamd`, app name "Mensa MD"; debug builds `de.luwify.mensamd.preview` ("Mensa Preview")
+- lifecycle-process (only for the updater's foreground check)
 - Versions live in `gradle/libs.versions.toml`
 
 ## Architecture (single module `:app`)
@@ -130,7 +132,8 @@ taken from those projects needs the same treatment.
   on app foreground, or on pull-to-refresh. On failure it keeps the cache and shows "last updated".
 - `data/settings`: one DataStore (`SettingsRepository`, built only by `AppContainer`): default Mensa id, tab order, tag filters,
   excluded codes, price group, compact mode, theme mode, favorites, notification settings/dedup set (string sets where
-  values can contain commas). The first-run picker is shown only when the default is unset.
+  values can contain commas). The first-run picker is shown only when the default is unset. The updater has its own
+  DataStore `updates` (`data/update/UpdateSettings`); `SingleDataStoreTest` allows exactly these two names, each declared once.
 - Mensa list is bundled and data-driven (id, name, address, URL, page format `DATED`/`FIXED`), OvGU-relevant ones first.
   New entries (like PIER 16) are appended to every saved tab order by `resolveOrder`.
 - UI: day pager over the dates present in the data (weekends and missing days never show),
@@ -160,11 +163,89 @@ Needs JDK 21 (`JAVA_HOME`) and the Android SDK (`sdk.dir` in the git-ignored `lo
 ```bash
 ./gradlew testDebugUnitTest assembleDebug lint   # run after EVERY change, fix failures first (lint must report no issues)
 ./gradlew clean testDebugUnitTest assembleDebug lint   # the same from scratch
+./gradlew installDebug                           # debug copy "Mensa Preview" (de.luwify.mensamd.preview, debug key)
 ./gradlew installRelease                         # install the release build (needs the signing properties, see Releases)
 ./gradlew assembleRelease                        # R8 minified, release-signed
 ```
 Swipe smoothness (B3) is closed: judge smoothness on `installRelease` only (debug is ~12x jankier); no further investigation planned.
 JDK 21 is required (Android Studio's JBR); a newer system JDK doesn't work with this Gradle/AGP.
+Lint's "a newer version of X is available" notices (NewerVersionAvailable, GradleDependency, AndroidGradlePluginVersion)
+depend on what is published that day; versions are kept in step with Stundenplan MD, so they are bumped in both apps
+together, not on their own.
+
+## Releases
+Same scheme and tools as Stundenplan MD (`tools/` is a copy: keep the two in sync; this app's settings are only in
+`release/app.conf` and `release/signing-cert.sha256`).
+- **Version:** `version.properties` (`version=major.minor.patch`) is the only source; `app/build.gradle.kts` derives
+  versionName and versionCode = major*10000 + minor*100 + patch (minor, patch < 100). Raise it in a commit before
+  releasing (with `changelog/<ver>.de.md` and `.en.md`, short, for users); the script doesn't bump. 1.0.0 is the first
+  public release.
+  Changelog style (`unreleased.*.md` and release files): impersonal and user-facing, grouped under short headings when
+  there are several kinds of change; describe what the app does now ("Der Kuchen-Filter zeigt jetzt …"), no first
+  person, "du" only where needed; no internal details (class names, timings, test numbers).
+- **Signing:** release build type uses `signingConfigs.release` from the Gradle properties `LUWIFY_STORE_FILE`,
+  `LUWIFY_STORE_PASSWORD`, `LUWIFY_KEY_ALIAS`, `LUWIFY_KEY_PASSWORD` (in the maintainer's `~/.gradle/gradle.properties`;
+  the same key as Stundenplan MD). Missing -> `checkReleaseSigning` fails the release build (never debug-key fallback);
+  debug builds don't need them. Pinned certificate SHA-256 in `release/signing-cert.sha256` (CN=Luwify, `d717d70f…941549af`);
+  the script refuses a real release without a valid pin.
+- **GitHub releases** (repo `Luwify/ovgu-mensa`, branch `main`): every release has the APK `mensa-md-<ver>.apk`, the GPL
+  source archive and `updates.json` with the full history. The app reads
+  `https://github.com/Luwify/ovgu-mensa/releases/latest/download/updates.json`.
+  `updates.json`: `update/UpdateManifest` (`schema` 1, `app`, `releases` newest first: versionName, versionCode, date,
+  minSdk, changelog de/en, apkUrl `.../releases/download/v<ver>/mensa-md-<ver>.apk`, sha256, size, withdrawn),
+  `Manifests.parse` (TooNew/Broken, validation, unknown keys ignored), `updateFor(installed, sdk)`. Written only via
+  `./gradlew :app:manifest` (`ManifestTool.kt` in app/src/test: add/withdraw/check, run on the unit-test classpath), so
+  the writer is the app's parser.
+- **tools/release.sh <ver> [--dry-run]** (gh CLI): preflight (gh login, remote = the GitHub repo, repo public, branch
+  main, clean tree, version.properties == ver, changelogs, tag neither local nor on the remote, no such release, no newer
+  release, tests + lint), assembleRelease with `-PupdateManifestUrl` set explicitly, apksigner cert == pin, aapt2
+  package/versionCode/versionName/not debuggable/minSdk, manifest URL in the APK, sha256 + size, `git archive` source
+  tarball (`.gitattributes` export-ignore: CLAUDE.md, notes/, prompt.md, tools/, release/), new updates.json from the
+  newest release's one + diff; dry run stops there (output in `build/release/<ver>/`; it also runs before the GitHub
+  remote exists, with a warning). Real run: tag + push, draft release with notes and all three files, check the asset
+  sizes, publish (`--latest`), then an anonymous outsider check (https only, at most 3 redirects, final host = the ones
+  the app allows). On failure it prints what was done and how to clean up (deletes nothing). **Only the maintainer runs
+  the real release.** `--backfill <tag>` rebuilds an existing tag (not needed so far).
+- `tools/withdraw.sh <ver>` sets withdrawn=true in updates.json of the latest release (with confirmation).
+
+## In-app updater
+Ported from Stundenplan MD; **keep both copies in sync** (fixes in one belong in the other). Mapping: Stundenplan's
+`:core` `update/` = `de.luwify.mensamd.update` here (pure Kotlin, no Android imports, tests in app/src/test), `data/update/`
+and `ui/UpdateScreens.kt` = the same files here. Left out here: "App teilen" (QR + APK share, needs ZXing) and the backup
+integration (Mensa MD has no backup). Mensa-only glue: `ui/UpdatePrompts.kt` (snackbar, update dialog and the running
+update's dialogs in `MensaRoot`, so they show above the settings and card overlays), the gear badge in `MainScreen`, the
+"Version" section and the version pages in `SettingsScreen`.
+- `update/UpdatePolicy.kt`: `UpdateSource` (manifest URL, APK prefix `.../releases/download/`, redirect rules, `override`
+  for debug; `forManifestUrl` accepts only `https://github.com/<owner>/<repo>/releases/latest/download/<file>`),
+  `UpdatePolicy` (auto check at most every 6 h since the last successful one, overview hides withdrawn except the
+  installed one, `canInstall` = newer + not withdrawn + minSdk, `offer` minus the skipped version, snackbar once per
+  version), `ApkCheck` (size, sha256, package, versionCode > installed and == manifest, signer set == installed). Manifest
+  validation allows plain http only for 127.0.0.1/localhost (the release source still requires https).
+- **Manifest URL per build:** Gradle property `updateManifestUrl` (default the GitHub URL above) ->
+  `BuildConfig.UPDATE_MANIFEST_URL` -> `data/update/ReleaseSource.kt`; `ReleaseSourceTest` checks that it parses.
+- **Redirects:** GitHub answers `latest/download/<f>` with 302 -> `github.com/<repo>/releases/download/<tag>/<f>` -> 302
+  -> `release-assets.githubusercontent.com/...?<signed query>`. `UpdateHttp` follows redirects by hand, each hop through
+  `UpdateSource.redirect` (https only, no user info, default port, no fragment; below the repo's `releases/download/` on
+  github.com, or any path on `release-assets.githubusercontent.com`); at most 3. Anything else fails safe.
+- `data/update/`: `Updates` (process-wide in `AppContainer`: state, check whenever the app comes to the foreground
+  (`ProcessLifecycleOwner` ON_START registered in `MensaApp`, after the next frame; the card popup counts as foreground
+  too, the 6 h throttle applies), download to `cacheDir/updates` with progress/cancel, verify, PackageInstaller session,
+  "install unknown apps" explanation once then `ACTION_MANAGE_UNKNOWN_APP_SOURCES`, continues in `MainActivity.onResume`;
+  APKs deleted after the session write and once per process start), `UpdateHttp` (HttpURLConnection, checked redirects,
+  User-Agent `MensaMD/<version>`, no identifiers), `ApkInspector`/`ApkInstaller`/`InstallResultReceiver`, `UpdateSettings`
+  (DataStore `updates`, `schema_version` 1: auto_check, last_check, manifest (last good one, shown offline),
+  announced_code, skipped_code, unknown_sources_explained).
+- UI `UpdateScreens.kt`: settings section "Version" (App-Version, Versionsübersicht, "Update auf x", Nach Updates suchen
+  + status, Automatisch suchen), overview (radio = installed), detail (changelog de/en, Installieren only if installable),
+  `UpdateDialog` (snackbar "Anzeigen"; "nicht erneut anzeigen" = skip), download dialog (Abbrechen/Minimieren; while
+  installing "Schließen", because Android may never report back, e.g. Play Protect), failure dialog.
+- **Debug-only override** (src/debug; src/release has none): `files/debug_update_url` in the .preview app, e.g.
+  `http://127.0.0.1:8765/updates.json` served on the dev machine with `adb reverse tcp:8765 tcp:8765`; cleartext only to
+  127.0.0.1/localhost (debug network_security_config); no redirects. Test APKs: debug builds with a raised
+  version.properties (never commit that), manifest via `:app:manifest add` with app id `de.luwify.mensamd.preview`.
+- Licenses: settings section "Über die App" -> `LicensesScreen` (GPL notice, source link `SOURCE_URL`, not-affiliated
+  note, MensaGuthaben/FareBot credits, libraries, jsoup MIT text from `res/raw/license_jsoup.txt`). New third-party code,
+  libraries or icons go into NOTICE and this screen.
 
 ## Data-source findings (investigated 2026-09-30 with curl)
 - **No API/feed.** The site is WordPress; `/wp-json/` has no menu routes. The OpenMensa entries
