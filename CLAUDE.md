@@ -159,7 +159,7 @@ tests stay in `app/src/test`). `:app` is everything else. `:scraper` is a CLI on
 (`Luwify/ovgu-mensa-stats`): `scraper --out <dir>` writes `YYYY/MM/DD/<mensa>.json` (format: KDoc of `DayFile`), one
 `MenuRepository` per Mensa (every page asks the main site first), rules in `Scraper`: no time in the files, so a rerun
 changes nothing; the fallback host never replaces main-site data and adds no past days; a Mensa that fails doesn't stop
-the others, exit 1 only when no Mensa gave dishes. The site's workflow builds it from the latest release tag.
+the others, exit 1 only when no Mensa could be fetched (pages without dishes are a success). The site's workflow builds it from the latest release tag.
 - `data/remote`: `HttpURLConnection` GET (gzip, custom User-Agent, connect 6 s / read 8 s) on `Dispatchers.IO`.
   `MenuHosts.all` = the base URLs in order (main site, then fallbacks; one line each, remove a line to drop a host);
   `Mensa.path` is relative to them.

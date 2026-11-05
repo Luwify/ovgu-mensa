@@ -2,6 +2,8 @@ package de.luwify.mensamd.scraper
 
 import de.luwify.mensamd.data.remote.MenuFetcher
 import de.luwify.mensamd.favorites.Favorites
+import de.luwify.mensamd.model.Dish
+import de.luwify.mensamd.model.LocalizedText
 import de.luwify.mensamd.model.MensaCatalog
 import de.luwify.mensamd.parser.MenuPageParser
 import de.luwify.mensamd.parser.PierParser
@@ -193,12 +195,44 @@ class ScraperTest {
     }
 
     @Test
-    fun `nothing from any Mensa fails the run`() = runTest {
+    fun `only fetch errors on every Mensa fail the run`() = runTest {
         val failing = MenuFetcher { throw IOException("HTTP 503") }
         assertEquals(1, exitCode(scraper(failing, tmp.newFolder()).run()))
+    }
 
+    @Test
+    fun `a maintenance page counts as a server error`() = runTest {
+        val maintenance = MenuFetcher { "<html><body>Wartungsarbeiten</body></html>" }
+        val results = scraper(maintenance, tmp.newFolder()).run()
+        assertTrue(results.none { it.fetched })
+        assertEquals(1, exitCode(results))
+    }
+
+    @Test
+    fun `pages without dishes are a successful run with nothing written`() = runTest {
+        val out = tmp.newFolder()
         val closed = MenuFetcher { "<html><div class=\"entry-content\"></div></html>" }
-        assertEquals(1, exitCode(scraper(closed, tmp.newFolder()).run()))
+
+        val results = scraper(closed, out).run()
+
+        assertEquals(0, exitCode(results))
+        assertTrue(results.all { it.fetched && !it.hasDishes })
+        assertEquals(emptyMap<String, String>(), out.snapshot())
+    }
+
+    @Test
+    fun `one Mensa that loads is enough for a successful run`() = runTest {
+        val out = tmp.newFolder()
+        val site = Site(mapOf(url(main, "stendal") to "<html><div class=\"entry-content\"></div></html>"))
+        assertEquals(0, exitCode(scraper(site, out).run()))
+    }
+
+    @Test
+    fun `spelling differences give the same key, so a dish is the same across Mensen`() {
+        fun dish(name: String) = Dish(LocalizedText(name), emptyList(), emptyList(), emptyList(), emptyList(), null, null)
+        val key = dish("Spaghetti Bolognese").toEntry().key
+        assertEquals(key, dish("  SPAGHETTI\u00A0 bolognese.").toEntry().key)
+        assertEquals(key, dish("Aktionstheke: Spaghetti Bolognese").toEntry().key)
     }
 
     @Test

@@ -8,6 +8,7 @@ import de.luwify.mensamd.data.remote.MenuHosts
 import de.luwify.mensamd.model.Mensa
 import de.luwify.mensamd.model.MensaCatalog
 import de.luwify.mensamd.model.MenuPage
+import de.luwify.mensamd.parser.PageCheck
 import kotlinx.coroutines.delay
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
@@ -61,7 +62,10 @@ class Scraper(
         val repository = MenuRepository(
             fetcher = { url ->
                 try {
-                    fetcher.fetch(url)
+                    fetcher.fetch(url).also { html ->
+                        // Maintenance and PHP error pages, often sent with status 200: the server failed, not the Mensa.
+                        if (!PageCheck.hasContentBlock(html)) throw IOException("no content block in $url")
+                    }
                 } catch (e: IOException) {
                     log("${mensa.id}: $url: ${e.message ?: e.javaClass.simpleName}")
                     throw e
@@ -143,7 +147,7 @@ class Scraper(
 }
 
 /**
- * 0 while at least one Mensa gave dishes. Nothing from any Mensa is 1: every page failed or came back empty, most likely
- * the site is down or its HTML changed, and days that aren't scraped now can't be fetched later.
+ * 1 when no Mensa could be fetched from any host (network or server errors), else 0. Pages that load without dishes are
+ * a normal result: closed Mensen and holidays simply write nothing.
  */
-fun exitCode(results: List<MensaResult>): Int = if (results.any { it.hasDishes }) 0 else 1
+fun exitCode(results: List<MensaResult>): Int = if (results.any { it.fetched }) 0 else 1
