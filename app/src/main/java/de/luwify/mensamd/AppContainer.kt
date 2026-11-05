@@ -12,6 +12,7 @@ import de.luwify.mensamd.data.update.buildUpdateSource
 import de.luwify.mensamd.data.update.updateSettings
 import de.luwify.mensamd.notify.FavoriteNotifier
 import de.luwify.mensamd.notify.FavoriteScheduler
+import de.luwify.mensamd.notify.CardReminderScheduler
 import de.luwify.mensamd.model.MensaCatalog
 import de.luwify.mensamd.model.PageFormat
 import de.luwify.mensamd.model.resolveOrder
@@ -97,7 +98,17 @@ class AppContainer(context: Context) {
         }
     }
 
+    /** The daily card reminder (card settings), like [syncFavoriteSchedule]. */
+    fun syncCardReminder(active: Boolean, runAt: LocalTime, timeChanged: Boolean) {
+        when {
+            !active -> CardReminderScheduler.cancel(app)
+            timeChanged -> CardReminderScheduler.reschedule(app, runAt)
+            else -> CardReminderScheduler.ensureScheduled(app, runAt)
+        }
+    }
+
     fun canPostNotifications(): Boolean = FavoriteNotifier.canPost(app)
 
     fun postTestNotification(mensaId: String, today: Boolean): Boolean = FavoriteNotifier.postTest(app, mensaId, today)
 }
+

@@ -432,4 +432,8 @@
     <string name="meals_favorite">Add to favorites</string>
     <string name="meals_unfavorite">Remove from favorites</string>
     <string name="meal_all_mensen">Dishes of all Mensen</string>
+    <string name="card_reminder_channel">Card reminder</string>
+    <string name="card_reminder_channel_description">Reminds you to scan your Mensa card on weekdays (card statistics).</string>
+    <string name="card_reminder_notification_title">Scan your Mensa card?</string>
+    <string name="card_reminder_notification_text">Your card wasn\'t scanned today. Hold it to the phone so the statistics stay complete.</string>
 </resources>

@@ -32,6 +32,7 @@ import de.luwify.mensamd.data.settings.CustomBase
 import de.luwify.mensamd.ui.theme.CustomTheme
 import de.luwify.mensamd.data.settings.ThemeMode
 import de.luwify.mensamd.notify.FavoriteNotifier
+import de.luwify.mensamd.notify.CardReminderNotifier
 import de.luwify.mensamd.ui.CardScreen
 import de.luwify.mensamd.ui.AppScreen
 import de.luwify.mensamd.ui.MainViewModel
@@ -117,6 +118,7 @@ class MainActivity : ComponentActivity() {
 
     private fun handleOpenIntent(intent: Intent?) {
         intent?.getStringExtra(FavoriteNotifier.EXTRA_MENSA_ID)?.let { viewModel.requestOpen(it) }
+        if (intent?.getBooleanExtra(CardReminderNotifier.EXTRA_OPEN_CARD, false) == true) viewModel.requestOpenCard()
     }
 }
 
@@ -137,6 +139,14 @@ private fun MensaRoot(viewModel: MainViewModel, cardScanner: NfcCardScanner) {
                 if (openRequest != null) {
                     showCard = false
                     showSettings = false
+                }
+            }
+            val openCard by viewModel.openCard.collectAsStateWithLifecycle()
+            LaunchedEffect(openCard) {
+                if (openCard) {
+                    showSettings = false
+                    showCard = true
+                    viewModel.consumeOpenCard()
                 }
             }
             val scan by cardScanner.state.collectAsStateWithLifecycle()

@@ -44,7 +44,8 @@ Resume point for the card statistics feature (started 2026-11-05). Tick items as
 - [x] Meals overview (most eaten, by Mensa, vegan/vegetarian share, average per meal, add to favorites) (`MealSummary`)
 
 ## Phase 4: reminder
-- [ ] Rules (weekday, not scanned today, default Mensa has a menu) + tests; WorkManager window; permission
+- [x] Rules (weekday, not scanned today, default Mensa has a menu) + tests; WorkManager window; permission
+      (`CardReminderRules`, `notify/CardReminder.kt`; fired on the phone at the set time, tap intent opens the card screen)
 
 ## Phase 5: backup
 - [ ] Versioned export/import like Stundenplan MD; round-trip test

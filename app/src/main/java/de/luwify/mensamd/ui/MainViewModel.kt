@@ -131,6 +131,29 @@ class MainViewModel(private val container: AppContainer) : ViewModel() {
                     lastTime = time
                 }
         }
+        // The card reminder runs only while the statistics and the reminder are on.
+        viewModelScope.launch(Dispatchers.Default) {
+            var lastTime: LocalTime? = null
+            container.settings.cardStats.map { it.reminderActive to it.reminderTime }
+                .distinctUntilChanged()
+                .collect { (active, time) ->
+                    container.syncCardReminder(active, time, timeChanged = lastTime != null && lastTime != time)
+                    lastTime = time
+                }
+        }
+    }
+
+    private val _openCard = MutableStateFlow(false)
+
+    /** The card reminder was tapped: the card screen opens (consumed by `MensaRoot`). */
+    val openCard: StateFlow<Boolean> = _openCard.asStateFlow()
+
+    fun requestOpenCard() {
+        _openCard.value = true
+    }
+
+    fun consumeOpenCard() {
+        _openCard.value = false
     }
 
     private val menus = ConcurrentHashMap<String, StateFlow<MenuUiState?>>()

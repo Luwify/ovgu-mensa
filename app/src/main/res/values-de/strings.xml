@@ -424,4 +424,8 @@
     <string name="meals_favorite">Zu Favoriten hinzufügen</string>
     <string name="meals_unfavorite">Aus Favoriten entfernen</string>
     <string name="meal_all_mensen">Gerichte aller Mensen</string>
+    <string name="card_reminder_channel">Karten-Erinnerung</string>
+    <string name="card_reminder_channel_description">Erinnert an Wochentagen daran, die Mensakarte zu scannen (Kartenstatistik).</string>
+    <string name="card_reminder_notification_title">Mensakarte scannen?</string>
+    <string name="card_reminder_notification_text">Deine Karte wurde heute noch nicht gescannt. Halte sie ans Handy, damit die Statistik vollständig bleibt.</string>
 </resources>
