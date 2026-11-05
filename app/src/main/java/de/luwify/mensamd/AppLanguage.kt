@@ -12,7 +12,12 @@ import java.util.Locale
 enum class AppLanguage(val tag: String?) {
     SYSTEM(null), GERMAN("de"), ENGLISH("en");
 
+    /** The key in a backup file: "system", "de" or "en". */
+    val backupKey: String get() = tag ?: "system"
+
     companion object {
+        fun fromBackupKey(key: String): AppLanguage? = entries.firstOrNull { it.backupKey == key }
+
         private const val PREFS = "language"
         private const val KEY = "tag"
 

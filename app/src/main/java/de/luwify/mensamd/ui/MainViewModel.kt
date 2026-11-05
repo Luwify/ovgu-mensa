@@ -1,6 +1,13 @@
 package de.luwify.mensamd.ui
 
+import android.net.Uri
 import android.util.Log
+import de.luwify.mensamd.backup.Backup
+import de.luwify.mensamd.backup.BackupFormat
+import de.luwify.mensamd.backup.BackupResult
+import de.luwify.mensamd.backup.SettingValue
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.receiveAsFlow
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import de.luwify.mensamd.AppContainer
@@ -55,6 +62,34 @@ sealed interface AppScreen {
 /** The "Benachrichtigungen" part of the filter sheet. */
 /** Open this Mensa, and scroll to [date] when given. */
 data class OpenRequest(val mensaId: String, val date: LocalDate? = null)
+
+/** The outcome of a backup action, shown as a snackbar on the settings page. */
+sealed interface BackupMessage {
+    data object Exported : BackupMessage
+    data object Failed : BackupMessage
+    data object NotABackup : BackupMessage
+    data object TooNew : BackupMessage
+
+    /** The statistics file is from a newer app version: nothing was replaced. */
+    data object StatsReadOnly : BackupMessage
+
+    /** Restored; [previous] is what was replaced (the undo). */
+    data class Restored(val previous: Backup) : BackupMessage
+    data object Undone : BackupMessage
+}
+
+/** What a backup holds, for the confirmation dialog. */
+data class BackupSummary(val favorites: Int, val scans: Int, val events: Int, val cardRegistered: Boolean, val exportedAt: String?) {
+    companion object {
+        fun of(b: Backup) = BackupSummary(
+            (b.settings["favorites"] as? SettingValue.Texts)?.value?.size ?: 0,
+            b.stats.scans.size, b.stats.events.size, b.stats.card != null, b.exportedAt,
+        )
+    }
+}
+
+/** A backup file read and waiting for the user's confirmation; [now] summarizes what it would replace. */
+data class PendingBackup(val backup: Backup, val incoming: BackupSummary, val now: BackupSummary)
 
 data class NotifySettings(val enabled: Boolean, val watched: Set<String>, val time: LocalTime)
 
@@ -264,6 +299,60 @@ class MainViewModel(private val container: AppContainer) : ViewModel() {
             if (updates.isNotEmpty()) viewModelScope.launch { container.settings.saveFavoriteInfo(updates) }
             entries
         }.flowOn(Dispatchers.Default)
+    }
+
+    private val _backupMessages = Channel<BackupMessage>(Channel.BUFFERED)
+    val backupMessages: Flow<BackupMessage> = _backupMessages.receiveAsFlow()
+
+    private val _pendingBackup = MutableStateFlow<PendingBackup?>(null)
+    val pendingBackup: StateFlow<PendingBackup?> = _pendingBackup.asStateFlow()
+
+    /** Writes everything (settings incl. favorites, statistics, language) as one backup file to [uri]. */
+    fun exportBackup(uri: Uri) {
+        container.appScope.launch(Dispatchers.IO) {
+            val ok = runCatching { container.writeDocument(uri, BackupFormat.encode(container.backups.current())) }.getOrDefault(false)
+            _backupMessages.send(if (ok) BackupMessage.Exported else BackupMessage.Failed)
+        }
+    }
+
+    /** Reads a backup file; nothing is replaced before the user confirms. */
+    fun readBackup(uri: Uri) {
+        viewModelScope.launch(Dispatchers.IO) {
+            when (val r = container.readDocument(uri)?.let(BackupFormat::decode)) {
+                is BackupResult.Ok -> _pendingBackup.value = PendingBackup(r.backup, BackupSummary.of(r.backup), BackupSummary.of(container.backups.current()))
+                BackupResult.NotABackup -> _backupMessages.send(BackupMessage.NotABackup)
+                BackupResult.TooNew -> _backupMessages.send(BackupMessage.TooNew)
+                null, is BackupResult.Broken -> _backupMessages.send(BackupMessage.Failed)
+            }
+        }
+    }
+
+    fun cancelBackup() {
+        _pendingBackup.value = null
+    }
+
+    fun confirmBackup() {
+        val pending = _pendingBackup.value ?: return
+        _pendingBackup.value = null
+        container.appScope.launch(Dispatchers.IO) {
+            val before = container.backups.current()
+            val message = try {
+                container.backups.restore(pending.backup)
+                BackupMessage.Restored(before)
+            } catch (e: IllegalStateException) {
+                BackupMessage.StatsReadOnly
+            } catch (e: Exception) {
+                BackupMessage.Failed
+            }
+            _backupMessages.send(message)
+        }
+    }
+
+    fun undoBackup(previous: Backup) {
+        container.appScope.launch(Dispatchers.IO) {
+            val ok = runCatching { container.backups.restore(previous) }.isSuccess
+            _backupMessages.send(if (ok) BackupMessage.Undone else BackupMessage.Failed)
+        }
     }
 
     fun setNotificationsEnabled(enabled: Boolean) {

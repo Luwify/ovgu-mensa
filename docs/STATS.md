@@ -48,7 +48,9 @@ Resume point for the card statistics feature (started 2026-11-05). Tick items as
       (`CardReminderRules`, `notify/CardReminder.kt`; fired on the phone at the set time, tap intent opens the card screen)
 
 ## Phase 5: backup
-- [ ] Versioned export/import like Stundenplan MD; round-trip test
+- [x] Versioned export/import like Stundenplan MD (`backup/BackupFormat`, `BackupRepository`; settings page: export via
+      CreateDocument, import via OpenDocument, confirm dialog, undo snackbar); round-trip tests. The file picker step is
+      not tested on the phone (system picker = another app): manual check for the user
 
 ## Finish
 - [ ] Independent review subagent; fixes

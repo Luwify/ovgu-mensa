@@ -436,4 +436,34 @@
     <string name="card_reminder_channel_description">Reminds you to scan your Mensa card on weekdays (card statistics).</string>
     <string name="card_reminder_notification_title">Scan your Mensa card?</string>
     <string name="card_reminder_notification_text">Your card wasn\'t scanned today. Hold it to the phone so the statistics stay complete.</string>
+    <!-- Backup (settings page) -->
+    <string name="backup_title">Backup</string>
+    <string name="backup_hint">One file with all settings, favorites and the card statistics (incl. the hash of your registered card). Keep it private.</string>
+    <string name="backup_export">Export</string>
+    <string name="backup_import">Import</string>
+    <string name="backup_exported">Backup saved.</string>
+    <string name="backup_failed">The backup couldn\'t be read or written.</string>
+    <string name="backup_not_a_backup">This file is not a Mensa MD backup.</string>
+    <string name="backup_too_new">This backup comes from a newer version of the app. Update the app first.</string>
+    <string name="backup_stats_read_only">The statistics are from a newer version of the app and are not replaced. Update the app first.</string>
+    <string name="backup_restored">Backup restored.</string>
+    <string name="backup_undone">Previous state restored.</string>
+    <string name="backup_confirm_title">Replace with the backup?</string>
+    <string name="backup_confirm_text">Settings, favorites and statistics are replaced.\n\nNow: %1$s\nBackup: %2$s</string>
+    <string name="backup_card_yes">card registered</string>
+    <string name="backup_card_no">no card</string>
+    <string name="backup_made_at">Made on %1$s.</string>
+    <string name="backup_replace">Replace</string>
+    <plurals name="backup_favorites">
+        <item quantity="one">%d favorite</item>
+        <item quantity="other">%d favorites</item>
+    </plurals>
+    <plurals name="backup_scans">
+        <item quantity="one">%d scan</item>
+        <item quantity="other">%d scans</item>
+    </plurals>
+    <plurals name="backup_entries">
+        <item quantity="one">%d entry</item>
+        <item quantity="other">%d entries</item>
+    </plurals>
 </resources>

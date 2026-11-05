@@ -29,6 +29,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeoutOrNull
 import java.io.File
+import de.luwify.mensamd.backup.BackupRepository
 import java.time.LocalDate
 import java.time.LocalTime
 
@@ -89,6 +90,34 @@ class AppContainer(context: Context) {
         }
     }
 
+    private val versionName: String? by lazy { runCatching { app.packageManager.getPackageInfo(app.packageName, 0).versionName }.getOrNull() }
+
+    /** Backup export/import (settings page). */
+    val backups: BackupRepository by lazy {
+        BackupRepository(
+            settings, statsStore,
+            language = { AppLanguage.current(app).backupKey },
+            setLanguage = { key ->
+                val wanted = AppLanguage.fromBackupKey(key)
+                if (wanted != null && wanted != AppLanguage.current(app)) AppLanguage.set(app, wanted)
+            },
+            appVersion = versionName,
+        )
+    }
+
+    /** Reads a whole document (a backup file the user picked); null when it can't be read or is over 20 MB. */
+    fun readDocument(uri: android.net.Uri): String? = runCatching {
+        app.contentResolver.openInputStream(uri)?.use { input ->
+            val bytes = input.readNBytesCompat(20 * 1024 * 1024 + 1)
+            if (bytes.size > 20 * 1024 * 1024) null else bytes.toString(Charsets.UTF_8)
+        }
+    }.getOrNull()
+
+    /** Writes [text] to a document the user created; false on failure. */
+    fun writeDocument(uri: android.net.Uri, text: String): Boolean = runCatching {
+        app.contentResolver.openOutputStream(uri, "wt")?.use { it.write(text.toByteArray(Charsets.UTF_8)) } != null
+    }.getOrDefault(false)
+
     /** The daily favorites job runs only while notifications are on and there is at least one favorite. */
     fun syncFavoriteSchedule(active: Boolean, runAt: LocalTime, timeChanged: Boolean) {
         when {
@@ -112,3 +141,14 @@ class AppContainer(context: Context) {
     fun postTestNotification(mensaId: String, today: Boolean): Boolean = FavoriteNotifier.postTest(app, mensaId, today)
 }
 
+/** Reads at most [limit] bytes (InputStream.readNBytes needs API 33). */
+private fun java.io.InputStream.readNBytesCompat(limit: Int): ByteArray {
+    val out = java.io.ByteArrayOutputStream()
+    val buffer = ByteArray(16 * 1024)
+    while (out.size() < limit) {
+        val n = read(buffer, 0, minOf(buffer.size, limit - out.size()))
+        if (n < 0) break
+        out.write(buffer, 0, n)
+    }
+    return out.toByteArray()
+}

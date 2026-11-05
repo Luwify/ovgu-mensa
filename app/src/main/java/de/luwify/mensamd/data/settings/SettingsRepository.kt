@@ -6,6 +6,11 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
+import androidx.datastore.preferences.core.floatPreferencesKey
+import androidx.datastore.preferences.core.doublePreferencesKey
+import de.luwify.mensamd.backup.BackupFormat
+import de.luwify.mensamd.backup.SettingValue
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -307,6 +312,39 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
     suspend fun setNotificationPermissionRequested() {
         store.edit { it[permissionRequestedKey] = true }
     }
+    /** Every stored setting except device state (see `BackupFormat.EXCLUDED_KEYS`), for the backup. */
+    suspend fun exportAll(): Map<String, SettingValue> = store.data.first().asMap().mapNotNull { (key, value) ->
+        val v: SettingValue = when (value) {
+            is Boolean -> SettingValue.Bool(value)
+            is Int -> SettingValue.IntValue(value)
+            is Long -> SettingValue.LongValue(value)
+            is Float -> SettingValue.FloatValue(value)
+            is Double -> SettingValue.DoubleValue(value)
+            is String -> SettingValue.Text(value)
+            is Set<*> -> SettingValue.Texts(value.filterIsInstance<String>().toSet())
+            else -> return@mapNotNull null
+        }
+        key.name to v
+    }.toMap().filterKeys { it !in BackupFormat.EXCLUDED_KEYS }
+
+    /** Replaces every setting (except device state) with [values], in one atomic edit (backup import and its undo). */
+    suspend fun importAll(values: Map<String, SettingValue>) {
+        store.edit { prefs ->
+            prefs.asMap().keys.filter { it.name !in BackupFormat.EXCLUDED_KEYS }.forEach { prefs.remove(it) }
+            values.filterKeys { it !in BackupFormat.EXCLUDED_KEYS }.forEach { (name, v) ->
+                when (v) {
+                    is SettingValue.Bool -> prefs[booleanPreferencesKey(name)] = v.value
+                    is SettingValue.IntValue -> prefs[intPreferencesKey(name)] = v.value
+                    is SettingValue.LongValue -> prefs[longPreferencesKey(name)] = v.value
+                    is SettingValue.FloatValue -> prefs[floatPreferencesKey(name)] = v.value
+                    is SettingValue.DoubleValue -> prefs[doublePreferencesKey(name)] = v.value
+                    is SettingValue.Text -> prefs[stringPreferencesKey(name)] = v.value
+                    is SettingValue.Texts -> prefs[stringSetPreferencesKey(name)] = v.value
+                }
+            }
+        }
+    }
+
     private val statsEnabledKey = booleanPreferencesKey("stats_enabled")
     private val statsDetailedKey = booleanPreferencesKey("stats_detailed")
     private val cardReminderKey = booleanPreferencesKey("card_reminder_enabled")

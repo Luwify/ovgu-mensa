@@ -45,11 +45,21 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import android.text.format.DateFormat
 import androidx.compose.foundation.clickable
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
+import androidx.compose.runtime.LaunchedEffect
+import de.luwify.mensamd.backup.BackupFormat
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.TimePicker
@@ -111,6 +121,36 @@ fun SettingsScreen(vm: MainViewModel, mensas: List<Mensa>, defaultId: String, pr
     val bannerChoice by vm.stundenplanBannerHidden.collectAsStateWithLifecycle()
     val stundenplanInstalled by vm.companion.installed.collectAsStateWithLifecycle()
     val bannerHidden = !CompanionPolicy.wanted(bannerChoice, stundenplanInstalled)
+    val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri -> uri?.let(vm::exportBackup) }
+    val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> uri?.let(vm::readBackup) }
+    val snackbar = remember { SnackbarHostState() }
+    val pendingBackup by vm.pendingBackup.collectAsStateWithLifecycle()
+    val texts = BackupTexts(
+        exported = stringResource(R.string.backup_exported),
+        failed = stringResource(R.string.backup_failed),
+        notABackup = stringResource(R.string.backup_not_a_backup),
+        tooNew = stringResource(R.string.backup_too_new),
+        readOnly = stringResource(R.string.backup_stats_read_only),
+        restored = stringResource(R.string.backup_restored),
+        undone = stringResource(R.string.backup_undone),
+        undo = stringResource(R.string.stats_undo),
+    )
+    LaunchedEffect(vm) {
+        vm.backupMessages.collect { m ->
+            when (m) {
+                is BackupMessage.Restored -> {
+                    val r = snackbar.showSnackbar(texts.restored, texts.undo, duration = SnackbarDuration.Long)
+                    if (r == SnackbarResult.ActionPerformed) vm.undoBackup(m.previous)
+                }
+                BackupMessage.Exported -> snackbar.showSnackbar(texts.exported)
+                BackupMessage.Failed -> snackbar.showSnackbar(texts.failed)
+                BackupMessage.NotABackup -> snackbar.showSnackbar(texts.notABackup)
+                BackupMessage.TooNew -> snackbar.showSnackbar(texts.tooNew)
+                BackupMessage.StatsReadOnly -> snackbar.showSnackbar(texts.readOnly)
+                BackupMessage.Undone -> snackbar.showSnackbar(texts.undone)
+            }
+        }
+    }
 
     Box(Modifier.fillMaxSize()) {
         Surface(Modifier.fillMaxSize()) {
@@ -237,6 +277,19 @@ fun SettingsScreen(vm: MainViewModel, mensas: List<Mensa>, defaultId: String, pr
                         }
                     }
 
+                    item(key = "backup-title") { SheetHeading(stringResource(R.string.backup_title)) }
+                    item(key = "backup") {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text(stringResource(R.string.backup_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                OutlinedButton(onClick = { exportLauncher.launch(BackupFormat.fileName(java.time.LocalDate.now())) }) { Text(stringResource(R.string.backup_export)) }
+                                OutlinedButton(onClick = { importLauncher.launch(arrayOf("application/json", "text/plain", "application/octet-stream")) }) {
+                                    Text(stringResource(R.string.backup_import))
+                                }
+                            }
+                        }
+                    }
+
                     item(key = "about-title") { SheetHeading(stringResource(R.string.about_title)) }
                     item(key = "about-licenses") { ChevronRow(stringResource(R.string.about_licenses)) { showLicenses = true } }
                 }
@@ -254,7 +307,48 @@ fun SettingsScreen(vm: MainViewModel, mensas: List<Mensa>, defaultId: String, pr
         // A tap on a favorite opens the menu: requestOpen closes the settings too (MensaRoot).
         if (showFavorites) FavoritesScreen(vm, mensas, onBack = { showFavorites = false })
         StundenplanDialogs(vm.companion)
+        pendingBackup?.let { BackupConfirmDialog(it, onConfirm = vm::confirmBackup, onCancel = vm::cancelBackup) }
+        SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).navigationBarsPadding())
     }
+}
+
+private class BackupTexts(
+    val exported: String,
+    val failed: String,
+    val notABackup: String,
+    val tooNew: String,
+    val readOnly: String,
+    val restored: String,
+    val undone: String,
+    val undo: String,
+)
+
+/** Says what a backup import replaces (now -> backup) and asks before doing it. */
+@Composable
+private fun BackupConfirmDialog(pending: PendingBackup, onConfirm: () -> Unit, onCancel: () -> Unit) {
+    val locale = LocalConfiguration.current.locales[0]
+    val made = pending.incoming.exportedAt?.let { runCatching { java.time.Instant.parse(it) }.getOrNull() }
+        ?.atZone(java.time.ZoneId.systemDefault())
+        ?.format(DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM, FormatStyle.SHORT).withLocale(locale))
+    @Composable
+    fun line(s: BackupSummary) = listOf(
+        pluralStringResource(R.plurals.backup_favorites, s.favorites, s.favorites),
+        pluralStringResource(R.plurals.backup_scans, s.scans, s.scans),
+        pluralStringResource(R.plurals.backup_entries, s.events, s.events),
+        stringResource(if (s.cardRegistered) R.string.backup_card_yes else R.string.backup_card_no),
+    ).joinToString(", ")
+    AlertDialog(
+        onDismissRequest = onCancel,
+        title = { Text(stringResource(R.string.backup_confirm_title)) },
+        text = {
+            Text(
+                stringResource(R.string.backup_confirm_text, line(pending.now), line(pending.incoming)) +
+                    (made?.let { "\n\n" + stringResource(R.string.backup_made_at, it) } ?: ""),
+            )
+        },
+        confirmButton = { TextButton(onClick = onConfirm) { Text(stringResource(R.string.backup_replace)) } },
+        dismissButton = { TextButton(onClick = onCancel) { Text(stringResource(android.R.string.cancel)) } },
+    )
 }
 
 /** A row that opens a page: label and a chevron. */

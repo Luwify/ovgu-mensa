@@ -428,4 +428,34 @@
     <string name="card_reminder_channel_description">Erinnert an Wochentagen daran, die Mensakarte zu scannen (Kartenstatistik).</string>
     <string name="card_reminder_notification_title">Mensakarte scannen?</string>
     <string name="card_reminder_notification_text">Deine Karte wurde heute noch nicht gescannt. Halte sie ans Handy, damit die Statistik vollständig bleibt.</string>
+    <!-- Sicherung (Einstellungen) -->
+    <string name="backup_title">Sicherung</string>
+    <string name="backup_hint">Eine Datei mit allen Einstellungen, Favoriten und der Kartenstatistik (inkl. Hash deiner registrierten Karte). Gib sie nicht weiter.</string>
+    <string name="backup_export">Exportieren</string>
+    <string name="backup_import">Importieren</string>
+    <string name="backup_exported">Sicherung gespeichert.</string>
+    <string name="backup_failed">Die Sicherung konnte nicht gelesen oder geschrieben werden.</string>
+    <string name="backup_not_a_backup">Diese Datei ist keine Mensa-MD-Sicherung.</string>
+    <string name="backup_too_new">Diese Sicherung stammt von einer neueren Version der App. Aktualisiere zuerst die App.</string>
+    <string name="backup_stats_read_only">Die Statistik stammt von einer neueren Version der App und wird nicht ersetzt. Aktualisiere zuerst die App.</string>
+    <string name="backup_restored">Sicherung wiederhergestellt.</string>
+    <string name="backup_undone">Vorheriger Stand wiederhergestellt.</string>
+    <string name="backup_confirm_title">Durch die Sicherung ersetzen?</string>
+    <string name="backup_confirm_text">Einstellungen, Favoriten und Statistik werden ersetzt.\n\nJetzt: %1$s\nSicherung: %2$s</string>
+    <string name="backup_card_yes">Karte registriert</string>
+    <string name="backup_card_no">keine Karte</string>
+    <string name="backup_made_at">Erstellt am %1$s.</string>
+    <string name="backup_replace">Ersetzen</string>
+    <plurals name="backup_favorites">
+        <item quantity="one">%d Favorit</item>
+        <item quantity="other">%d Favoriten</item>
+    </plurals>
+    <plurals name="backup_scans">
+        <item quantity="one">%d Scan</item>
+        <item quantity="other">%d Scans</item>
+    </plurals>
+    <plurals name="backup_entries">
+        <item quantity="one">%d Eintrag</item>
+        <item quantity="other">%d Einträge</item>
+    </plurals>
 </resources>
