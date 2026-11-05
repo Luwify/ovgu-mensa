@@ -47,7 +47,17 @@ Release builds are signed with the maintainer's key; they need the Gradle proper
 `LUWIFY_STORE_PASSWORD`, `LUWIFY_KEY_ALIAS` and `LUWIFY_KEY_PASSWORD` and fail without them. To build your own
 release, point them at your own keystore. The version lives in `version.properties`.
 
-Min SDK 26, target SDK 37. Single module `:app`; see `CLAUDE.md` for the architecture and the data-source notes.
+Min SDK 26, target SDK 37. Modules: `:app` (Android), `:core` (menu model, parsers, repository; plain JVM) and
+`:scraper`; see `CLAUDE.md` for the architecture and the data-source notes.
+
+`:scraper` is a small command-line tool that writes the menus of all Mensen as JSON, one file per day and Mensa, with the
+app's own parser. It feeds the statistics site [ovgu-mensa-stats](https://github.com/Luwify/ovgu-mensa-stats) and needs
+neither the Android SDK nor a device:
+
+```bash
+./gradlew :scraper:installDist
+scraper/build/install/scraper/bin/scraper --out data
+```
 
 ## License
 
