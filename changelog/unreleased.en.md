@@ -6,3 +6,4 @@ New:
 - Reminder on weekdays at the chosen time when the card wasn't scanned that day (not when the default Mensa is closed).
 - Top-up amounts (10, 20, 30, 50 €) and Pfand amounts (0.08, 0.15, 0.25 €) can be set in the card settings. A balance increase that is a sum of Pfand amounts up to 5 €, with no payment since the last scan, counts as a Pfand return that "Assign differently" can turn into a top-up plus payment; an equal top-up amount wins.
 - Backup in the settings: export settings, favorites and card statistics as one file and import them again, with a confirmation and "Undo".
+- The end of the statistics overview links to the new website with statistics on all menus: how often each dish appears, price history, vegan and vegetarian share per Mensa.

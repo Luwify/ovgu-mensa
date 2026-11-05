@@ -6,3 +6,4 @@ Neu:
 - Erinnerung an Wochentagen zur gewählten Uhrzeit, wenn die Karte an dem Tag noch nicht gescannt wurde (nicht, wenn die Standard-Mensa geschlossen hat).
 - Aufladebeträge (10, 20, 30, 50 €) und Pfandbeträge (0,08, 0,15, 0,25 €) sind in den Karteneinstellungen einstellbar. Steigt das Guthaben um eine Summe von Pfandbeträgen bis 5 € und gab es seit dem letzten Scan keine Zahlung, zählt das als Pfandrückgabe, die sich mit „Anders zuordnen“ in Aufladung plus Zahlung ändern lässt; ein gleich hoher Aufladebetrag hat Vorrang.
 - Sicherung in den Einstellungen: Einstellungen, Favoriten und Kartenstatistik als eine Datei exportieren und wieder importieren, mit Rückfrage und „Rückgängig“.
+- Am Ende der Statistik-Übersicht führt ein Link zur neuen Website mit Statistiken zu allen Speiseplänen: wie oft es welches Gericht gibt, Preisverlauf, Anteil vegan und vegetarisch je Mensa.
