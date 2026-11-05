@@ -116,8 +116,8 @@ fun SeveralPaymentsDialog(item: OpenItem.SeveralPayments, onSave: (List<Int>) ->
 }
 
 /**
- * A change no known amount explains: one credit (top-up or Pfand) plus one payment? The known credits that leave a
- * positive payment are offered (the suggested one first selected), or another top-up amount, or only the change itself.
+ * A change no known amount explains: one top-up plus one payment? The top-up amounts that leave a positive payment
+ * are offered (the suggested one first selected), or another top-up amount, or only the change itself.
  */
 @Composable
 fun CreditDialog(item: OpenItem.CreditAndPayment, known: KnownAmounts, onSave: (Int?, EventKind) -> Unit, onDismiss: () -> Unit, onSkip: () -> Unit) {

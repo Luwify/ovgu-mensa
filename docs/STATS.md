@@ -61,3 +61,10 @@ Resume point for the card statistics feature (started 2026-11-05). Tick items as
       PBKDF2 (120k rounds; a 7-byte UID is brute-forceable with a fast hash), process-wide scan numbers, background
       save errors can't crash the app, unreadable `version` = broken file, reminder reschedules when settings can't be read
 - [x] Changelog unreleased.*.md; installRelease over the real app (update only, 2026-11-05 18:02); commit, push
+
+## Follow-ups
+- [x] Pfand (2026-11-05, the user's rule): defaults 0.08 / 0.15 / 0.25 € per bottle (editable); the machine credits the
+      sum of one return, so a credit counts as Pfand when it is a sum of these amounts and at most 5 €
+      (`KnownAmounts.isPfandSum`); a top-up amount of the same size wins. Note: with 8/15/25 cents every whole-cent
+      amount from 0.68 € to 5 € is such a sum (only 34 smaller amounts are not), so nearly every credit up to 5 € is
+      read as Pfand. "Top-up + payment" offers top-up amounts only.

@@ -11,7 +11,7 @@ import org.junit.Test
 import java.time.LocalDate
 
 class BalanceDiffTest {
-    private val known = KnownAmounts(KnownAmounts.DEFAULT_TOP_UPS, listOf(250, 2_000))
+    private val known = KnownAmounts(KnownAmounts.DEFAULT_TOP_UPS, KnownAmounts.DEFAULT_PFAND)
 
     private fun derive(oldBalance: Int, oldDebit: Int?, newBalance: Int, newDebit: Int?) =
         BalanceDiff.derive(oldBalance, oldDebit, newBalance, newDebit, known)
@@ -32,7 +32,7 @@ class BalanceDiffTest {
 
     @Test fun upByKnownTopUp() = assertEquals(Outcome.Events(listOf(TOP_UP to 20_000)), derive(5_370, 5_600, 25_370, 5_600))
 
-    @Test fun upByKnownPfand() = assertEquals(Outcome.Events(listOf(PFAND to 2_000)), derive(5_370, 5_600, 7_370, 5_600))
+    @Test fun upByAPfandSum() = assertEquals(Outcome.Events(listOf(PFAND to 330)), derive(5_370, 5_600, 5_700, 5_600))
 
     @Test fun upByUnknownAmountAsksForTopUpPlusPayment() =
         assertEquals(Outcome.AskCredit(14_400, 5_600, null), derive(5_370, 5_600, 19_770, 5_600))
@@ -49,27 +49,49 @@ class BalanceDiffTest {
         assertEquals(Outcome.Events(listOf(TOP_UP to 20_000, PAYMENT to 10_000)), derive(5_000, 3_100, 15_000, 10_000))
 
     @Test fun downByLessThanLastDebitIsCreditPlusPayment() =
-        // Pfand 2 € back, then a 5.60 € lunch: -3.60 €.
-        assertEquals(Outcome.Events(listOf(PFAND to 2_000, PAYMENT to 5_600)), derive(10_000, 3_100, 6_400, 5_600))
+        // Two bottles back (0.25 + 0.25), then a 5.60 € lunch: -5.10 €.
+        assertEquals(Outcome.Events(listOf(PFAND to 500, PAYMENT to 5_600)), derive(10_000, 3_100, 4_900, 5_600))
 
     @Test fun downByLessWithUnknownCreditAsks() =
-        assertEquals(Outcome.AskCredit(-3_000, 5_600, null), derive(10_000, 3_100, 7_000, 5_600))
+        // Down 3 € with a last debit of 8.10 €: 5.10 € were credited, over 5 € and no top-up amount.
+        assertEquals(Outcome.AskCredit(-3_000, 8_100, null), derive(10_000, 3_100, 7_000, 8_100))
 
     @Test fun zeroChangeWithChangedDebitIsCreditPlusPayment() {
-        // 2 € Pfand back and a 2 € payment: a known credit, so automatic.
-        assertEquals(Outcome.Events(listOf(PFAND to 2_000, PAYMENT to 2_000)), derive(10_000, 3_100, 10_000, 2_000))
-        assertEquals(Outcome.AskCredit(0, 1_500, null), derive(10_000, 3_100, 10_000, 1_500))
+        // 1.50 € Pfand back and a 1.50 € coffee: a Pfand sum, so automatic.
+        assertEquals(Outcome.Events(listOf(PFAND to 1_500, PAYMENT to 1_500)), derive(10_000, 3_100, 10_000, 1_500))
+        // Over 5 €: not a Pfand return, so asked.
+        assertEquals(Outcome.AskCredit(0, 5_510, null), derive(10_000, 3_100, 10_000, 5_510))
     }
 
     @Test fun creditOptionsLeaveAPositivePayment() {
         assertEquals(listOf(20_000 to TOP_UP, 30_000 to TOP_UP, 50_000 to TOP_UP), BalanceDiff.creditOptions(14_400, known))
-        assertEquals(known.credits, BalanceDiff.creditOptions(-3_000, known))
+        assertEquals(KnownAmounts.DEFAULT_TOP_UPS.map { it to TOP_UP }, BalanceDiff.creditOptions(-3_000, known))
     }
 
-    @Test fun pfandEqualToATopUpCountsAsTopUp() {
-        val k = KnownAmounts(listOf(10_000), listOf(10_000, 250))
-        assertEquals(TOP_UP, k.creditKind(10_000))
-        assertEquals(listOf(250 to PFAND, 10_000 to TOP_UP), k.credits)
+    @Test fun pfandSumsOfAnyBottles() {
+        val k = KnownAmounts(KnownAmounts.DEFAULT_TOP_UPS, KnownAmounts.DEFAULT_PFAND)
+        // single bottles, several of one kind, mixed
+        listOf(80, 150, 250, 160, 500, 330, 650, 230, 480, 5_000).forEach { assertEquals("$it", PFAND, k.creditKind(it)) }
+        // not a sum of 0.08 / 0.15 / 0.25, or over 5 €
+        // 0.67 € is the largest amount no combination makes; 0.68 € and everything up to 5 € in whole cents is one.
+        assertEquals(PFAND, k.creditKind(680))
+        listOf(5, 10, 70, 90, 100, 170, 670, 5_010, 5_250).forEach { assertEquals("$it", null, k.creditKind(it)) }
+        assertTrue(k.isPfandSum(5_000))
+        assertFalse(k.isPfandSum(0))
+        assertFalse(k.isPfandSum(-80))
+    }
+
+    @Test fun topUpWinsOverAnEqualPfandSum() {
+        val k = KnownAmounts(listOf(5_000, 10_000), KnownAmounts.DEFAULT_PFAND)
+        assertEquals(TOP_UP, k.creditKind(5_000)) // 20 x 0.25 €, but also a top-up amount
+        assertEquals(PFAND, k.creditKind(4_750))
+        assertEquals(listOf(5_000 to TOP_UP, 10_000 to TOP_UP), k.credits)
+    }
+
+    @Test fun editedPfandListAndEmptyList() {
+        assertEquals(PFAND, KnownAmounts(emptyList(), listOf(100)).creditKind(300))
+        assertEquals(null, KnownAmounts(emptyList(), listOf(100)).creditKind(250))
+        assertEquals(null, KnownAmounts(emptyList(), emptyList()).creditKind(250))
     }
 
     @Test fun dateKnownSameDayNextDayAndOverWeekend() {

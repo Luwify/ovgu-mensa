@@ -281,7 +281,7 @@
     <string name="card_reminder_time">Time</string>
     <string name="top_up_amounts">Top-up amounts</string>
     <string name="pfand_amounts">Pfand amounts</string>
-    <string name="pfand_amounts_hint">What the Pfand return machine credits to the card. A balance increase by one of these amounts counts as a Pfand return.</string>
+    <string name="pfand_amounts_hint">The deposit of single bottles and cans. The machine credits the sum of everything returned at once: a balance increase that is a sum of these amounts (up to 5 €) counts as a Pfand return. A top-up amount always wins.</string>
     <string name="amount_add">Amount</string>
     <string name="amount_remove">Remove %1$s</string>
     <string name="amount_label">Amount</string>
@@ -379,7 +379,7 @@
     <string name="q_back">Back</string>
     <string name="q_split">Split</string>
     <string name="q_credit_title">Top-up and payment?</string>
-    <string name="q_credit_text_up">Your balance went up by %1$s, which is none of your top-up or Pfand amounts. Was it one top-up plus one payment?</string>
+    <string name="q_credit_text_up">Your balance went up by %1$s, which is neither a top-up amount nor a Pfand return. Was it one top-up plus one payment?</string>
     <string name="q_credit_text_down">Your balance went down by %1$s, less than the last debit (%2$s). So money was also credited. Which amount?</string>
     <string name="q_credit_text_zero">Your balance didn\'t change, but there was a new debit of %1$s. So the same amount was also credited. Which amount?</string>
     <string name="q_credit_option">Top-up %1$s + payment %2$s</string>

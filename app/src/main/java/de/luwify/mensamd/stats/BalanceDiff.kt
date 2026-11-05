@@ -3,22 +3,42 @@ package de.luwify.mensamd.stats
 import java.time.DayOfWeek
 import java.time.LocalDate
 
-/** A credit the user knows: a top-up amount or a Pfand amount (mills). */
+/**
+ * The credits the user knows (mills): top-up amounts, and the Pfand of single bottles. The Pfand machine credits the
+ * sum of all bottles returned at once, so any sum of [pfand] amounts up to [MAX_PFAND] counts as a Pfand return.
+ */
 data class KnownAmounts(val topUps: List<Int>, val pfand: List<Int>) {
-    /** The kind of a credit of [amount], top-ups first (they are the usual case), or null if unknown. */
-    fun creditKind(amount: Int): EventKind? = when (amount) {
-        in topUps -> EventKind.TOP_UP
-        in pfand -> EventKind.PFAND
+    /** Which amounts up to [MAX_PFAND] are a sum of Pfand amounts (each any number of times, at least one bottle). */
+    private val pfandSums: BooleanArray by lazy {
+        val reachable = BooleanArray(MAX_PFAND + 1)
+        reachable[0] = true
+        val bottles = pfand.filter { it in 1..MAX_PFAND }.distinct()
+        for (sum in 1..MAX_PFAND) reachable[sum] = bottles.any { it <= sum && reachable[sum - it] }
+        reachable
+    }
+
+    /** Whether [amount] can be what the Pfand machine credits for one return. */
+    fun isPfandSum(amount: Int): Boolean = amount in 1..MAX_PFAND && pfandSums[amount]
+
+    /** The kind of a credit of [amount]: a top-up amount wins over a Pfand sum of the same amount; null if unknown. */
+    fun creditKind(amount: Int): EventKind? = when {
+        amount in topUps -> EventKind.TOP_UP
+        isPfandSum(amount) -> EventKind.PFAND
         else -> null
     }
 
-    /** Every known credit, ascending, top-ups before Pfand at equal amounts. */
+    /** The top-up amounts, ascending: what "top-up + payment" offers (Pfand sums are too many to list). */
     val credits: List<Pair<Int, EventKind>>
-        get() = (topUps.map { it to EventKind.TOP_UP } + pfand.filter { it !in topUps }.map { it to EventKind.PFAND })
-            .distinct().sortedBy { it.first }
+        get() = topUps.distinct().sorted().map { it to EventKind.TOP_UP }
 
     companion object {
         val DEFAULT_TOP_UPS = listOf(10_000, 20_000, 30_000, 50_000)
+
+        /** The German deposits per bottle or can: 0.08 €, 0.15 €, 0.25 €. */
+        val DEFAULT_PFAND = listOf(80, 150, 250)
+
+        /** The largest credit that still counts as one Pfand return: 5 €. */
+        const val MAX_PFAND = 5_000
     }
 }
 
@@ -30,7 +50,7 @@ data class KnownAmounts(val topUps: List<Int>, val pfand: List<Int>) {
  * - d = 0: nothing, unless L changed (then a credit of exactly a payment: asked).
  * - d < 0 and -d = L: one payment. -d > L: several payments (asked: one or split). -d < L: a credit and the payment L;
  *   automatic when the credit L + d is a known amount, else asked. Cards without L (MagnaCarta): one payment.
- * - d > 0 and L unchanged: a known top-up / Pfand amount d, else asked (top-up + payment?). L changed: a payment L
+ * - d > 0 and L unchanged: a top-up amount or a Pfand sum d (top-up first), else asked (top-up + payment?). L changed: a payment L
  *   happened too, so the credit is d + L; automatic when known, else asked.
  */
 object BalanceDiff {
@@ -80,8 +100,8 @@ object BalanceDiff {
     }
 
     /**
-     * The credits that could explain a change of [delta] together with one payment (payment = credit - delta > 0),
-     * known amounts only, ascending.
+     * The top-ups that could explain a change of [delta] together with one payment (payment = top-up - delta > 0),
+     * ascending.
      */
     fun creditOptions(delta: Int, known: KnownAmounts): List<Pair<Int, EventKind>> =
         known.credits.filter { (amount, _) -> amount - delta > 0 }

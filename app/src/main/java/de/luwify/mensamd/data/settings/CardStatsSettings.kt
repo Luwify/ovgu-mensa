@@ -13,7 +13,7 @@ data class CardStatsSettings(
     val reminder: Boolean = false,
     val reminderTime: LocalTime = DEFAULT_REMINDER_TIME,
     val topUps: List<Int> = DEFAULT_TOP_UPS,
-    val pfand: List<Int> = emptyList(),
+    val pfand: List<Int> = DEFAULT_PFAND,
 ) {
     val detailedActive: Boolean get() = enabled && detailed
     val reminderActive: Boolean get() = enabled && reminder
@@ -22,5 +22,6 @@ data class CardStatsSettings(
     companion object {
         val DEFAULT_REMINDER_TIME: LocalTime = LocalTime.of(15, 0)
         val DEFAULT_TOP_UPS: List<Int> = KnownAmounts.DEFAULT_TOP_UPS
+        val DEFAULT_PFAND: List<Int> = KnownAmounts.DEFAULT_PFAND
     }
 }

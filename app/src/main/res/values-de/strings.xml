@@ -273,7 +273,7 @@
     <string name="card_reminder_time">Uhrzeit</string>
     <string name="top_up_amounts">Aufladebeträge</string>
     <string name="pfand_amounts">Pfandbeträge</string>
-    <string name="pfand_amounts_hint">Was der Pfandautomat auf die Karte zurückbucht. Steigt das Guthaben um einen dieser Beträge, zählt das als Pfandrückgabe.</string>
+    <string name="pfand_amounts_hint">Das Pfand einzelner Flaschen und Dosen. Der Automat bucht die Summe aller auf einmal zurückgegebenen Flaschen zurück: Steigt das Guthaben um eine Summe dieser Beträge (höchstens 5 €), zählt das als Pfandrückgabe. Ein Aufladebetrag hat immer Vorrang.</string>
     <string name="amount_add">Betrag</string>
     <string name="amount_remove">%1$s entfernen</string>
     <string name="amount_label">Betrag</string>
@@ -371,7 +371,7 @@
     <string name="q_back">Zurück</string>
     <string name="q_split">Aufteilen</string>
     <string name="q_credit_title">Aufladung und Zahlung?</string>
-    <string name="q_credit_text_up">Dein Guthaben ist um %1$s gestiegen, das ist keiner deiner Auflade- oder Pfandbeträge. War es eine Aufladung plus eine Zahlung?</string>
+    <string name="q_credit_text_up">Dein Guthaben ist um %1$s gestiegen, das ist weder ein Aufladebetrag noch eine Pfandrückgabe. War es eine Aufladung plus eine Zahlung?</string>
     <string name="q_credit_text_down">Dein Guthaben ist um %1$s gesunken, weniger als die letzte Abbuchung (%2$s). Es wurde also auch etwas gutgeschrieben. Welcher Betrag?</string>
     <string name="q_credit_text_zero">Dein Guthaben ist gleich geblieben, aber es gab eine neue Abbuchung von %1$s. Es wurde also derselbe Betrag gutgeschrieben. Welcher?</string>
     <string name="q_credit_option">Aufladung %1$s + Zahlung %2$s</string>

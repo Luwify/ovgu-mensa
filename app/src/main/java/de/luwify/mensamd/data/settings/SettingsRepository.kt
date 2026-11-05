@@ -374,7 +374,7 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
             reminderTime = prefs[cardReminderMinuteKey]?.takeIf { it in 0 until 24 * 60 }?.let { LocalTime.of(it / 60, it % 60) }
                 ?: CardStatsSettings.DEFAULT_REMINDER_TIME,
             topUps = prefs[topUpAmountsKey]?.let(::decodeAmounts) ?: CardStatsSettings.DEFAULT_TOP_UPS,
-            pfand = prefs[pfandAmountsKey]?.let(::decodeAmounts).orEmpty(),
+            pfand = prefs[pfandAmountsKey]?.let(::decodeAmounts) ?: CardStatsSettings.DEFAULT_PFAND,
         )
     }
 

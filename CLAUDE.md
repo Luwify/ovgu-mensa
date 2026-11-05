@@ -111,7 +111,8 @@ git-ignored `CLAUDE.local.md` at the repo root, which Claude Code loads after th
   Charts are own Canvas code (`ui/stats/Charts.kt`), no library. Reminder: `notify/CardReminder.kt` (one-time
   WorkManager job re-enqueued like the favorites job; tap -> `EXTRA_OPEN_CARD`). Backup: `backup/BackupFormat`
   (`mensamd-backup` v1: every settings key except device state, language, statistics) + `BackupRepository`, settings page.
-  Meal statistics website link: `StatsLinks.MEAL_STATS_URL` (hidden while empty).
+  Meal statistics website link: `StatsLinks.MEAL_STATS_URL` (hidden while empty). Pfand: a credit up to 5 € that is a
+  sum of the per-bottle amounts (default 0.08/0.15/0.25 €) is a Pfand return; an equal top-up amount wins.
 - **License GPL-3.0-or-later** (see below).
 - Not done / only if asked: a baseline profile (separate `:baselineprofile` module). Swipe smoothness (B3) is closed.
 
