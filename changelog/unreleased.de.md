@@ -1,0 +1,8 @@
+Neu:
+- Kartenstatistik (in der Karten-Ansicht über das Zahnrad einschaltbar): Bei jedem Scan der eigenen, registrierten Karte werden Guthaben und letzte Abbuchung gespeichert, nur auf dem Gerät. Daraus ergeben sich Zahlungen, Aufladungen und Pfandrückgaben; bei unklaren Änderungen fragt die App nach (mehrere Zahlungen aufteilen, Aufladung plus Zahlung).
+- „Meine Karte“: Gespeichert wird nur ein Hash der Karten-ID. Andere Karten zeigen weiter ihr Guthaben, werden aber nicht gespeichert.
+- Statistik-Übersicht: Ausgaben und Aufladungen pro Woche oder Monat, Ausgaben nach Wochentag, Durchschnitt pro Besuch, Guthaben im Verlauf und ein Verlauf aller Einträge mit Löschen und Rückgängig.
+- Detaillierte Statistik: Zahlungen werden mit dem Speiseplan des Tages abgeglichen (Standard-Mensa zuerst, eigene Preisgruppe), auch zwei Gerichte oder ein Gericht doppelt. Dazu Extras wie Salatbar, Dessert nach Gewicht oder Getränke, eigene Extras und Gerichte. Die Übersicht zeigt die häufigsten Gerichte, die Mensen, den Anteil vegan und vegetarisch und den Durchschnitt pro Mahlzeit; Gerichte lassen sich von dort zu den Favoriten hinzufügen.
+- Erinnerung an Wochentagen zur gewählten Uhrzeit, wenn die Karte an dem Tag noch nicht gescannt wurde (nicht, wenn die Standard-Mensa geschlossen hat).
+- Aufladebeträge und Pfandbeträge sind in den Karteneinstellungen einstellbar.
+- Sicherung in den Einstellungen: Einstellungen, Favoriten und Kartenstatistik als eine Datei exportieren und wieder importieren, mit Rückfrage und „Rückgängig“.

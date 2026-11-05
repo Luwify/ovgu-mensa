@@ -67,7 +67,8 @@ git-ignored `CLAUDE.local.md` at the repo root, which Claude Code loads after th
 - **Settings page** (gear icon in the top bar, overlay `SettingsScreen` in `MensaRoot` like the card screen): price group,
   card layout (normal/compact chips), design (color scheme drop-down + custom theme editor), favorites ("Favoriten
   verwalten" -> overview), favorites notifications, version (in-app updater, see below) + the switch for the Stundenplan MD
-  banner (the card itself is the first item, see its section), about (licenses and source code). The filter sheet ("Filter" button) has only the allergen exclusion.
+  banner (the card itself is the first item, see its section), backup (export/import, see card statistics), about
+  (licenses and source code). The filter sheet ("Filter" button) has only the allergen exclusion.
 - **Chip order:** long-press + drag reorders the filter chips like the Mensa tabs (shared `RowReorder` helper for both);
   global, stored as `filter_order`. A drag on one page is merged by `DishFilters.mergeOrder`: chips not on that page keep
   their place; keys the stored order doesn't know follow in the default order (vegan, vegetarisch, kuchen, favoriten, ...).
@@ -96,6 +97,21 @@ git-ignored `CLAUDE.local.md` at the repo root, which Claude Code loads after th
   check on the current value; own Check/Chevron vectors in `CardIcons.kt`). Glow = the AMOLED `cardGlow` in the accent. Fixed bases set matching system bar icons (`MainActivity`).
 - **Card balance** (NFC): popup when a card is held to the phone (`CardPopupActivity`) and the "Karte" screen from the
   top bar icon; see the architecture section. **Intercard verified on a real card, MagnaCarta not verified.**
+- **Card statistics** (opt-in; gear on the card screen -> `ui/stats/CardSettingsScreen`; checklist and phase-0 card
+  findings in `docs/STATS.md`): the card exposes only balance + last debit (DESFire EV1, logs need a key, no counter),
+  so everything comes from differences between scans. Pure logic in `stats/`: `StatsStore` (one JSON file
+  `filesDir/stats/stats.json`, versioned via `StatsMigrations` (raise CURRENT + add a step + test for any shape change;
+  older file kept as `.v<n>`, newer never written, broken moved aside), atomic writes under one lock), `StatsOps`,
+  `BalanceDiff` (rules in its KDoc; unclear changes become `OpenItem`s answered in `StatsScreen`), `MealMatcher`
+  (detailed statistics: one dish / same dish twice / two dishes of one Mensa at the user's price group, default Mensa
+  first, >5 candidates -> "where did you eat?", one candidate saved directly; the day's dishes are kept only with an open
+  question), `StatsSummary`/`MealSummary`, `CardReminderRules`. `StatsRecorder` (app scope) records scans from reader mode
+  and the popup. "Meine Karte": only scans of the registered card are stored; the UID becomes a fingerprint in memory
+  (`CardIdentity`), only a salted SHA-256 of it is stored. Amounts are mills (card unit); menu prices are cents x 10.
+  Charts are own Canvas code (`ui/stats/Charts.kt`), no library. Reminder: `notify/CardReminder.kt` (one-time
+  WorkManager job re-enqueued like the favorites job; tap -> `EXTRA_OPEN_CARD`). Backup: `backup/BackupFormat`
+  (`mensamd-backup` v1: every settings key except device state, language, statistics) + `BackupRepository`, settings page.
+  Meal statistics website link: `StatsLinks.MEAL_STATS_URL` (hidden while empty).
 - **License GPL-3.0-or-later** (see below).
 - Not done / only if asked: a baseline profile (separate `:baselineprofile` module). Swipe smoothness (B3) is closed.
 
@@ -104,7 +120,10 @@ git-ignored `CLAUDE.local.md` at the repo root, which Claude Code loads after th
   "update failed" is shown). The fallback host is a test server: it may disappear or serve different data. PIER 16 is a hand-edited page and only best effort.
 - PIER 16 has only 2 prices per dish that can't be mapped to price groups; no legend or CO2e data there; a dish without
   allergen code is not known to be allergen-free.
-- Card: only DESFire/ISO-DEP cards (Intercard, MagnaCarta); no MIFARE Classic, no history, no UID. MagnaCarta is untested
+- Card statistics are derived from balance differences only: several payments between two scans can't be told apart
+  without asking, and a payment's day is only known when no weekday lies between two scans. MagnaCarta (no last debit)
+  counts every decrease as one payment.
+- Card: only DESFire/ISO-DEP cards (Intercard, MagnaCarta); no MIFARE Classic, no card history. MagnaCarta is untested
   on a real card. Reading needs a card whose balance file is readable without a key.
 - The popup activity matches every ISO-DEP tag: bank cards start it (it finishes silently), and other apps with an IsoDep
   `TECH_DISCOVERED` filter (e.g. an eID app) make Android show a chooser. Reader mode (Karte screen) wins over the popup.
@@ -122,7 +141,7 @@ taken from those projects needs the same treatment.
 - Kotlin 2.4 (AGP 9 built-in Kotlin), AGP 9.4, Gradle 9.8 (wrapper), JDK 21 (Android Studio JBR)
 - Jetpack Compose + Material 3 (BOM 2026.09), dynamic color, edge-to-edge, dark mode
 - compileSdk 37, targetSdk 37, minSdk 26
-- WorkManager 2.12 (only for the daily favorites job)
+- WorkManager 2.12 (only for the daily favorites job and the card reminder)
 - Coroutines/Flow, ViewModel, DataStore Preferences (no Navigation library: the card screen is an overlay in `MensaRoot`)
 - Jsoup (HTML parsing), kotlinx.serialization (JSON cache)
 - Manual DI (`AppContainer`), no Hilt/Koin, no OkHttp/Retrofit
@@ -153,7 +172,7 @@ taken from those projects needs the same treatment.
   (`max-age=600` only), so freshness uses our own timer: refresh when older than ~30 min,
   on app foreground, or on pull-to-refresh. On failure it keeps the cache and shows "last updated".
 - `data/settings`: one DataStore (`SettingsRepository`, built only by `AppContainer`): default Mensa id, tab order, tag filters,
-  excluded codes, price group, compact mode, theme mode, favorites (+ their `favorite_info`), notification settings/dedup set (string sets where
+  excluded codes, price group, compact mode, theme mode, favorites (+ their `favorite_info`), card statistics settings, notification settings/dedup set (string sets where
   values can contain commas). The first-run picker is shown only when the default is unset. The updater has its own
   DataStore `updates` (`data/update/UpdateSettings`); `SingleDataStoreTest` allows exactly these two names, each declared once.
 - Mensa list is bundled and data-driven (id, name, address, URL, page format `DATED`/`FIXED`), OvGU-relevant ones first.
@@ -177,8 +196,9 @@ taken from those projects needs the same treatment.
     consumes the tag once. Theme and settings come from the same `AppContainer` (one DataStore per process: never create a
     second DataStore for `settings`; `SingleDataStoreTest` guards this). While the app is in the foreground, reader mode takes
     precedence over the popup. Any other app with an IsoDep `TECH_DISCOVERED` filter makes Android show a chooser.
-  - Privacy rules: no network, never log card data (not even in debug), never read/store the UID, no history, nothing on
-    disk. Test bytes are synthetic.
+  - Privacy rules: no network, never log card data (not even in debug), never store or log the UID (it only becomes a
+    fingerprint in memory, `CardIdentity`). Nothing is stored unless the user turns on the card statistics and registers
+    the card; then only scans of that card (balance, last debit, time) and a salted hash. Test bytes are synthetic.
 
 ## Build / test commands
 Needs JDK 21 (`JAVA_HOME`) and the Android SDK (`sdk.dir` in the git-ignored `local.properties`, or `ANDROID_HOME`).
