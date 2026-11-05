@@ -24,7 +24,6 @@ class NfcCardScanner(private val adapter: NfcAdapter?) {
     /** Called on the NFC thread after every successful read (the card statistics). */
     @Volatile var onRead: ((CardScanState.Success) -> Unit)? = null
 
-    private val seq = AtomicLong()
 
     /** False on devices without NFC hardware: the card icon is hidden then. */
     val available: Boolean get() = adapter != null
@@ -80,7 +79,7 @@ class NfcCardScanner(private val adapter: NfcAdapter?) {
             return
         }
         publish(CardScanState.Reading)
-        val state = isoDep.readCard().toState(tag.id, seq.incrementAndGet())
+        val state = isoDep.readCard().toState(tag.id, scanSeq.incrementAndGet())
         if (state is CardScanState.Success && active) onRead?.invoke(state)
         publish(state)
     }
@@ -90,3 +89,9 @@ class NfcCardScanner(private val adapter: NfcAdapter?) {
         if (active) _state.value = state
     }
 }
+
+/**
+ * Scan numbers for the whole process: the statistics result ([de.luwify.mensamd.stats.StatsRecorder.last]) outlives an
+ * activity (and its scanner), so a recreated activity must not start again at 1 and match an old result.
+ */
+private val scanSeq = AtomicLong()

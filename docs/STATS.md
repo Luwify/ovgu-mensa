@@ -10,7 +10,7 @@ Resume point for the card statistics feature (started 2026-11-05). Tick items as
       `private/notes/card-probe/`), two scans:
   - MIFARE DESFire EV1 (hw 1.0, sw 1.4), so no EV2 transaction MAC counter.
   - UID: 7 bytes, NXP (first byte 0x04), NOT random, identical on both scans and identical to the UID in
-    GET_VERSION. Stable card identity = the UID; only a salted SHA-256 of it is stored.
+    GET_VERSION. Stable card identity = the UID; only a salted PBKDF2 hash of it is stored.
   - Intercard app (wire AID 5F 84 15): file 0 = 32-byte standard file, free read (static, same content in another
     app; not needed), file 1 = the balance value file (free GET_VALUE via the EV1 "free get value" flag, limited
     credit value = last debit), files 2 and 3 = cyclic record files of 32-byte records (11 and 6 slots, both full;
@@ -53,5 +53,10 @@ Resume point for the card statistics feature (started 2026-11-05). Tick items as
       not tested on the phone (system picker = another app): manual check for the user
 
 ## Finish
-- [ ] Independent review subagent; fixes
+- [x] Independent review subagent; fixes (2026-11-05): mistyped backup values dropped on import (`KEY_TYPES`), a
+      half-failed import rolls back, a single dish match is saved without asking only when both scans were on the same
+      day, "Karte registrieren" only while the card settings are open and never re-registers the same card, reminder
+      window = up to 3 h after the set time (any time of day), single-price dishes match every price group, card hash =
+      PBKDF2 (120k rounds; a 7-byte UID is brute-forceable with a fast hash), process-wide scan numbers, background
+      save errors can't crash the app, unreadable `version` = broken file, reminder reschedules when settings can't be read
 - [ ] Changelog unreleased.*.md; installRelease over the real app (update only); commit, push

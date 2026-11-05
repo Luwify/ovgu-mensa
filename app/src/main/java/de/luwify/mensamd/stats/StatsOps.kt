@@ -158,6 +158,15 @@ object StatsOps {
         return data.copy(customDishes = list) to EatenDish(key, dish.name, null, price)
     }
 
+    /** Whether the scan [scanId] and the previous scan of the same card were on the same day. */
+    fun sameDayAsPrevious(data: StatsData, scanId: Long): Boolean {
+        val index = data.scans.indexOfFirst { it.id == scanId }
+        if (index <= 0) return false
+        val scan = data.scans[index]
+        val previous = data.scans.subList(0, index).lastOrNull { it.card == scan.card } ?: return false
+        return previous.date == scan.date
+    }
+
     /** Deletes every scan, event and question (the registered card, custom extras and dishes stay). */
     fun clearHistory(data: StatsData): StatsData = data.copy(scans = emptyList(), events = emptyList(), open = emptyList())
 }

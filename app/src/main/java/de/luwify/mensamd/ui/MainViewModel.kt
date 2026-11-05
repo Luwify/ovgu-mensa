@@ -335,13 +335,20 @@ class MainViewModel(private val container: AppContainer) : ViewModel() {
         val pending = _pendingBackup.value ?: return
         _pendingBackup.value = null
         container.appScope.launch(Dispatchers.IO) {
-            val before = container.backups.current()
+            val before = try {
+                container.backups.current()
+            } catch (e: Exception) {
+                _backupMessages.send(BackupMessage.Failed)
+                return@launch
+            }
             val message = try {
                 container.backups.restore(pending.backup)
                 BackupMessage.Restored(before)
             } catch (e: IllegalStateException) {
                 BackupMessage.StatsReadOnly
             } catch (e: Exception) {
+                // Half done (say, the settings write failed after the statistics were replaced): put the old state back.
+                runCatching { container.backups.restore(before) }
                 BackupMessage.Failed
             }
             _backupMessages.send(message)

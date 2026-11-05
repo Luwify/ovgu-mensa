@@ -19,6 +19,7 @@ import androidx.work.WorkerParameters
 import de.luwify.mensamd.MainActivity
 import de.luwify.mensamd.MensaApp
 import de.luwify.mensamd.R
+import de.luwify.mensamd.data.settings.CardStatsSettings
 import de.luwify.mensamd.stats.CardReminderRules
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.first
@@ -66,7 +67,10 @@ class CardReminderWorker(context: Context, params: WorkerParameters) : Coroutine
         } catch (_: Exception) {
             // a failed run is skipped; the next one is still scheduled
         }
-        if (settings != null && settings.reminderActive) CardReminderScheduler.reschedule(applicationContext, settings.reminderTime)
+        when {
+            settings == null -> CardReminderScheduler.reschedule(applicationContext, CardStatsSettings.DEFAULT_REMINDER_TIME) // retried; that run reads the settings again
+            settings.reminderActive -> CardReminderScheduler.reschedule(applicationContext, settings.reminderTime)
+        }
         return Result.success()
     }
 

@@ -327,11 +327,15 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
         key.name to v
     }.toMap().filterKeys { it !in BackupFormat.EXCLUDED_KEYS }
 
-    /** Replaces every setting (except device state) with [values], in one atomic edit (backup import and its undo). */
+    /**
+     * Replaces every setting (except device state) with [values], in one atomic edit (backup import and its undo). A
+     * value whose type doesn't match the key this app reads is dropped (it would make every read of that key throw);
+     * keys this version doesn't know are kept as they are.
+     */
     suspend fun importAll(values: Map<String, SettingValue>) {
         store.edit { prefs ->
             prefs.asMap().keys.filter { it.name !in BackupFormat.EXCLUDED_KEYS }.forEach { prefs.remove(it) }
-            values.filterKeys { it !in BackupFormat.EXCLUDED_KEYS }.forEach { (name, v) ->
+            values.filterKeys { it !in BackupFormat.EXCLUDED_KEYS }.filter { (name, v) -> typeMatches(name, v) }.forEach { (name, v) ->
                 when (v) {
                     is SettingValue.Bool -> prefs[booleanPreferencesKey(name)] = v.value
                     is SettingValue.IntValue -> prefs[intPreferencesKey(name)] = v.value
@@ -346,6 +350,15 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
     }
 
     private val statsEnabledKey = booleanPreferencesKey("stats_enabled")
+
+    private fun typeMatches(name: String, value: SettingValue): Boolean = when (KEY_TYPES[name]) {
+        null -> true
+        "bool" -> value is SettingValue.Bool
+        "int" -> value is SettingValue.IntValue
+        "string" -> value is SettingValue.Text
+        "strings" -> value is SettingValue.Texts
+        else -> false
+    }
     private val statsDetailedKey = booleanPreferencesKey("stats_detailed")
     private val cardReminderKey = booleanPreferencesKey("card_reminder_enabled")
     private val cardReminderMinuteKey = intPreferencesKey("card_reminder_minute")
@@ -414,3 +427,19 @@ internal fun hueToAccent(hue: Int): Int {
 internal fun decodeAmounts(text: String): List<Int> = text.split(',').mapNotNull { it.trim().toIntOrNull()?.takeIf { v -> v > 0 } }.distinct().sorted()
 
 internal fun encodeAmounts(amounts: List<Int>): String = amounts.filter { it > 0 }.distinct().sorted().joinToString(",")
+
+/**
+ * The type of every key this app reads (`SettingsRepositoryTest` checks the list against the source). A backup value of
+ * another type for one of these keys is dropped on import.
+ */
+internal val KEY_TYPES: Map<String, String> = mapOf(
+    "card_reminder_enabled" to "bool", "card_reminder_minute" to "int", "compact_mode" to "bool",
+    "custom_theme_accent" to "int", "custom_theme_base" to "string", "custom_theme_glow" to "bool",
+    "custom_theme_hue" to "int", "custom_theme_overrides" to "string", "default_mensa_id" to "string",
+    "dish_filters" to "string", "excluded_codes" to "string", "favorite_info" to "string", "favorites" to "strings",
+    "filter_order" to "string", "legendary_favorites" to "bool", "mensa_order" to "string",
+    "notified_favorites" to "strings", "notify_enabled" to "bool", "notify_mensen" to "strings",
+    "notify_minute_of_day" to "int", "notify_permission_explained" to "bool", "notify_permission_requested" to "bool",
+    "price_group" to "int", "stats_detailed" to "bool", "stats_enabled" to "bool", "stats_pfand_amounts" to "string",
+    "stats_top_up_amounts" to "string", "stundenplan_banner_hidden" to "bool", "theme_mode" to "string",
+)

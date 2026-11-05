@@ -10,8 +10,8 @@ import java.time.ZonedDateTime
 
 /** The decisions of the daily "scan your card" reminder, free of Android so they are unit-tested. */
 object CardReminderRules {
-    /** A run this late (the phone was off or dozing at the set time) reminds of nothing: the day is over. */
-    val LATEST: LocalTime = LocalTime.of(22, 0)
+    /** A run more than this late (the phone was off or dozing at the set time) reminds of nothing. */
+    const val MAX_LATE_MINUTES = 180
 
     /** Delay from [now] to the next [runAt] (today if still ahead, else tomorrow), DST-correct. */
     fun delayUntilNextRun(now: ZonedDateTime, runAt: LocalTime): Duration {
@@ -21,15 +21,15 @@ object CardReminderRules {
     }
 
     /**
-     * Whether to remind at [now]: a weekday, between [runAt] and [LATEST] (a catch-up after midnight belongs to a day
-     * that is over), a registered card ([cardHash]) without a scan today, and the default Mensa not known to be closed
+     * Whether to remind at [now]: a weekday, at most [MAX_LATE_MINUTES] after [runAt] on the same day (a catch-up
+     * after midnight belongs to a day that is over), a registered card ([cardHash]) without a scan today, and the default Mensa not known to be closed
      * today ([mensaHasMenuToday] false). Without statistics data nothing is reminded.
      */
     fun shouldRemind(now: LocalDateTime, runAt: LocalTime, data: StatsData?, mensaHasMenuToday: Boolean?): Boolean {
         val today = now.toLocalDate()
         if (today.dayOfWeek == DayOfWeek.SATURDAY || today.dayOfWeek == DayOfWeek.SUNDAY) return false
-        val time = now.toLocalTime()
-        if (time.isBefore(runAt) || !time.isBefore(LATEST)) return false
+        val late = now.toLocalTime().toSecondOfDay() / 60 - runAt.toSecondOfDay() / 60
+        if (late !in 0..MAX_LATE_MINUTES) return false
         val card = data?.card ?: return false
         if (data.scans.any { it.card == card.hash && it.date == today }) return false
         return mensaHasMenuToday != false

@@ -84,3 +84,30 @@ class BackupRoundTripTest {
         }
     }
 }
+
+class SettingsKeyTypesTest {
+    /** Every key the repository declares is in KEY_TYPES with its type, so a mistyped backup value is dropped. */
+    @Test fun keyTableMatchesTheSource() {
+        val root = listOf("src/main/java", "app/src/main/java").map(::File).first { it.isDirectory }
+        val text = File(root, "de/luwify/mensamd/data/settings/SettingsRepository.kt").readText()
+        val names = mapOf("boolean" to "bool", "int" to "int", "string" to "string", "stringSet" to "strings")
+        val declared = Regex("""\b(boolean|int|string|stringSet)PreferencesKey\("([a-z_]+)"\)""").findAll(text)
+            .associate { it.groupValues[2] to names.getValue(it.groupValues[1]) }
+        assertEquals(declared, de.luwify.mensamd.data.settings.KEY_TYPES)
+    }
+
+    @Test fun mistypedValueIsDropped() = runBlocking {
+        val tmp = java.nio.file.Files.createTempDirectory("keys").toFile()
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        try {
+            val repo = SettingsRepository(PreferenceDataStoreFactory.create(scope = scope) { File(tmp, "s.preferences_pb") })
+            repo.importAll(mapOf("price_group" to SettingValue.Text("1"), "future_key" to SettingValue.Text("x"), "compact_mode" to SettingValue.Bool(true)))
+            assertEquals(0, repo.priceGroup.first())
+            assertEquals(true, repo.compactMode.first())
+            assertEquals(SettingValue.Text("x"), repo.exportAll()["future_key"])
+        } finally {
+            scope.cancel()
+            tmp.deleteRecursively()
+        }
+    }
+}

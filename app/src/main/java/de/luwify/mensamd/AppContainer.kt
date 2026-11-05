@@ -20,6 +20,7 @@ import de.luwify.mensamd.stats.MealContext
 import de.luwify.mensamd.stats.SnapDish
 import de.luwify.mensamd.stats.StatsRecorder
 import de.luwify.mensamd.stats.StatsStore
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -52,7 +53,12 @@ class AppContainer(context: Context) {
     }
 
     /** Work that must outlive a screen (a scan from the popup is stored after the popup closed). */
-    val appScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    val appScope: CoroutineScope = CoroutineScope(
+        SupervisorJob() + Dispatchers.Default + CoroutineExceptionHandler { _, e ->
+            // A failed save (disk full, I/O error) must not crash the app. Only the exception type, never data.
+            android.util.Log.w("MensaApp", "background task failed: ${e.javaClass.simpleName}")
+        },
+    )
 
     /** The card statistics (files dir: kept like settings, not a cache; excluded from cloud backups). */
     val statsStore: StatsStore by lazy { StatsStore(File(File(app.filesDir, "stats"), "stats.json")) }

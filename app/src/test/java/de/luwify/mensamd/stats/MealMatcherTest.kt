@@ -82,6 +82,11 @@ class MealMatcherTest {
         assertTrue(MealMatcher.plan(4_500, pier, unten, 2) is Plan.Choose)
     }
 
+    @Test fun singlePriceDishMatchesEveryGroup() {
+        val cake = listOf(dish(unten, "Kuchen", 150))
+        assertTrue(MealMatcher.plan(1_500, cake, unten, 2) is Plan.Choose)
+    }
+
     @Test fun extrasTakeTheRest() {
         val pick = MealMatcher.Pick(menu[0], 1, 3_100)
         val record = MealMatcher.withExtras(4_250, listOf(pick), listOf(Extras.SALAD, Extras.DRINK))!!

@@ -100,7 +100,10 @@ class StatsRecorder(
         result
     }
 
+    /** Registers [fingerprint]'s card; the card that is already registered keeps its registration (and its scans' chain). */
     private suspend fun registerLocked(fingerprint: String) {
+        val current = store.load().card
+        if (current != null && CardIdentity.matches(current, fingerprint)) return
         val salt = newSalt()
         store.update { StatsOps.register(it, salt, fingerprint, clock()) }
     }
@@ -116,9 +119,12 @@ class StatsRecorder(
             val dishes = runCatching { snapshot(date) }.getOrDefault(emptyList())
             store.update { data ->
                 var next = data
-                list.forEach { payment ->
+                list.filter { p -> next.events.any { it.id == p.id } }.forEach { payment ->
                     val plan = MealMatcher.plan(payment.amount, dishes, context.defaultMensaId, context.priceGroup)
+                    // Saved without asking only when both scans were on the same day: with the previous scan on an
+                    // earlier day the payment may also have been on that day, after that scan.
                     val single = (plan as? MealMatcher.Plan.Choose)?.candidates?.singleOrNull()
+                        ?.takeIf { StatsOps.sameDayAsPrevious(next, payment.scanId) }
                     next = if (single != null) StatsOps.setMeal(next, payment.id, single.toRecord())
                     else StatsOps.askMeals(next, listOf(payment), dishes)
                 }

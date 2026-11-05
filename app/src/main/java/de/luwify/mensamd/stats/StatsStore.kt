@@ -79,7 +79,11 @@ class StatsStore(
         } catch (e: Exception) {
             return broken()
         }
-        val version = StatsMigrations.versionOf(obj)
+        val version = try {
+            StatsMigrations.versionOf(obj)
+        } catch (e: Exception) {
+            return broken()
+        }
         if (version > StatsMigrations.CURRENT) {
             _problem.value = StatsProblem.TooNew(version)
             return StatsData()

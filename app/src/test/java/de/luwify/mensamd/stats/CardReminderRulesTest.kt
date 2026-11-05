@@ -52,8 +52,11 @@ class CardReminderRulesTest {
 
     @Test fun lateOrEarlyCatchUpIsSkipped() {
         assertFalse(CardReminderRules.shouldRemind(at(thu, 0, 30), runAt, data, true)) // yesterday's run after midnight
-        assertFalse(CardReminderRules.shouldRemind(at(thu, 22, 5), runAt, data, true))
-        assertTrue(CardReminderRules.shouldRemind(at(thu, 21, 59), runAt, data, true))
+        assertTrue(CardReminderRules.shouldRemind(at(thu, 18, 0), runAt, data, true)) // 3 h late: still
+        assertFalse(CardReminderRules.shouldRemind(at(thu, 18, 1), runAt, data, true)) // later: skipped
+        // A late reminder time works too (no fixed end of the day).
+        assertTrue(CardReminderRules.shouldRemind(at(thu, 22, 40), LocalTime.of(22, 30), data, true))
+        assertFalse(CardReminderRules.shouldRemind(at(thu.plusDays(1), 0, 10), LocalTime.of(22, 30), data, true))
     }
 
     private fun dish() = Dish(LocalizedText("A"), emptyList(), listOf(310), emptyList(), emptyList(), null, null)

@@ -41,6 +41,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimePicker
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -79,6 +80,8 @@ import java.util.Locale
 @Composable
 fun CardSettingsScreen(vm: StatsViewModel, access: NotificationAccess, onBack: () -> Unit) {
     BackHandler(onBack = onBack)
+    // "Karte registrieren" only while this screen is open: a card held days later must never be registered by surprise.
+    DisposableEffect(Unit) { onDispose { vm.setRegistering(false) } }
     val settings by vm.settings.collectAsStateWithLifecycle()
     val data by vm.data.collectAsStateWithLifecycle()
     val registering by vm.registering.collectAsStateWithLifecycle()

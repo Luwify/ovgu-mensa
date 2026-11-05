@@ -32,10 +32,11 @@ object MealMatcher {
 
     /**
      * The prices of [dish] for price group [group] in mills. The group's price when the menu says which column is
-     * which; otherwise (PIER 16 lists two unnamed prices) every listed price, since any of them could be the user's.
+     * which (a dish with fewer prices, like a cake with one, costs its first one, as the menu shows it); otherwise
+     * (PIER 16 lists two unnamed prices) every listed price, since any of them could be the user's.
      */
     fun prices(dish: SnapDish, group: Int): List<Int> =
-        if (dish.priceGroupsKnown) listOfNotNull(dish.prices.getOrNull(group)?.times(10))
+        if (dish.priceGroupsKnown) listOfNotNull((dish.prices.getOrNull(group) ?: dish.prices.firstOrNull())?.times(10))
         else dish.prices.distinct().map { it * 10 }
 
     /** Every combination that costs exactly [amount], per Mensa in the order of [dishes]: singles, doubles, pairs. */
