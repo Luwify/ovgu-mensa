@@ -31,12 +31,12 @@ Resume point for the card statistics feature (started 2026-11-05). Tick items as
 - [ ] Registration and first recordings with the real card (needs the user)
 
 ## Phase 2: recording
-- [ ] Versioned stats store with migrations + tests
-- [ ] Scan records (time, balance, last transaction)
-- [ ] Diff logic (one payment, several -> one/split, top-up, Pfand, top-up + payment) + tests
-- [ ] Questions UI for ambiguous diffs
-- [ ] Overview: per week/month, per weekday, average per visit, balance over time; link constant for the meal
-      statistics website
+- [x] Versioned stats store with migrations + tests
+- [x] Scan records (time, balance, last transaction)
+- [x] Diff logic (one payment, several -> one/split, top-up, Pfand, top-up + payment) + tests (`BalanceDiff`)
+- [x] Questions UI for ambiguous diffs (tested on the phone with seeded data)
+- [x] Overview: per week/month, per weekday, average per visit, balance over time; link constant for the meal
+      statistics website (`StatsLinks.MEAL_STATS_URL`, hidden while empty). Charts: own Canvas code, no library.
 
 ## Phase 3: detailed statistics
 - [ ] Matching (single, same dish twice, two dishes; default Mensa first) + tests
