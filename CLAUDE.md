@@ -104,7 +104,7 @@ git-ignored `CLAUDE.local.md` at the repo root, which Claude Code loads after th
   older file kept as `.v<n>`, newer never written, broken moved aside), atomic writes under one lock), `StatsOps`,
   `BalanceDiff` (rules in its KDoc; unclear changes become `OpenItem`s answered in `StatsScreen`), `MealMatcher`
   (detailed statistics: one dish / same dish twice / two dishes of one Mensa at the user's price group, default Mensa
-  first, >5 candidates -> "where did you eat?", one candidate saved directly; the day's dishes are kept only with an open
+  first, >5 candidates -> "where did you eat?", one candidate saved directly only when both scans were on the same day; the day's dishes are kept only with an open
   question), `StatsSummary`/`MealSummary`, `CardReminderRules`. `StatsRecorder` (app scope) records scans from reader mode
   and the popup. "Meine Karte": only scans of the registered card are stored; the UID becomes a fingerprint in memory
   (`CardIdentity`), only a salted PBKDF2 hash of it is stored. Amounts are mills (card unit); menu prices are cents x 10.

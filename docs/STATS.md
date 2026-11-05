@@ -28,7 +28,8 @@ Resume point for the card statistics feature (started 2026-11-05). Tick items as
       offer registration on the first scan when Statistik is on and no card is registered
 - [x] Store (`stats/StatsStore`, versioned JSON in filesDir/stats, migrations in `StatsMigrations`), card identity
       (`CardIdentity`: fingerprint of the UID in memory, salted SHA-256 stored), recorder wired to reader mode and popup
-- [ ] Registration and first recordings with the real card (needs the user)
+- [x] Registration and first recordings with the real card (2026-11-05, .preview: registration offer, baseline scan,
+      unchanged second scan). Not yet seen on a real card: a payment, a top-up, another card (none at hand)
 
 ## Phase 2: recording
 - [x] Versioned stats store with migrations + tests
@@ -59,4 +60,4 @@ Resume point for the card statistics feature (started 2026-11-05). Tick items as
       window = up to 3 h after the set time (any time of day), single-price dishes match every price group, card hash =
       PBKDF2 (120k rounds; a 7-byte UID is brute-forceable with a fast hash), process-wide scan numbers, background
       save errors can't crash the app, unreadable `version` = broken file, reminder reschedules when settings can't be read
-- [ ] Changelog unreleased.*.md; installRelease over the real app (update only); commit, push
+- [x] Changelog unreleased.*.md; installRelease over the real app (update only, 2026-11-05 18:02); commit, push
