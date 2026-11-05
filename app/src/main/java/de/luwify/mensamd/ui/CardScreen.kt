@@ -46,41 +46,69 @@ import de.luwify.mensamd.card.CardBalance
 import de.luwify.mensamd.card.CardScanState
 import de.luwify.mensamd.card.NfcCardScanner
 import de.luwify.mensamd.card.formatCardAmount
-import de.luwify.mensamd.ui.theme.BackIcon
+import de.luwify.mensamd.MensaApp
+import de.luwify.mensamd.ui.stats.CardSettingsScreen
+import de.luwify.mensamd.ui.stats.ScanStatsNote
+import de.luwify.mensamd.ui.stats.StatsScreen
+import de.luwify.mensamd.ui.stats.StatsViewModel
+import de.luwify.mensamd.ui.stats.TopBar
+import de.luwify.mensamd.ui.theme.StatsIcon
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.res.painterResource
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
 import de.luwify.mensamd.ui.theme.CardIcon
 import java.util.Locale
 
-/** The "Karte" screen. The scanner runs while the activity is resumed (see `MainActivity`); it opens this screen on a scan. */
+/**
+ * The "Karte" screen. The scanner runs while the activity is resumed (see `MainActivity`); it opens this screen on a
+ * scan. The gear opens the card settings, the chart button (statistics on) the statistics; both are overlays here.
+ */
 @Composable
-fun CardScreen(scanner: NfcCardScanner, onBack: () -> Unit) {
-    BackHandler(onBack = onBack)
+fun CardScreen(scanner: NfcCardScanner, mainVm: MainViewModel, onBack: () -> Unit) {
+    val context = LocalContext.current
+    val statsVm: StatsViewModel = viewModel(factory = viewModelFactory {
+        initializer { StatsViewModel((context.applicationContext as MensaApp).container) }
+    })
+    var showSettings by rememberSaveable { mutableStateOf(false) }
+    var showStats by rememberSaveable { mutableStateOf(false) }
+    BackHandler(enabled = !showSettings && !showStats, onBack = onBack)
     val state by scanner.state.collectAsStateWithLifecycle()
+    val settings by statsVm.settings.collectAsStateWithLifecycle()
+    val statsOn = settings?.enabled == true
+    val access = rememberNotificationAccess(mainVm)
 
     Surface(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
-            Row(
-                Modifier
-                    .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal))
-                    .height(56.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                IconButton(onClick = onBack) {
-                    Icon(BackIcon, contentDescription = stringResource(R.string.card_back))
+            TopBar(stringResource(R.string.card_title), onBack) {
+                if (statsOn) {
+                    IconButton(onClick = { showStats = true }) { Icon(StatsIcon, stringResource(R.string.stats_title)) }
                 }
-                Text(stringResource(R.string.card_title), style = MaterialTheme.typography.titleLarge)
+                IconButton(onClick = { showSettings = true }) {
+                    Icon(painterResource(R.drawable.ic_settings), stringResource(R.string.card_settings_title))
+                }
             }
             Box(
                 Modifier
                     .weight(1f)
                     .fillMaxWidth()
                     .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal))
-                    .padding(horizontal = 24.dp),
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 24.dp, vertical = 16.dp),
                 contentAlignment = Alignment.Center,
             ) {
-                CardContent(state)
+                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    CardContent(state)
+                    if (statsOn) ScanStatsNote(statsVm, state as? CardScanState.Success, onOpenStats = { showStats = true })
+                }
             }
             Text(
-                stringResource(R.string.card_privacy),
+                stringResource(if (statsOn) R.string.card_privacy_stats else R.string.card_privacy),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
@@ -88,6 +116,8 @@ fun CardScreen(scanner: NfcCardScanner, onBack: () -> Unit) {
             )
         }
     }
+    if (showSettings) CardSettingsScreen(statsVm, access, onBack = { showSettings = false })
+    if (showStats && statsOn) StatsScreen(statsVm, mainVm, onBack = { showStats = false })
 }
 
 @Composable

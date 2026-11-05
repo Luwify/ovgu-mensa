@@ -52,6 +52,9 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
+import de.luwify.mensamd.stats.CardIdentity
+import de.luwify.mensamd.stats.RecordResult
 
 /**
  * Small popup shown when a card is held to the phone while the app isn't in front.
@@ -63,7 +66,8 @@ import kotlinx.coroutines.withContext
  */
 class CardPopupActivity : ComponentActivity() {
     private sealed interface Popup {
-        data class Success(val balance: CardBalance) : Popup
+        /** [note]: what the card statistics did with this scan (string resource), if anything worth saying. */
+        data class Success(val balance: CardBalance, val note: Int? = null) : Popup
         data object Error : Popup
     }
 
@@ -120,7 +124,20 @@ class CardPopupActivity : ComponentActivity() {
                 } }
             val result = withContext(Dispatchers.IO) { readCardFromTag(tag) }
             when (result) {
-                is CardReadResult.Success -> show(Popup.Success(result.balance), mode.await())
+                is CardReadResult.Success -> {
+                    // The statistics (if on) store the scan in the app scope; the popup waits briefly for the outcome.
+                    val fingerprint = tag.id?.takeIf { it.isNotEmpty() }?.let(CardIdentity::fingerprint)
+                    val recording = (application as MensaApp).container.statsRecorder
+                        .recordAsync(-1, result.balance.value, result.balance.lastTransaction, fingerprint)
+                    val note = when (val r = withTimeoutOrNull(1_500) { recording.await() }) {
+                        is RecordResult.Recorded -> if (r.newQuestions.isNotEmpty()) R.string.popup_stats_question else R.string.popup_stats_saved
+                        RecordResult.Unchanged -> R.string.popup_stats_saved
+                        RecordResult.OtherCard -> R.string.scan_other_card
+                        RecordResult.NoCard -> R.string.popup_stats_no_card
+                        else -> null
+                    }
+                    show(Popup.Success(result.balance, note), mode.await())
+                }
                 CardReadResult.Failed -> show(Popup.Error, mode.await())
                 // Not our card: leave silently. An already visible popup stays as it is.
                 CardReadResult.Unsupported -> if (popup == null) finish()
@@ -184,6 +201,14 @@ class CardPopupActivity : ComponentActivity() {
                             )
                             content.balance.lastTransaction?.let {
                                 Text(stringResource(R.string.card_last_transaction, formatCardAmount(it, locale)), style = MaterialTheme.typography.titleMedium)
+                            }
+                            content.note?.let {
+                                Text(
+                                    stringResource(it),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    textAlign = TextAlign.Center,
+                                )
                             }
                         }
                         Popup.Error -> Text(stringResource(R.string.card_popup_error), style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.Center)

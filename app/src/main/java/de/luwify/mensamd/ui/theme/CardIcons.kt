@@ -87,3 +87,40 @@ val ChevronDownIcon: ImageVector by lazy {
         }
     }.build()
 }
+
+/** Three bars on a base line (the card statistics), drawn like [CardIcon]. */
+val StatsIcon: ImageVector by lazy {
+    ImageVector.Builder("Stats", 24.dp, 24.dp, 24f, 24f).apply {
+        path(
+            stroke = SolidColor(Color.Black),
+            strokeLineWidth = 2f,
+            strokeLineCap = StrokeCap.Round,
+            strokeLineJoin = StrokeJoin.Round,
+        ) {
+            moveTo(4f, 20f)
+            horizontalLineTo(20f)
+            moveTo(7f, 16f)
+            verticalLineTo(11f)
+            moveTo(12f, 16f)
+            verticalLineTo(5f)
+            moveTo(17f, 16f)
+            verticalLineTo(8f)
+        }
+    }.build()
+}
+
+/** A plus sign (add an amount or an extra). */
+val PlusIcon: ImageVector by lazy {
+    ImageVector.Builder("Plus", 24.dp, 24.dp, 24f, 24f).apply {
+        path(
+            stroke = SolidColor(Color.Black),
+            strokeLineWidth = 2f,
+            strokeLineCap = StrokeCap.Round,
+        ) {
+            moveTo(12f, 5f)
+            verticalLineTo(19f)
+            moveTo(5f, 12f)
+            horizontalLineTo(19f)
+        }
+    }.build()
+}

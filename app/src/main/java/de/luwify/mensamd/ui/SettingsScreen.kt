@@ -41,6 +41,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -258,7 +259,7 @@ fun SettingsScreen(vm: MainViewModel, mensas: List<Mensa>, defaultId: String, pr
 
 /** A row that opens a page: label and a chevron. */
 @Composable
-private fun ChevronRow(label: String, onClick: () -> Unit) {
+internal fun ChevronRow(label: String, onClick: () -> Unit) {
     Row(
         Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onClick).heightIn(min = 56.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -392,12 +393,18 @@ private fun NotifyTimeRow(time: LocalTime, onTime: (LocalTime) -> Unit) {
 
 /** A setting with a title, an explanation and a switch; the whole row toggles. */
 @Composable
-internal fun SwitchRow(title: String, hint: String, checked: Boolean, onChange: (Boolean) -> Unit) {
+internal fun SwitchRow(title: String, hint: String, checked: Boolean, onChange: (Boolean) -> Unit) =
+    SwitchRow(title, hint, checked, enabled = true, onChange = onChange)
+
+/** [SwitchRow] that can be greyed out ([enabled] false: shown, not toggleable). */
+@Composable
+internal fun SwitchRow(title: String, hint: String, checked: Boolean, enabled: Boolean, onChange: (Boolean) -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()
-            .toggleable(value = checked, role = Role.Switch, onValueChange = onChange)
-            .padding(top = 12.dp, bottom = 4.dp),
+            .toggleable(value = checked, enabled = enabled, role = Role.Switch, onValueChange = onChange)
+            .padding(top = 12.dp, bottom = 4.dp)
+            .alpha(if (enabled) 1f else 0.5f),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f)) {
@@ -405,6 +412,6 @@ internal fun SwitchRow(title: String, hint: String, checked: Boolean, onChange: 
             Text(hint, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Spacer(Modifier.width(16.dp))
-        Switch(checked = checked, onCheckedChange = null)
+        Switch(checked = checked, onCheckedChange = null, enabled = enabled)
     }
 }

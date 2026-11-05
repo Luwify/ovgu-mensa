@@ -46,7 +46,12 @@ class MainActivity : ComponentActivity() {
         viewModelFactory { initializer { MainViewModel((application as MensaApp).container) } }
     }
 
-    private val cardScanner by lazy { NfcCardScanner(NfcAdapter.getDefaultAdapter(this)) }
+    private val cardScanner by lazy {
+        NfcCardScanner(NfcAdapter.getDefaultAdapter(this)).also { scanner ->
+            val recorder = (application as MensaApp).container.statsRecorder
+            scanner.onRead = { s -> recorder.recordAsync(s.seq, s.balance.value, s.balance.lastTransaction, s.fingerprint) }
+        }
+    }
 
     override fun attachBaseContext(newBase: android.content.Context) = super.attachBaseContext(AppLanguage.wrap(newBase))
 
@@ -144,7 +149,7 @@ private fun MensaRoot(viewModel: MainViewModel, cardScanner: NfcCardScanner) {
                     onOpenCard = { showCard = true }, onOpenSettings = { showSettings = true },
                 )
                 if (showSettings) SettingsScreen(viewModel, s.mensas, s.defaultId, s.prefs, onBack = { showSettings = false })
-                if (showCard) CardScreen(cardScanner, onBack = {
+                if (showCard) CardScreen(cardScanner, viewModel, onBack = {
                     showCard = false
                     cardScanner.reset()
                 })

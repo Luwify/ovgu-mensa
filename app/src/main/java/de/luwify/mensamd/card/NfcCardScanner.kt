@@ -7,16 +7,25 @@ import android.nfc.tech.IsoDep
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import de.luwify.mensamd.stats.CardIdentity
+import java.util.concurrent.atomic.AtomicLong
 
 /**
  * Reads the Mensa card through NFC reader mode, only between [start] and [stop] (i.e. while the
  * card screen is resumed). Reader mode needs no manifest intent filters, and the card never opens
  * the app from outside.
  *
- * Privacy: nothing is logged, stored or sent; the card UID is never read. [state] is the only
+ * Privacy: nothing is logged or sent. The card's UID only becomes a fingerprint in memory
+ * (`CardIdentity.fingerprint`); [onRead] hands the result to the card statistics, which store
+ * anything only when the user turned them on and registered this card. [state] is the only other
  * place the result lives, and [stop] clears it.
  */
 class NfcCardScanner(private val adapter: NfcAdapter?) {
+    /** Called on the NFC thread after every successful read (the card statistics). */
+    @Volatile var onRead: ((CardScanState.Success) -> Unit)? = null
+
+    private val seq = AtomicLong()
+
     /** False on devices without NFC hardware: the card icon is hidden then. */
     val available: Boolean get() = adapter != null
 
@@ -71,7 +80,9 @@ class NfcCardScanner(private val adapter: NfcAdapter?) {
             return
         }
         publish(CardScanState.Reading)
-        publish(isoDep.readCard().toState())
+        val state = isoDep.readCard().toState(tag.id, seq.incrementAndGet())
+        if (state is CardScanState.Success && active) onRead?.invoke(state)
+        publish(state)
     }
 
     /** Ignores results that arrive after the screen was left. */

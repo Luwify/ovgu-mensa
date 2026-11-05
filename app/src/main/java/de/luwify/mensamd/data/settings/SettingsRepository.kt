@@ -307,6 +307,51 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
     suspend fun setNotificationPermissionRequested() {
         store.edit { it[permissionRequestedKey] = true }
     }
+    private val statsEnabledKey = booleanPreferencesKey("stats_enabled")
+    private val statsDetailedKey = booleanPreferencesKey("stats_detailed")
+    private val cardReminderKey = booleanPreferencesKey("card_reminder_enabled")
+    private val cardReminderMinuteKey = intPreferencesKey("card_reminder_minute")
+    private val topUpAmountsKey = stringPreferencesKey("stats_top_up_amounts")
+    private val pfandAmountsKey = stringPreferencesKey("stats_pfand_amounts")
+
+    /** The card statistics settings (card screen gear). All off by default; amounts in thousandths of a euro. */
+    val cardStats: Flow<CardStatsSettings> = store.data.map { prefs ->
+        CardStatsSettings(
+            enabled = prefs[statsEnabledKey] ?: false,
+            detailed = prefs[statsDetailedKey] ?: false,
+            reminder = prefs[cardReminderKey] ?: false,
+            reminderTime = prefs[cardReminderMinuteKey]?.takeIf { it in 0 until 24 * 60 }?.let { LocalTime.of(it / 60, it % 60) }
+                ?: CardStatsSettings.DEFAULT_REMINDER_TIME,
+            topUps = prefs[topUpAmountsKey]?.let(::decodeAmounts) ?: CardStatsSettings.DEFAULT_TOP_UPS,
+            pfand = prefs[pfandAmountsKey]?.let(::decodeAmounts).orEmpty(),
+        )
+    }
+
+    suspend fun setStatsEnabled(on: Boolean) {
+        store.edit { it[statsEnabledKey] = on }
+    }
+
+    suspend fun setStatsDetailed(on: Boolean) {
+        store.edit { it[statsDetailedKey] = on }
+    }
+
+    suspend fun setCardReminder(on: Boolean) {
+        store.edit { it[cardReminderKey] = on }
+    }
+
+    suspend fun setCardReminderTime(time: LocalTime) {
+        store.edit { it[cardReminderMinuteKey] = time.hour * 60 + time.minute }
+    }
+
+    /** Positive amounts only, sorted and without duplicates. */
+    suspend fun setTopUpAmounts(amounts: List<Int>) {
+        store.edit { it[topUpAmountsKey] = encodeAmounts(amounts) }
+    }
+
+    suspend fun setPfandAmounts(amounts: List<Int>) {
+        store.edit { it[pfandAmountsKey] = encodeAmounts(amounts) }
+    }
+
 }
 
 /** The color the old hue-only setting meant: the swatch tone of that hue (HSL saturation 62 %, lightness 52 %). */
@@ -326,3 +371,8 @@ internal fun hueToAccent(hue: Int): Int {
     fun ch(v: Double) = ((v + m) * 255 + 0.5).toInt().coerceIn(0, 255)
     return (ch(r) shl 16) or (ch(g) shl 8) or ch(b)
 }
+
+/** "10000,20000" <-> amounts; anything unreadable is dropped. An empty string is an empty list (all removed). */
+internal fun decodeAmounts(text: String): List<Int> = text.split(',').mapNotNull { it.trim().toIntOrNull()?.takeIf { v -> v > 0 } }.distinct().sorted()
+
+internal fun encodeAmounts(amounts: List<Int>): String = amounts.filter { it > 0 }.distinct().sorted().joinToString(",")

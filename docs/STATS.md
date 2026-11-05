@@ -21,11 +21,14 @@ Resume point for the card statistics feature (started 2026-11-05). Tick items as
       no readable log. Recording works from balance differences as planned.
 
 ## Phase 1: card settings in the card screen
-- [ ] Gear in the card screen's top bar -> card settings (Statistik, Detaillierte Statistik, Erinnerung + time,
+- [x] Gear in the card screen's top bar -> card settings (Statistik, Detaillierte Statistik, Erinnerung + time,
       Meine Karte register/remove, top-up and Pfand amount lists)
-- [ ] Statistics button next to the gear (only with Statistik on)
-- [ ] Meine Karte: only a hash of the card id; other cards show the balance with a hint and are not saved;
+- [x] Statistics button next to the gear (only with Statistik on)
+- [x] Meine Karte: only a hash of the card id; other cards show the balance with a hint and are not saved;
       offer registration on the first scan when Statistik is on and no card is registered
+- [x] Store (`stats/StatsStore`, versioned JSON in filesDir/stats, migrations in `StatsMigrations`), card identity
+      (`CardIdentity`: fingerprint of the UID in memory, salted SHA-256 stored), recorder wired to reader mode and popup
+- [ ] Registration and first recordings with the real card (needs the user)
 
 ## Phase 2: recording
 - [ ] Versioned stats store with migrations + tests

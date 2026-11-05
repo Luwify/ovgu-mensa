@@ -157,8 +157,14 @@ class CardReadersTest {
 
     @Test fun readResultsMapToScreenStates() {
         val b = CardBalance(1, null)
-        assertEquals(CardScanState.Success(b), CardReadResult.Success(b).toState())
-        assertEquals(CardScanState.Unsupported, CardReadResult.Unsupported.toState())
-        assertEquals(CardScanState.Error, CardReadResult.Failed.toState())
+        val uid = byteArrayOf(4, 1, 2, 3, 4, 5, 6)
+        val success = CardReadResult.Success(b).toState(uid, 7) as CardScanState.Success
+        assertEquals(b, success.balance)
+        assertEquals(7L, success.seq)
+        // Only the fingerprint is kept, never the UID bytes themselves.
+        assertEquals(de.luwify.mensamd.stats.CardIdentity.fingerprint(uid), success.fingerprint)
+        assertEquals(null, (CardReadResult.Success(b).toState(ByteArray(0), 1) as CardScanState.Success).fingerprint)
+        assertEquals(CardScanState.Unsupported, CardReadResult.Unsupported.toState(uid, 1))
+        assertEquals(CardScanState.Error, CardReadResult.Failed.toState(uid, 1))
     }
 }

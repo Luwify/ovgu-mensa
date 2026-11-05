@@ -247,4 +247,66 @@
     <string name="stundenplan_setting_hint">Eine Karte am Anfang der Einstellungen, die Stundenplan MD öffnet oder installiert. Ohne eigene Wahl erscheint sie nur, solange Stundenplan MD nicht installiert ist</string>
     <string name="companion_unavailable">Für dieses Gerät gibt es keine Version der App.</string>
     <string name="favorites_manage">Favoriten verwalten</string>
+    <!-- Kartenstatistik: Karteneinstellungen (Zahnrad im Kartenbildschirm) -->
+    <string name="cancel_action">Abbrechen</string>
+    <string name="card_settings_title">Karteneinstellungen</string>
+    <string name="card_privacy_stats">Statistik ist an: Guthaben und Abbuchungen deiner Karte werden nur auf diesem Gerät gespeichert. Nichts wird gesendet.</string>
+    <string name="stats_section">Statistik</string>
+    <string name="stats_toggle">Statistik aufzeichnen</string>
+    <string name="stats_toggle_hint">Speichert bei jedem Scan Guthaben und letzte Abbuchung deiner Karte und leitet daraus Zahlungen und Aufladungen ab. Nur auf diesem Gerät.</string>
+    <string name="stats_detailed">Detaillierte Statistik</string>
+    <string name="stats_detailed_hint">Ordnet Zahlungen den Gerichten des Tages zu (Preisgruppe aus den Einstellungen). Braucht die Statistik.</string>
+    <string name="my_card_title">Meine Karte</string>
+    <string name="my_card_none">Keine Karte registriert.</string>
+    <string name="my_card_since">Registriert seit %1$s.</string>
+    <string name="my_card_hold">Halte jetzt deine Karte an die Rückseite des Handys …</string>
+    <string name="my_card_register">Karte registrieren</string>
+    <string name="my_card_replace">Andere Karte registrieren</string>
+    <string name="my_card_remove">Entfernen</string>
+    <string name="my_card_hint">Nur Scans dieser Karte werden gespeichert. Gespeichert wird nur ein Hash der Karten-ID, nie die ID selbst.</string>
+    <string name="my_card_needs_stats">Schalte die Statistik ein, um eine Karte zu registrieren.</string>
+    <string name="my_card_remove_title">Karte entfernen?</string>
+    <string name="my_card_remove_text">Die bisherige Statistik bleibt erhalten. Neue Scans werden erst wieder gespeichert, wenn eine Karte registriert ist.</string>
+    <string name="card_reminder_title">Erinnerung</string>
+    <string name="card_reminder_toggle">Ans Scannen erinnern</string>
+    <string name="card_reminder_hint">Eine Benachrichtigung an Wochentagen, wenn deine Karte an dem Tag noch nicht gescannt wurde (nicht, wenn deine Standard-Mensa keinen Speiseplan hat). Braucht die Statistik.</string>
+    <string name="card_reminder_time">Uhrzeit</string>
+    <string name="top_up_amounts">Aufladebeträge</string>
+    <string name="pfand_amounts">Pfandbeträge</string>
+    <string name="pfand_amounts_hint">Was der Pfandautomat auf die Karte zurückbucht. Steigt das Guthaben um einen dieser Beträge, zählt das als Pfandrückgabe.</string>
+    <string name="amount_add">Betrag</string>
+    <string name="amount_remove">%1$s entfernen</string>
+    <string name="amount_label">Betrag</string>
+    <string name="top_up_add">Aufladebetrag hinzufügen</string>
+    <string name="pfand_add">Pfandbetrag hinzufügen</string>
+    <string name="stats_data_title">Daten</string>
+    <string name="stats_clear">Statistik löschen</string>
+    <string name="stats_clear_title">Statistik löschen?</string>
+    <string name="stats_clear_text">Alle gespeicherten Scans, Zahlungen, Aufladungen, Gerichte und offenen Fragen werden gelöscht. Die registrierte Karte, eigene Extras und Gerichte bleiben. Das lässt sich nicht rückgängig machen (außer mit einer Sicherung).</string>
+    <string name="stats_clear_confirm">Löschen</string>
+    <string name="stats_backup_hint">Die Statistik ist Teil der Sicherung (Einstellungen).</string>
+    <string name="stats_too_new">Die Statistik wurde von einer neueren Version der App gespeichert. Sie bleibt unverändert, und bis zum Update wird nichts Neues gespeichert.</string>
+    <string name="stats_broken">Die Statistikdatei konnte nicht gelesen werden. Sie wurde als %1$s aufbewahrt, die Statistik beginnt leer.</string>
+
+    <!-- Kartenstatistik: unter dem Guthaben -->
+    <string name="stats_title">Statistik</string>
+    <string name="register_offer_title">Als meine Karte speichern?</string>
+    <string name="register_offer_text">Die Statistik ist an, aber keine Karte ist registriert. Gespeichert werden nur Scans deiner Karte, von ihrer ID nur ein Hash.</string>
+    <string name="register_offer_later">Nicht jetzt</string>
+    <string name="register_offer_yes">Als meine Karte speichern</string>
+    <string name="scan_other_card">Nicht deine registrierte Karte: angezeigt, nicht gespeichert.</string>
+    <string name="scan_unchanged">Keine Änderung gegenüber dem letzten Scan.</string>
+    <string name="scan_baseline">Erster Scan gespeichert. Die Statistik beginnt mit dem nächsten Scan.</string>
+    <string name="scan_saved">Scan gespeichert, Guthaben unverändert.</string>
+    <string name="scan_payment">Zahlung %1$s</string>
+    <string name="scan_payment_meal">Zahlung %1$s: %2$s</string>
+    <string name="scan_top_up">Aufladung %1$s</string>
+    <string name="scan_pfand">Pfandrückgabe %1$s</string>
+    <plurals name="open_questions_button">
+        <item quantity="one">%d Frage beantworten</item>
+        <item quantity="other">%d Fragen beantworten</item>
+    </plurals>
+    <string name="popup_stats_saved">In der Statistik gespeichert.</string>
+    <string name="popup_stats_question">In der Statistik gespeichert. In der App wartet eine Frage.</string>
+    <string name="popup_stats_no_card">Die Statistik ist an, aber keine Karte ist registriert: öffne die App, um sie zu registrieren.</string>
 </resources>

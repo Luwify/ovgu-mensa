@@ -255,4 +255,66 @@
     <string name="stundenplan_setting_hint">A card at the top of the settings that opens or installs Stundenplan MD. Without a choice here it shows only while Stundenplan MD is not installed</string>
     <string name="companion_unavailable">There is no version of the app available for this device.</string>
     <string name="favorites_manage">Manage favorites</string>
+    <!-- Card statistics: card settings (gear on the card screen) -->
+    <string name="cancel_action">Cancel</string>
+    <string name="card_settings_title">Card settings</string>
+    <string name="card_privacy_stats">Statistics are on: balance and debits of your card are stored on this device only. Nothing is sent.</string>
+    <string name="stats_section">Statistics</string>
+    <string name="stats_toggle">Record statistics</string>
+    <string name="stats_toggle_hint">Stores balance and last debit of your card at every scan and works out payments and top-ups. Only on this device.</string>
+    <string name="stats_detailed">Detailed statistics</string>
+    <string name="stats_detailed_hint">Matches payments to that day\'s dishes (price group from the settings). Needs statistics.</string>
+    <string name="my_card_title">My card</string>
+    <string name="my_card_none">No card registered.</string>
+    <string name="my_card_since">Registered since %1$s.</string>
+    <string name="my_card_hold">Hold your card to the back of the phone now…</string>
+    <string name="my_card_register">Register card</string>
+    <string name="my_card_replace">Register another card</string>
+    <string name="my_card_remove">Remove</string>
+    <string name="my_card_hint">Only scans of this card are recorded. Only a hash of the card ID is stored, never the ID itself.</string>
+    <string name="my_card_needs_stats">Turn on statistics to register a card.</string>
+    <string name="my_card_remove_title">Remove card?</string>
+    <string name="my_card_remove_text">The statistics recorded so far stay. New scans are only recorded after a card is registered again.</string>
+    <string name="card_reminder_title">Reminder</string>
+    <string name="card_reminder_toggle">Remind me to scan</string>
+    <string name="card_reminder_hint">A notification on weekdays when your card wasn\'t scanned that day (not when your default Mensa has no menu). Needs statistics.</string>
+    <string name="card_reminder_time">Time</string>
+    <string name="top_up_amounts">Top-up amounts</string>
+    <string name="pfand_amounts">Pfand amounts</string>
+    <string name="pfand_amounts_hint">What the Pfand return machine credits to the card. A balance increase by one of these amounts counts as a Pfand return.</string>
+    <string name="amount_add">Amount</string>
+    <string name="amount_remove">Remove %1$s</string>
+    <string name="amount_label">Amount</string>
+    <string name="top_up_add">Add top-up amount</string>
+    <string name="pfand_add">Add Pfand amount</string>
+    <string name="stats_data_title">Data</string>
+    <string name="stats_clear">Delete statistics</string>
+    <string name="stats_clear_title">Delete statistics?</string>
+    <string name="stats_clear_text">All recorded scans, payments, top-ups, meals and open questions are deleted. The registered card, your own extras and dishes stay. This can\'t be undone (unless you have a backup).</string>
+    <string name="stats_clear_confirm">Delete</string>
+    <string name="stats_backup_hint">The statistics are part of the backup (settings page).</string>
+    <string name="stats_too_new">The statistics were saved by a newer version of the app. They are kept untouched and nothing new is recorded until the app is updated.</string>
+    <string name="stats_broken">The statistics file couldn\'t be read. It was kept as %1$s and the statistics start empty.</string>
+
+    <!-- Card statistics: under the balance -->
+    <string name="stats_title">Statistics</string>
+    <string name="register_offer_title">Save as my card?</string>
+    <string name="register_offer_text">Statistics are on, but no card is registered. Only scans of your card are recorded; only a hash of its ID is stored.</string>
+    <string name="register_offer_later">Not now</string>
+    <string name="register_offer_yes">Save as my card</string>
+    <string name="scan_other_card">Not your registered card: shown, not recorded.</string>
+    <string name="scan_unchanged">No change since the last scan.</string>
+    <string name="scan_baseline">First scan saved. The statistics start with the next scan.</string>
+    <string name="scan_saved">Scan saved, no change in the balance.</string>
+    <string name="scan_payment">Payment %1$s</string>
+    <string name="scan_payment_meal">Payment %1$s: %2$s</string>
+    <string name="scan_top_up">Top-up %1$s</string>
+    <string name="scan_pfand">Pfand return %1$s</string>
+    <plurals name="open_questions_button">
+        <item quantity="one">Answer %d question</item>
+        <item quantity="other">Answer %d questions</item>
+    </plurals>
+    <string name="popup_stats_saved">Saved in the statistics.</string>
+    <string name="popup_stats_question">Saved in the statistics. A question is waiting in the app.</string>
+    <string name="popup_stats_no_card">Statistics are on, but no card is registered: open the app to register it.</string>
 </resources>
