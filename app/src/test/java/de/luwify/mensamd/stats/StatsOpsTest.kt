@@ -134,4 +134,44 @@ class StatsOpsTest {
         assertNull(u.card)
         assertEquals(a.scans, u.scans)
     }
+
+    @Test fun reassignPfandBecomesATopUpQuestion() {
+        val k = KnownAmounts(KnownAmounts.DEFAULT_TOP_UPS, KnownAmounts.DEFAULT_PFAND)
+        val (a, _) = StatsOps.recordScan(registered, fp, 0, day, 5_000, 3_100, k)
+        val (b, r) = StatsOps.recordScan(a, fp, 0, day, 5_330, 3_100, k)
+        val pfand = (r as RecordResult.Recorded).newEvents.single()
+        assertEquals(EventKind.PFAND, pfand.kind)
+        val (c, id) = StatsOps.reassignCredit(b, pfand.id)
+        assertTrue(c.events.isEmpty())
+        val q = c.open.single() as OpenItem.CreditAndPayment
+        assertEquals(id, q.id)
+        assertEquals(330, q.delta)
+        assertEquals(3_100, q.lastDebit)
+        // Answered as a 10 € top-up and a 9.67 € payment.
+        val (d, payments) = StatsOps.resolveCredit(c, q.id, 10_000)
+        assertEquals(listOf(EventKind.TOP_UP to 10_000, EventKind.PAYMENT to 9_670), d.events.map { it.kind to it.amount })
+        assertEquals(9_670, payments.single().amount)
+        // Or back to a Pfand return after all.
+        val (e, none) = StatsOps.resolveCredit(c, q.id, null, EventKind.PFAND)
+        assertEquals(listOf(EventKind.PFAND to 330), e.events.map { it.kind to it.amount })
+        assertTrue(none.isEmpty())
+    }
+
+    @Test fun reassignPfandWithItsPaymentKeepsTheNetChange() {
+        val k = KnownAmounts(KnownAmounts.DEFAULT_TOP_UPS, KnownAmounts.DEFAULT_PFAND)
+        val (a, _) = StatsOps.recordScan(registered, fp, 0, day, 10_000, 3_100, k)
+        // 0.50 € bottles back, 5.60 € lunch: -5.10 €
+        val (b, _) = StatsOps.recordScan(a, fp, 0, day, 4_900, 5_600, k)
+        assertEquals(listOf(EventKind.PFAND to 500, EventKind.PAYMENT to 5_600), b.events.map { it.kind to it.amount })
+        val withMeal = StatsOps.askMeals(b, listOf(b.events[1]), emptyList())
+        val (c, _) = StatsOps.reassignCredit(withMeal, b.events[0].id)
+        assertEquals(-5_100, (c.open.single() as OpenItem.CreditAndPayment).delta) // the meal question went with it
+        assertTrue(c.events.isEmpty())
+    }
+
+    @Test fun reassignOnlyForPfand() {
+        val (a, _) = scan(registered, 10_000, 0)
+        val (b, _) = scan(a, 6_900, 3_100)
+        assertEquals(b to null, StatsOps.reassignCredit(b, b.events.single().id))
+    }
 }

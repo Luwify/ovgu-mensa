@@ -39,6 +39,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -107,6 +108,15 @@ fun StatsScreen(vm: StatsViewModel, mainVm: MainViewModel, onBack: () -> Unit) {
     val mealOverlay = d?.open?.firstOrNull { it.id == openId } as? OpenItem.MealQuestion
     val editEvent = d?.events?.firstOrNull { it.id == editEventId && it.kind == EventKind.PAYMENT }
     BackHandler(enabled = mealOverlay == null && editEvent == null, onBack = onBack)
+    // "Anders zuordnen" (here or in the card screen's snackbar) opens the new question as soon as it exists.
+    val focus by vm.focusQuestion.collectAsStateWithLifecycle()
+    LaunchedEffect(focus, d?.open) {
+        val id = focus ?: return@LaunchedEffect
+        if (d?.open?.any { it.id == id } == true) {
+            openId = id
+            vm.consumeFocusQuestion()
+        }
+    }
 
     Box(Modifier.fillMaxSize()) {
         Surface(Modifier.fillMaxSize()) {
@@ -206,7 +216,10 @@ fun StatsScreen(vm: StatsViewModel, mainVm: MainViewModel, onBack: () -> Unit) {
                         item(key = "history-title") { SheetHeading(stringResource(R.string.stats_history)) }
                         val history = d.events.asReversed().let { if (showAll) it else it.take(20) }
                         items(history, key = { "event-${it.id}" }) { e ->
-                            EventRow(e, locale, language, canEdit = s.detailedActive && e.kind == EventKind.PAYMENT, onEdit = { editEventId = e.id }) {
+                            EventRow(
+                                e, locale, language, canEdit = s.detailedActive && e.kind == EventKind.PAYMENT, onEdit = { editEventId = e.id },
+                                onReassign = { vm.reassignCredit(e.id) },
+                            ) {
                                 vm.deleteEvent(e)
                                 scope.launch {
                                     val r = snackbar.showSnackbar(deletedText, undoText, duration = SnackbarDuration.Long)
@@ -296,7 +309,15 @@ private fun QuestionRow(item: OpenItem, locale: Locale, onClick: () -> Unit) {
 }
 
 @Composable
-private fun EventRow(e: CardEvent, locale: Locale, language: String, canEdit: Boolean, onEdit: () -> Unit, onDelete: () -> Unit) {
+private fun EventRow(
+    e: CardEvent,
+    locale: Locale,
+    language: String,
+    canEdit: Boolean,
+    onEdit: () -> Unit,
+    onReassign: () -> Unit,
+    onDelete: () -> Unit,
+) {
     val amount = formatCardAmount(e.amount, locale)
     val title = when (e.kind) {
         EventKind.PAYMENT -> stringResource(R.string.event_payment)
@@ -314,6 +335,9 @@ private fun EventRow(e: CardEvent, locale: Locale, language: String, canEdit: Bo
         Column(Modifier.weight(1f).padding(vertical = 6.dp)) {
             Text(title + " · " + (if (e.dateKnown) shortDate(e.date, locale) else stringResource(R.string.event_until, shortDate(e.date, locale))), style = MaterialTheme.typography.bodyLarge)
             meal?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+            if (e.kind == EventKind.PFAND) {
+                TextButton(onClick = onReassign, contentPadding = PaddingValues(0.dp)) { Text(stringResource(R.string.pfand_reassign)) }
+            }
         }
         Text(
             (if (e.kind == EventKind.PAYMENT) "−" else "+") + amount,

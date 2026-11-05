@@ -68,3 +68,12 @@ Resume point for the card statistics feature (started 2026-11-05). Tick items as
       (`KnownAmounts.isPfandSum`); a top-up amount of the same size wins. Note: with 8/15/25 cents every whole-cent
       amount from 0.68 € to 5 € is such a sum (only 34 smaller amounts are not), so nearly every credit up to 5 € is
       read as Pfand. "Top-up + payment" offers top-up amounts only.
+- [x] Increase rules (2026-11-05, the user's rule): an increase that is a top-up amount is a top-up. Otherwise: the
+      card's last payment changed since the previous scan -> a payment happened -> "top-up + payment?" is asked (the
+      top-up d + L is preselected when it is a top-up amount); unchanged and a Pfand sum (<= 5 €) -> Pfand, with
+      "Anders zuordnen" in the card screen's snackbar and in the history (back to the question; the question also
+      offers "Nur eine Pfandrückgabe"); anything else -> asked.
+- [ ] **UNVERIFIED: the "last payment" signal on a top-up.** The rules assume a top-up keeps the card's last payment
+      value (DESFire limited credit = debits of the last transaction with a debit). Check with a real top-up: scan
+      right before and right after topping up (no payment between) and compare "Letzte Abbuchung". If a top-up changes
+      it, every top-up looks like "top-up + payment" and the rule must change (`BalanceDiff.derive`, d > 0).

@@ -371,7 +371,7 @@
     <string name="q_back">Zurück</string>
     <string name="q_split">Aufteilen</string>
     <string name="q_credit_title">Aufladung und Zahlung?</string>
-    <string name="q_credit_text_up">Dein Guthaben ist um %1$s gestiegen, das ist weder ein Aufladebetrag noch eine Pfandrückgabe. War es eine Aufladung plus eine Zahlung?</string>
+    <string name="q_credit_text_up">Dein Guthaben ist um %1$s gestiegen. War es eine Aufladung plus eine Zahlung?</string>
     <string name="q_credit_text_down">Dein Guthaben ist um %1$s gesunken, weniger als die letzte Abbuchung (%2$s). Es wurde also auch etwas gutgeschrieben. Welcher Betrag?</string>
     <string name="q_credit_text_zero">Dein Guthaben ist gleich geblieben, aber es gab eine neue Abbuchung von %1$s. Es wurde also derselbe Betrag gutgeschrieben. Welcher?</string>
     <string name="q_credit_option">Aufladung %1$s + Zahlung %2$s</string>
@@ -458,4 +458,7 @@
         <item quantity="one">%d Eintrag</item>
         <item quantity="other">%d Einträge</item>
     </plurals>
+    <string name="pfand_reassign">Anders zuordnen</string>
+    <string name="pfand_snackbar">Pfandrückgabe %1$s gespeichert</string>
+    <string name="q_credit_only_pfand">Nur eine Pfandrückgabe von %1$s</string>
 </resources>

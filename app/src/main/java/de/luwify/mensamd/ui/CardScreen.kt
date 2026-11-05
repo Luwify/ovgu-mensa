@@ -47,6 +47,15 @@ import de.luwify.mensamd.card.CardScanState
 import de.luwify.mensamd.card.NfcCardScanner
 import de.luwify.mensamd.card.formatCardAmount
 import de.luwify.mensamd.MensaApp
+import de.luwify.mensamd.stats.EventKind
+import de.luwify.mensamd.stats.RecordResult
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableLongStateOf
 import de.luwify.mensamd.ui.stats.CardSettingsScreen
 import de.luwify.mensamd.ui.stats.ScanStatsNote
 import de.luwify.mensamd.ui.stats.StatsScreen
@@ -82,6 +91,26 @@ fun CardScreen(scanner: NfcCardScanner, mainVm: MainViewModel, onBack: () -> Uni
     val settings by statsVm.settings.collectAsStateWithLifecycle()
     val statsOn = settings?.enabled == true
     val access = rememberNotificationAccess(mainVm)
+    val snackbar = remember { SnackbarHostState() }
+    val record by statsVm.lastRecord.collectAsStateWithLifecycle()
+    val stats by statsVm.data.collectAsStateWithLifecycle()
+    var announcedSeq by rememberSaveable { mutableLongStateOf(0L) }
+    val pfandText = stringResource(R.string.pfand_snackbar)
+    val reassignText = stringResource(R.string.pfand_reassign)
+    val locale = LocalConfiguration.current.locales[0]
+    // An automatic Pfand return: say so once per scan, with "Anders zuordnen" (it may have been a top-up + payment).
+    LaunchedEffect(record) {
+        val r = record ?: return@LaunchedEffect
+        val recorded = r.result as? RecordResult.Recorded ?: return@LaunchedEffect
+        if (r.seq == announcedSeq || (state as? CardScanState.Success)?.seq != r.seq) return@LaunchedEffect
+        val pfand = recorded.newEvents.firstOrNull { it.kind == EventKind.PFAND } ?: return@LaunchedEffect
+        announcedSeq = r.seq
+        val result = snackbar.showSnackbar(pfandText.format(formatCardAmount(pfand.amount, locale)), reassignText, duration = SnackbarDuration.Long)
+        if (result == SnackbarResult.ActionPerformed && stats?.events?.any { it.id == pfand.id } == true) {
+            statsVm.reassignCredit(pfand.id)
+            showStats = true
+        }
+    }
 
     Surface(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
@@ -115,6 +144,9 @@ fun CardScreen(scanner: NfcCardScanner, mainVm: MainViewModel, onBack: () -> Uni
                 modifier = Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 24.dp, vertical = 12.dp),
             )
         }
+    }
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.BottomCenter) {
+        SnackbarHost(snackbar, Modifier.navigationBarsPadding().padding(bottom = 48.dp))
     }
     if (showSettings) CardSettingsScreen(statsVm, access, onBack = { showSettings = false })
     if (showStats && statsOn) StatsScreen(statsVm, mainVm, onBack = { showStats = false })

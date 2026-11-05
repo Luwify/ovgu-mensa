@@ -37,16 +37,34 @@ class BalanceDiffTest {
     @Test fun upByUnknownAmountAsksForTopUpPlusPayment() =
         assertEquals(Outcome.AskCredit(14_400, 5_600, null), derive(5_370, 5_600, 19_770, 5_600))
 
-    @Test fun upWithChangedDebitIsTopUpPlusThatPayment() =
-        // 20 € top-up, 5.60 € lunch: +14.40 €, and the last debit changed to 5.60 €.
-        assertEquals(Outcome.Events(listOf(TOP_UP to 20_000, PAYMENT to 5_600)), derive(5_370, 3_100, 19_770, 5_600))
+    @Test fun upWithChangedDebitIsAskedWithTheTopUpPreselected() =
+        // 20 € top-up, 5.60 € lunch: +14.40 €, and the last debit changed to 5.60 €: asked, 20 € suggested.
+        assertEquals(Outcome.AskCredit(14_400, 5_600, 20_000), derive(5_370, 3_100, 19_770, 5_600))
 
     @Test fun upWithChangedDebitButUnknownCreditAsks() =
         assertEquals(Outcome.AskCredit(14_000, 5_600, null), derive(5_370, 3_100, 19_370, 5_600))
 
-    @Test fun upByTopUpAmountWithChangedDebitIsNotAPlainTopUp() =
-        // +10 € but a 10 € payment happened too (last debit changed): a 20 € top-up.
-        assertEquals(Outcome.Events(listOf(TOP_UP to 20_000, PAYMENT to 10_000)), derive(5_000, 3_100, 15_000, 10_000))
+    @Test fun upByTopUpAmountWithChangedDebitIsAsked() =
+        // +10 € but the last debit changed: a payment happened too, so not a plain 10 € top-up (20 € suggested).
+        assertEquals(Outcome.AskCredit(10_000, 10_000, 20_000), derive(5_000, 3_100, 15_000, 10_000))
+
+    @Test fun upByAPfandSumWithChangedDebitIsAskedNotPfand() =
+        // +0.33 € looks like Pfand, but the last debit changed: top-up + payment, asked (3.43 € is no top-up amount).
+        assertEquals(Outcome.AskCredit(330, 3_100, null), derive(5_000, 2_500, 5_330, 3_100))
+
+    @Test fun upByAPfandSumWithUnchangedDebitIsPfand() =
+        assertEquals(Outcome.Events(listOf(PFAND to 650)), derive(5_000, 3_100, 5_650, 3_100))
+
+    @Test fun upByATopUpAmountWithUnchangedDebitIsATopUp() =
+        assertEquals(Outcome.Events(listOf(TOP_UP to 10_000)), derive(5_000, 3_100, 15_000, 3_100))
+
+    @Test fun upByNeitherWithUnchangedDebitIsAsked() {
+        assertEquals(Outcome.AskCredit(7_000, 3_100, null), derive(5_000, 3_100, 12_000, 3_100)) // over 5 €, no top-up
+        assertEquals(Outcome.AskCredit(170, 3_100, null), derive(5_000, 3_100, 5_170, 3_100)) // 0.17 €: no bottle sum
+    }
+
+    @Test fun firstScanWithoutAnOldDebitCountsAsUnchanged() =
+        assertEquals(Outcome.Events(listOf(PFAND to 250)), derive(5_000, null, 5_250, 3_100))
 
     @Test fun downByLessThanLastDebitIsCreditPlusPayment() =
         // Two bottles back (0.25 + 0.25), then a 5.60 € lunch: -5.10 €.

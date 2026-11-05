@@ -87,8 +87,8 @@ object StatsOps {
 
     /**
      * A change no known amount explained. [credit] (with [kind]) chosen: that credit plus a payment of credit - delta.
-     * [credit] null: only the change itself, as a top-up (delta > 0) or a payment (delta < 0); a zero change stores
-     * nothing. Returns the new payments.
+     * [credit] null: only the change itself, as a credit of [kind] (top-up or Pfand; delta > 0) or a payment
+     * (delta < 0); a zero change stores nothing. Returns the new payments.
      */
     fun resolveCredit(data: StatsData, itemId: Long, credit: Int?, kind: EventKind = EventKind.TOP_UP): Pair<StatsData, List<CardEvent>> {
         val item = data.open.firstOrNull { it.id == itemId } as? OpenItem.CreditAndPayment ?: return data to emptyList()
@@ -101,11 +101,33 @@ object StatsOps {
                     CardEvent(nextId++, item.scanId, EventKind.PAYMENT, credit - item.delta, item.date, item.dateKnown),
                 )
             }
-            item.delta > 0 -> listOf(CardEvent(nextId++, item.scanId, EventKind.TOP_UP, item.delta, item.date, item.dateKnown))
+            item.delta > 0 -> listOf(
+                CardEvent(nextId++, item.scanId, if (kind == EventKind.PFAND) EventKind.PFAND else EventKind.TOP_UP, item.delta, item.date, item.dateKnown),
+            )
             item.delta < 0 -> listOf(CardEvent(nextId++, item.scanId, EventKind.PAYMENT, -item.delta, item.date, item.dateKnown))
             else -> emptyList()
         }
         return data.copy(events = data.events + events, open = data.open - item, nextId = nextId) to events.filter { it.kind == EventKind.PAYMENT }
+    }
+
+    /**
+     * "Anders zuordnen" on an automatic Pfand return: the events derived from that scan (the Pfand and a payment found
+     * with it) are taken back and the change becomes a "top-up + payment?" question again, with the same net change.
+     * Returns the new question's id (null when [eventId] is not a Pfand event).
+     */
+    fun reassignCredit(data: StatsData, eventId: Long): Pair<StatsData, Long?> {
+        val event = data.events.firstOrNull { it.id == eventId && it.kind == EventKind.PFAND } ?: return data to null
+        val taken = data.events.filter { it.scanId == event.scanId }
+        val delta = taken.sumOf { if (it.kind == EventKind.PAYMENT) -it.amount else it.amount }
+        val scan = data.scans.firstOrNull { it.id == event.scanId }
+        val question = OpenItem.CreditAndPayment(data.nextId, event.scanId, event.date, event.dateKnown, delta, scan?.lastDebit)
+        val takenIds = taken.map { it.id }.toSet()
+        val next = data.copy(
+            events = data.events.filterNot { it.id in takenIds },
+            open = data.open.filterNot { it is OpenItem.MealQuestion && it.eventId in takenIds } + question,
+            nextId = data.nextId + 1,
+        )
+        return next to question.id
     }
 
     /** Drops an open question without storing anything for it. */

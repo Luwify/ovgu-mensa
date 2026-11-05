@@ -12,7 +12,9 @@ import de.luwify.mensamd.stats.MealContext
 import de.luwify.mensamd.stats.MealRecord
 import de.luwify.mensamd.stats.StatsData
 import de.luwify.mensamd.stats.StatsOps
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
@@ -81,6 +83,22 @@ class StatsViewModel(private val container: AppContainer) : ViewModel() {
     }
 
     fun dismiss(itemId: Long) = edit { store.update { StatsOps.dismiss(it, itemId) } }
+
+    private val _focusQuestion = MutableStateFlow<Long?>(null)
+
+    /** A question the statistics screen should open right away (after "Anders zuordnen"). */
+    val focusQuestion: StateFlow<Long?> = _focusQuestion.asStateFlow()
+
+    fun consumeFocusQuestion() {
+        _focusQuestion.value = null
+    }
+
+    /** "Anders zuordnen" on a Pfand return: it becomes a "top-up + payment?" question, which then opens. */
+    fun reassignCredit(eventId: Long) = edit {
+        var id: Long? = null
+        store.update { d -> StatsOps.reassignCredit(d, eventId).also { id = it.second }.first }
+        _focusQuestion.value = id
+    }
 
     fun setMeal(eventId: Long, meal: MealRecord?) = edit { store.update { StatsOps.setMeal(it, eventId, meal) } }
 

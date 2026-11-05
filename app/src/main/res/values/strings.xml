@@ -379,7 +379,7 @@
     <string name="q_back">Back</string>
     <string name="q_split">Split</string>
     <string name="q_credit_title">Top-up and payment?</string>
-    <string name="q_credit_text_up">Your balance went up by %1$s, which is neither a top-up amount nor a Pfand return. Was it one top-up plus one payment?</string>
+    <string name="q_credit_text_up">Your balance went up by %1$s. Was it one top-up plus one payment?</string>
     <string name="q_credit_text_down">Your balance went down by %1$s, less than the last debit (%2$s). So money was also credited. Which amount?</string>
     <string name="q_credit_text_zero">Your balance didn\'t change, but there was a new debit of %1$s. So the same amount was also credited. Which amount?</string>
     <string name="q_credit_option">Top-up %1$s + payment %2$s</string>
@@ -466,4 +466,7 @@
         <item quantity="one">%d entry</item>
         <item quantity="other">%d entries</item>
     </plurals>
+    <string name="pfand_reassign">Assign differently</string>
+    <string name="pfand_snackbar">Pfand return %1$s saved</string>
+    <string name="q_credit_only_pfand">Only a Pfand return of %1$s</string>
 </resources>

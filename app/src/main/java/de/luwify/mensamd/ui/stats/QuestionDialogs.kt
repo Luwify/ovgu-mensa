@@ -124,7 +124,7 @@ fun CreditDialog(item: OpenItem.CreditAndPayment, known: KnownAmounts, onSave: (
     val locale = LocalConfiguration.current.locales[0]
     val fmt = { v: Int -> formatCardAmount(v, locale) }
     val options = remember(item, known) { BalanceDiff.creditOptions(item.delta, known) }
-    // -1 = only the change itself.
+    // -1 = only the change itself (a top-up or a payment), -2 = only a Pfand return.
     var choice by rememberSaveable { mutableIntStateOf(options.indexOfFirst { it.first == item.suggested }.takeIf { it >= 0 } ?: if (options.isEmpty()) -1 else 0) }
     var custom by rememberSaveable { mutableStateOf<Int?>(null) }
     var askCustom by rememberSaveable { mutableStateOf(false) }
@@ -158,6 +158,9 @@ fun CreditDialog(item: OpenItem.CreditAndPayment, known: KnownAmounts, onSave: (
                     if (c == null) askCustom = true
                     choice = options.size
                 }
+                if (item.delta > 0 && known.isPfandSum(item.delta)) {
+                    ChoiceRow(stringResource(R.string.q_credit_only_pfand, fmt(item.delta)), selected = choice == -2) { choice = -2 }
+                }
                 if (item.delta != 0) {
                     ChoiceRow(
                         if (item.delta > 0) stringResource(R.string.q_credit_only_top_up, fmt(item.delta))
@@ -173,11 +176,12 @@ fun CreditDialog(item: OpenItem.CreditAndPayment, known: KnownAmounts, onSave: (
                 onClick = {
                     when {
                         choice == -1 -> onSave(null, EventKind.TOP_UP)
+                        choice == -2 -> onSave(null, EventKind.PFAND)
                         choice == options.size && c != null -> onSave(c, EventKind.TOP_UP)
                         choice in options.indices -> onSave(options[choice].first, options[choice].second)
                     }
                 },
-                enabled = choice == -1 || choice in options.indices || (choice == options.size && c != null),
+                enabled = choice == -1 || choice == -2 || choice in options.indices || (choice == options.size && c != null),
             ) { Text(stringResource(R.string.q_save)) }
         },
         dismissButton = { TextButton(onClick = onSkip) { Text(stringResource(R.string.q_skip)) } },

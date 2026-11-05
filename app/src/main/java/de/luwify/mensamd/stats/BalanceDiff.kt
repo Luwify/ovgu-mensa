@@ -50,8 +50,11 @@ data class KnownAmounts(val topUps: List<Int>, val pfand: List<Int>) {
  * - d = 0: nothing, unless L changed (then a credit of exactly a payment: asked).
  * - d < 0 and -d = L: one payment. -d > L: several payments (asked: one or split). -d < L: a credit and the payment L;
  *   automatic when the credit L + d is a known amount, else asked. Cards without L (MagnaCarta): one payment.
- * - d > 0 and L unchanged: a top-up amount or a Pfand sum d (top-up first), else asked (top-up + payment?). L changed: a payment L
- *   happened too, so the credit is d + L; automatic when known, else asked.
+ * - d > 0 and L changed: a payment happened in between, so it is a top-up plus payments: always asked (the top-up
+ *   d + L is preselected when it is a top-up amount). L unchanged: a top-up amount d is a top-up; a Pfand sum d (up to
+ *   5 €) is a Pfand return (shown with "Anders zuordnen", see [StatsOps.reassignCredit]); anything else is asked.
+ *
+ * UNVERIFIED (docs/STATS.md): that a top-up leaves L as it is. If a real top-up changes L, the d > 0 rules change.
  */
 object BalanceDiff {
     sealed interface Outcome {
@@ -81,9 +84,10 @@ object BalanceDiff {
                 }
             }
             else -> when {
-                debitChanged && l > 0 -> creditAndPayment(d, l, known)
-                else -> known.creditKind(d)?.let { Outcome.Events(listOf(it to d)) }
-                    ?: Outcome.AskCredit(d, l, suggested = null)
+                debitChanged && l > 0 -> Outcome.AskCredit(d, l, suggested = (d + l).takeIf { it in known.topUps })
+                d in known.topUps -> Outcome.Events(listOf(EventKind.TOP_UP to d))
+                known.isPfandSum(d) -> Outcome.Events(listOf(EventKind.PFAND to d))
+                else -> Outcome.AskCredit(d, l, suggested = null)
             }
         }
     }
