@@ -22,3 +22,4 @@ dependencyResolutionManagement {
 rootProject.name = "MensaMD"
 include(":app")
 include(":core")
+include(":scraper")
