@@ -1,20 +1,96 @@
 package de.luwify.mensamd.ui.stats
 
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import de.luwify.mensamd.R
+import de.luwify.mensamd.card.formatCardAmount
+import de.luwify.mensamd.favorites.Favorites
+import de.luwify.mensamd.model.MensaCatalog
 import de.luwify.mensamd.stats.CardEvent
+import de.luwify.mensamd.stats.EatenDish
+import de.luwify.mensamd.stats.Extras
 import de.luwify.mensamd.stats.KnownDish
+import de.luwify.mensamd.stats.MealMatcher
+import de.luwify.mensamd.stats.MealRecord
+import de.luwify.mensamd.stats.MealSummary
 import de.luwify.mensamd.stats.OpenItem
+import de.luwify.mensamd.stats.SnapDish
 import de.luwify.mensamd.stats.StatsData
+import de.luwify.mensamd.ui.SheetHeading
+import de.luwify.mensamd.ui.forLanguage
+import de.luwify.mensamd.ui.theme.PlusIcon
+import java.text.NumberFormat
 import java.util.Locale
 
-/** The meals overview (detailed statistics). Phase 3. */
-@Suppress("UNUSED_PARAMETER")
-internal fun LazyListScope.mealsSection(data: StatsData, vm: StatsViewModel, locale: Locale) = Unit
+private enum class MealStep { MAIN, WHERE, EXTRAS, SEARCH }
 
-/** Which dish did a payment buy? Phase 3. */
-@Suppress("UNUSED_PARAMETER")
+private fun mensaName(id: String?, language: String, unknown: String): String =
+    id?.let { MensaCatalog.byId(it)?.name?.forLanguage(language) ?: it } ?: unknown
+
+/**
+ * Which dish(es) did a payment buy? Candidates from that day's menu (default Mensa first; too many: "where did you
+ * eat?" first), or dishes + extras, an existing dish, a new dish, "Sonstiges". A question with a negative id is a payment
+ * opened for editing (no menu kept). Full-screen overlay; back goes one step back, then closes.
+ */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun MealQuestionScreen(
     vm: StatsViewModel,
@@ -24,5 +100,406 @@ internal fun MealQuestionScreen(
     events: List<CardEvent>,
     onClose: () -> Unit,
 ) {
-    LaunchedEffect(Unit) { onClose() }
+    val editing = question.id < 0
+    val context by vm.mealContext.collectAsStateWithLifecycle()
+    val locale = LocalConfiguration.current.locales[0]
+    val language = locale.language
+    val group = context?.priceGroup ?: 0
+    var step by rememberSaveable { mutableStateOf(MealStep.MAIN) }
+    var where by rememberSaveable { mutableStateOf<List<String>?>(null) }
+    var naming by rememberSaveable { mutableStateOf(false) }
+    BackHandler { if (step != MealStep.MAIN) step = MealStep.MAIN else onClose() }
+    val plan = remember(question, context, where) {
+        MealMatcher.plan(question.amount, question.dishes, context?.defaultMensaId, group, where?.toSet())
+    }
+    val mensaIds = remember(question, context) {
+        val ids = question.dishes.map { it.mensaId }.distinct()
+        val def = context?.defaultMensaId
+        if (def != null && def in ids) listOf(def) + (ids - def) else ids
+    }
+    val amount = formatCardAmount(question.amount, locale)
+    val unknownMensa = stringResource(R.string.meal_unknown_mensa)
+    fun answer(record: MealRecord?) {
+        vm.setMeal(question.eventId, record)
+        onClose()
+    }
+
+    Surface(Modifier.fillMaxSize()) {
+        Column(Modifier.fillMaxSize()) {
+            TopBar(stringResource(R.string.meal_title, amount), onBack = { if (step != MealStep.MAIN) step = MealStep.MAIN else onClose() })
+            Text(
+                shortDate(question.date, locale),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = 16.dp, bottom = 8.dp),
+            )
+            val askWhere = step == MealStep.WHERE || (step == MealStep.MAIN && plan is MealMatcher.Plan.AskWhere && where == null)
+            when {
+                askWhere -> WhereStep(
+                    mensaIds, (plan as? MealMatcher.Plan.AskWhere)?.preselected ?: where?.toSet() ?: emptySet(), language, unknownMensa,
+                ) { chosen ->
+                    where = chosen.toList()
+                    step = MealStep.MAIN
+                }
+                step == MealStep.EXTRAS -> ExtrasStep(
+                    vm, question, events, customDishes, customExtras, group, language, locale,
+                    focus = where?.toSet() ?: setOfNotNull(context?.defaultMensaId),
+                ) { answer(it) }
+                step == MealStep.SEARCH -> SearchStep(events, customDishes, question.dishes, group, language, locale) { dish ->
+                    answer(MealRecord(dishes = listOf(EatenDish(dish.key, dish.name, null, question.amount, 1, dish.tags))))
+                }
+                else -> LazyColumn(
+                    Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal)),
+                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 24.dp),
+                ) {
+                    when (plan) {
+                        is MealMatcher.Plan.Choose -> {
+                            item(key = "cands-title") { SheetHeading(stringResource(R.string.meal_candidates)) }
+                            items(plan.candidates.size, key = { "cand-$it" }) { i ->
+                                CandidateCard(plan.candidates[i], language, locale, unknownMensa) { answer(plan.candidates[i].toRecord()) }
+                            }
+                        }
+                        MealMatcher.Plan.NoMatch -> item(key = "none") {
+                            Text(
+                                if (question.dishes.isEmpty()) stringResource(R.string.meal_no_menu) else stringResource(R.string.meal_no_match, amount),
+                                style = MaterialTheme.typography.bodyLarge,
+                                modifier = Modifier.padding(vertical = 12.dp),
+                            )
+                        }
+                        is MealMatcher.Plan.AskWhere -> Unit
+                    }
+                    item(key = "options-title") { SheetHeading(stringResource(R.string.meal_other_options)) }
+                    if (mensaIds.size > 1) item(key = "where") { OptionRow(stringResource(R.string.meal_where_option)) { step = MealStep.WHERE } }
+                    item(key = "extras") { OptionRow(stringResource(R.string.meal_with_extras)) { step = MealStep.EXTRAS } }
+                    item(key = "search") { OptionRow(stringResource(R.string.meal_existing)) { step = MealStep.SEARCH } }
+                    item(key = "new") { OptionRow(stringResource(R.string.meal_new)) { naming = true } }
+                    item(key = "other") { OptionRow(stringResource(R.string.meal_save_other)) { answer(MealRecord(other = true)) } }
+                    if (!editing && question.dateKnown) {
+                        item(key = "not-today") {
+                            OptionRow(stringResource(R.string.meal_not_that_day)) {
+                                vm.markDateUnknown(question.eventId)
+                                onClose()
+                            }
+                        }
+                    }
+                    if (editing) {
+                        item(key = "clear") { OptionRow(stringResource(R.string.meal_clear)) { answer(null) } }
+                    } else {
+                        item(key = "skip") {
+                            OptionRow(stringResource(R.string.meal_skip)) {
+                                vm.dismiss(question.id)
+                                onClose()
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    if (naming) {
+        NameDialog(
+            title = stringResource(R.string.meal_new_title),
+            label = stringResource(R.string.meal_new_label),
+            onConfirm = { name ->
+                naming = false
+                vm.saveNewDish(question.eventId, name, question.amount)
+                onClose()
+            },
+            onDismiss = { naming = false },
+        )
+    }
+}
+
+@Composable
+private fun CandidateCard(c: MealMatcher.Candidate, language: String, locale: Locale, unknownMensa: String, onPick: () -> Unit) {
+    Surface(
+        onClick = onPick,
+        shape = MaterialTheme.shapes.medium,
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+    ) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(mensaName(c.mensaId, language, unknownMensa), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            c.picks.forEach { p ->
+                Row(verticalAlignment = Alignment.Top) {
+                    Text(
+                        (if (p.count > 1) "${p.count}× " else "") + p.dish.name.forLanguage(language),
+                        style = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Spacer(Modifier.width(12.dp))
+                    Text(formatCardAmount(p.price, locale), style = MaterialTheme.typography.bodyMedium)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun OptionRow(label: String, onClick: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().heightIn(min = 52.dp).clickable(role = Role.Button, onClick = onClick),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+        Icon(painterResource(R.drawable.ic_chevron_right), null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+/** "Wo hast du gegessen?": one or more Mensen, then the matching runs again on those only. */
+@Composable
+private fun WhereStep(mensaIds: List<String>, preselected: Set<String>, language: String, unknownMensa: String, onDone: (Set<String>) -> Unit) {
+    val chosen = remember { mutableStateMapOf<String, Boolean>().apply { preselected.forEach { put(it, true) } } }
+    Column(Modifier.fillMaxSize().padding(horizontal = 16.dp).navigationBarsPadding()) {
+        SheetHeading(stringResource(R.string.meal_where_title))
+        Hint(stringResource(R.string.meal_where_hint))
+        LazyColumn(Modifier.weight(1f)) {
+            items(mensaIds, key = { it }) { id ->
+                val on = chosen[id] == true
+                Row(
+                    Modifier.fillMaxWidth().toggleable(value = on, role = Role.Checkbox, onValueChange = { chosen[id] = it }).padding(vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Checkbox(checked = on, onCheckedChange = null)
+                    Text(mensaName(id, language, unknownMensa), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(start = 12.dp))
+                }
+            }
+        }
+        val selection = chosen.filterValues { it }.keys
+        Button(onClick = { onDone(selection) }, enabled = selection.isNotEmpty(), modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp)) {
+            Text(stringResource(R.string.meal_where_next))
+        }
+    }
+}
+
+/**
+ * Real dishes with their price, then any number of extras; the rest of the payment goes to the extras as a total. The
+ * dishes come from that day's menu, or (no menu kept) from the known dishes.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun ExtrasStep(
+    vm: StatsViewModel,
+    question: OpenItem.MealQuestion,
+    events: List<CardEvent>,
+    customDishes: List<KnownDish>,
+    customExtras: List<String>,
+    group: Int,
+    language: String,
+    locale: Locale,
+    focus: Set<String>,
+    onSave: (MealRecord) -> Unit,
+) {
+    // Only the Mensen in [focus] (where the user said they ate, else the default) until "all Mensen" is chosen.
+    var allMensen by rememberSaveable { mutableStateOf(question.dishes.none { it.mensaId in focus }) }
+    // Every pickable dish once, as a SnapDish with one price.
+    val pickable: List<Pair<SnapDish, Int>> = remember(question, events, customDishes, group, allMensen) {
+        if (question.dishes.isNotEmpty()) {
+            question.dishes.filter { allMensen || it.mensaId in focus }
+                .flatMap { d -> MealMatcher.prices(d, group).map { d to it } }
+                .distinctBy { (d, p) -> Triple(d.mensaId, Favorites.normalize(d.name.de), p) }
+                .filter { it.second <= question.amount }
+        } else {
+            MealSummary.knownDishes(events, customDishes, emptyList(), group)
+                .filter { it.price <= question.amount }
+                .map { SnapDish("", it.name, emptyList(), tags = it.tags) to it.price }
+        }
+    }
+    // Counts by dish identity, so they survive switching the Mensa filter.
+    val counts = remember { mutableStateMapOf<Triple<String, String, Int>, Int>() }
+    fun keyOf(d: SnapDish, p: Int) = Triple(d.mensaId, Favorites.normalize(d.name.de), p)
+    val extras = remember { mutableStateMapOf<String, Boolean>() }
+    var adding by rememberSaveable { mutableStateOf(false) }
+    val picks = pickable.mapNotNull { (d, p) -> counts[keyOf(d, p)]?.takeIf { it > 0 }?.let { MealMatcher.Pick(d, it, p) } }
+    val chosenExtras = (Extras.builtIn + customExtras).filter { extras[it] == true }
+    val record = MealMatcher.withExtras(question.amount, picks, chosenExtras)?.let { r ->
+        // Dishes from the known list have no Mensa.
+        r.copy(dishes = r.dishes.map { if (it.mensaId.isNullOrEmpty()) it.copy(mensaId = null) else it })
+    }
+    val dishSum = picks.sumOf { it.count * it.price }
+    val rest = question.amount - dishSum
+    val unknownMensa = stringResource(R.string.meal_unknown_mensa)
+
+    Column(Modifier.fillMaxSize().navigationBarsPadding()) {
+        LazyColumn(Modifier.weight(1f).padding(horizontal = 16.dp)) {
+            item(key = "extras-title") { SheetHeading(stringResource(R.string.meal_pick_extras)) }
+            item(key = "extras") {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    (Extras.builtIn + customExtras).forEach { key ->
+                        FilterChip(selected = extras[key] == true, onClick = { extras[key] = extras[key] != true }, label = { Text(extraName(key)) })
+                    }
+                    FilterChip(
+                        selected = false, onClick = { adding = true },
+                        label = { Text(stringResource(R.string.meal_extra_add)) },
+                        leadingIcon = { Icon(PlusIcon, null, Modifier.size(18.dp)) },
+                    )
+                }
+            }
+            item(key = "dishes-title") { SheetHeading(stringResource(R.string.meal_pick_dishes)) }
+            if (question.dishes.any { it.mensaId !in focus } && question.dishes.any { it.mensaId in focus }) {
+                item(key = "all-mensen") {
+                    FilterChip(selected = allMensen, onClick = { allMensen = !allMensen }, label = { Text(stringResource(R.string.meal_all_mensen)) })
+                }
+            }
+            if (pickable.isEmpty()) item(key = "no-dishes") { Hint(stringResource(R.string.meal_pick_none)) }
+            items(pickable.size, key = { "pick-$it" }) { i ->
+                val (d, p) = pickable[i]
+                val n = counts[keyOf(d, p)] ?: 0
+                Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text(d.name.forLanguage(language), style = MaterialTheme.typography.bodyMedium)
+                        Text(
+                            (if (d.mensaId.isNotEmpty()) mensaName(d.mensaId, language, unknownMensa) + " · " else "") + formatCardAmount(p, locale),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    TextButton(onClick = { counts[keyOf(d, p)] = (n - 1).coerceAtLeast(0) }, enabled = n > 0) { Text("−") }
+                    Text("$n", style = MaterialTheme.typography.titleMedium)
+                    TextButton(onClick = { counts[keyOf(d, p)] = n + 1 }) { Text("+") }
+                }
+            }
+        }
+        HorizontalDivider()
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(
+                when {
+                    rest < 0 -> stringResource(R.string.meal_dishes_too_much, formatCardAmount(dishSum, locale))
+                    rest > 0 && chosenExtras.isEmpty() -> stringResource(R.string.meal_rest_needs_extra, formatCardAmount(rest, locale))
+                    else -> stringResource(R.string.meal_split_summary, formatCardAmount(dishSum, locale), formatCardAmount(rest.coerceAtLeast(0), locale))
+                },
+                style = MaterialTheme.typography.bodyMedium,
+                color = if (record == null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
+            )
+            Button(onClick = { record?.let(onSave) }, enabled = record != null, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.q_save)) }
+        }
+    }
+    if (adding) {
+        NameDialog(
+            title = stringResource(R.string.meal_extra_add_title),
+            label = stringResource(R.string.meal_extra_add_label),
+            onConfirm = { name ->
+                adding = false
+                vm.addCustomExtra(name)
+                extras[name.trim()] = true
+            },
+            onDismiss = { adding = false },
+        )
+    }
+}
+
+/** "Vorhandenes Gericht wählen": search over every dish eaten, saved or on that day's menu. */
+@Composable
+private fun SearchStep(
+    events: List<CardEvent>,
+    customDishes: List<KnownDish>,
+    today: List<SnapDish>,
+    group: Int,
+    language: String,
+    locale: Locale,
+    onPick: (KnownDish) -> Unit,
+) {
+    var query by rememberSaveable { mutableStateOf("") }
+    val known = remember(events, customDishes, today, group) { MealSummary.knownDishes(events, customDishes, today, group) }
+    val results = remember(known, query) { MealSummary.search(known, query) }
+    Column(Modifier.fillMaxSize().padding(horizontal = 16.dp).navigationBarsPadding()) {
+        OutlinedTextField(
+            value = query,
+            onValueChange = { query = it.take(60) },
+            singleLine = true,
+            label = { Text(stringResource(R.string.meal_search)) },
+            modifier = Modifier.fillMaxWidth(),
+        )
+        if (results.isEmpty()) Hint(stringResource(R.string.meal_search_none), Modifier.padding(top = 12.dp))
+        LazyColumn(Modifier.weight(1f)) {
+            items(results, key = { it.key }) { d ->
+                Row(
+                    Modifier.fillMaxWidth().heightIn(min = 52.dp).clickable(role = Role.Button) { onPick(d) }.padding(vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(d.name.forLanguage(language), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+                    Text(formatCardAmount(d.price, locale), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+internal fun NameDialog(title: String, label: String, onConfirm: (String) -> Unit, onDismiss: () -> Unit) {
+    var text by rememberSaveable { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = {
+            OutlinedTextField(value = text, onValueChange = { text = it.take(80) }, singleLine = true, label = { Text(label) })
+        },
+        confirmButton = { TextButton(onClick = { onConfirm(text.trim()) }, enabled = text.isNotBlank()) { Text(stringResource(android.R.string.ok)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel_action)) } },
+    )
+}
+
+/** The meals part of the statistics overview (detailed statistics). */
+internal fun LazyListScope.mealsSection(data: StatsData, vm: StatsViewModel, locale: Locale) {
+    val summary = MealSummary.summarize(data.events)
+    val language = locale.language
+    item(key = "meals-title") { SheetHeading(stringResource(R.string.meals_title)) }
+    if (summary.servings == 0) {
+        item(key = "meals-empty") { Hint(stringResource(R.string.meals_empty)) }
+        return
+    }
+    item(key = "meals-tiles") {
+        val percent = NumberFormat.getPercentInstance(locale)
+        Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+            summary.averagePerMeal?.let { Tile(stringResource(R.string.meals_average), formatCardAmount(it, locale)) }
+            summary.veganShare?.let { Tile(stringResource(R.string.meals_vegan), percent.format(it)) }
+            summary.vegetarianShare?.let { Tile(stringResource(R.string.meals_vegetarian), percent.format(it)) }
+        }
+    }
+    item(key = "meals-top-title") {
+        Text(stringResource(R.string.meals_top), style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 16.dp, bottom = 4.dp))
+    }
+    items(summary.top, key = { "top-${it.key}" }) { d ->
+        val favorites by vm.favorites.collectAsStateWithLifecycle()
+        val favorite = d.key in favorites
+        Row(Modifier.fillMaxWidth().heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text("${d.count}×", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, modifier = Modifier.width(44.dp))
+            Text(d.name.forLanguage(language), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+            IconButton(onClick = { vm.toggleFavorite(EatenDish(d.key, d.name, null, d.lastPrice, 1, d.tags)) }) {
+                Icon(
+                    painterResource(if (favorite) R.drawable.ic_favorite_filled else R.drawable.ic_favorite),
+                    stringResource(if (favorite) R.string.meals_unfavorite else R.string.meals_favorite),
+                    tint = if (favorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+    item(key = "meals-mensa-title") {
+        Text(stringResource(R.string.meals_by_mensa), style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 16.dp, bottom = 4.dp))
+    }
+    item(key = "meals-mensa") {
+        val unknown = stringResource(R.string.meal_unknown_mensa)
+        val max = summary.byMensa.maxOf { it.second }.coerceAtLeast(1)
+        val barColor = MaterialTheme.colorScheme.primary
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            summary.byMensa.forEach { (id, n) ->
+                Column {
+                    Row {
+                        Text(mensaName(id, language, unknown), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                        Text("$n×", style = MaterialTheme.typography.bodyMedium)
+                    }
+                    // A thin horizontal bar: 8 dp, rounded ends, length = share of the most-visited Mensa.
+                    Box(Modifier.fillMaxWidth(n.toFloat() / max).height(8.dp).clip(RoundedCornerShape(4.dp)).background(barColor))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun Tile(label: String, value: String) {
+    Column {
+        Text(label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(value, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+    }
 }

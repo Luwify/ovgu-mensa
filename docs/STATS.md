@@ -39,9 +39,9 @@ Resume point for the card statistics feature (started 2026-11-05). Tick items as
       statistics website (`StatsLinks.MEAL_STATS_URL`, hidden while empty). Charts: own Canvas code, no library.
 
 ## Phase 3: detailed statistics
-- [ ] Matching (single, same dish twice, two dishes; default Mensa first) + tests
-- [ ] Where-did-you-eat question, pick among matches, extras flow, no-match flow
-- [ ] Meals overview (most eaten, by Mensa, vegan/vegetarian share, average per meal, add to favorites)
+- [x] Matching (single, same dish twice, two dishes; default Mensa first) + tests (`MealMatcher`); one candidate is saved without asking
+- [x] Where-did-you-eat question, pick among matches, extras flow, no-match flow (`MealViews`), tested on the phone
+- [x] Meals overview (most eaten, by Mensa, vegan/vegetarian share, average per meal, add to favorites) (`MealSummary`)
 
 ## Phase 4: reminder
 - [ ] Rules (weekday, not scanned today, default Mensa has a menu) + tests; WorkManager window; permission
