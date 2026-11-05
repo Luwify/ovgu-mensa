@@ -107,7 +107,7 @@ git-ignored `CLAUDE.local.md` at the repo root, which Claude Code loads after th
   first, >5 candidates -> "where did you eat?", one candidate saved directly; the day's dishes are kept only with an open
   question), `StatsSummary`/`MealSummary`, `CardReminderRules`. `StatsRecorder` (app scope) records scans from reader mode
   and the popup. "Meine Karte": only scans of the registered card are stored; the UID becomes a fingerprint in memory
-  (`CardIdentity`), only a salted SHA-256 of it is stored. Amounts are mills (card unit); menu prices are cents x 10.
+  (`CardIdentity`), only a salted PBKDF2 hash of it is stored. Amounts are mills (card unit); menu prices are cents x 10.
   Charts are own Canvas code (`ui/stats/Charts.kt`), no library. Reminder: `notify/CardReminder.kt` (one-time
   WorkManager job re-enqueued like the favorites job; tap -> `EXTRA_OPEN_CARD`). Backup: `backup/BackupFormat`
   (`mensamd-backup` v1: every settings key except device state, language, statistics) + `BackupRepository`, settings page.
