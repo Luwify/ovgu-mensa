@@ -392,7 +392,7 @@
     <string name="meal_other_dishes">Weitere Gerichte dieses Tages</string>
     <string name="meal_other_options">Etwas anderes</string>
     <string name="meal_where_option">Ich habe woanders gegessen …</string>
-    <string name="meal_with_extras">Gericht + Extras (Salatbar, Dessert, Getränk …)</string>
+    <string name="meal_with_extras">Gericht + Extras oder Gericht nach Gewicht</string>
     <string name="meal_existing">Vorhandenes Gericht wählen</string>
     <string name="meal_new">Als neues Gericht speichern</string>
     <string name="meal_save_other">Als Sonstiges speichern</string>
@@ -413,6 +413,11 @@
     <string name="meal_dishes_too_much">Die Gerichte kosten %1$s, mehr als die Zahlung.</string>
     <string name="meal_rest_needs_extra">%1$s bleiben übrig: Wähle mindestens ein Extra.</string>
     <string name="meal_split_summary">Gerichte %1$s · Extras %2$s</string>
+    <string name="meal_by_weight">Nach Gewicht</string>
+    <string name="meal_weight_estimate">ca. %1$d g</string>
+    <string name="meal_weight_field">Gewicht (leer: alles, was übrig ist)</string>
+    <string name="meal_weight_one_open">Trage bei allen Gerichten nach Gewicht außer einem das Gewicht ein.</string>
+    <string name="meal_weight_nothing_left">Für das Gericht nach Gewicht bleibt nichts übrig.</string>
     <string name="meal_search">Gerichte suchen</string>
     <string name="meal_search_none">Kein bekanntes Gericht gefunden.</string>
     <string name="meals_title">Deine Gerichte</string>

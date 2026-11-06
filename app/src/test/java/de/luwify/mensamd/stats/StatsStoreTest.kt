@@ -83,4 +83,12 @@ class StatsStoreTest {
         assertTrue(a != CardIdentity.hash("01", fp))
         assertEquals(64, a.length)
     }
+
+    @Test fun version1FileLoadsWithoutTheWeightFields() {
+        val v1 = """{"version":1,"events":[{"id":1,"scanId":1,"kind":"payment","amount":3100,"date":"2026-11-05","dateKnown":true,
+            "meal":{"dishes":[{"key":"curry","name":{"de":"Curry","en":"Curry"},"price":3100}]}}]}"""
+        val data = decodeStats(statsJson.parseToJsonElement(v1) as JsonObject)
+        assertEquals(StatsMigrations.CURRENT, encodeStats(data)["version"]!!.toString().toInt())
+        assertEquals(null, data.events.single().meal!!.dishes.single().grams)
+    }
 }

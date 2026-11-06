@@ -400,7 +400,7 @@
     <string name="meal_other_dishes">Other dishes of that day</string>
     <string name="meal_other_options">Something else</string>
     <string name="meal_where_option">I ate somewhere else…</string>
-    <string name="meal_with_extras">Dish + extras (salad bar, dessert, drink…)</string>
+    <string name="meal_with_extras">Dish + extras or a dish by weight</string>
     <string name="meal_existing">Choose an existing dish</string>
     <string name="meal_new">Save as a new dish</string>
     <string name="meal_save_other">Save as other</string>
@@ -421,6 +421,12 @@
     <string name="meal_dishes_too_much">The dishes cost %1$s, more than the payment.</string>
     <string name="meal_rest_needs_extra">%1$s are left: choose at least one extra.</string>
     <string name="meal_split_summary">Dishes %1$s · extras %2$s</string>
+    <string name="meal_by_weight">By weight</string>
+    <string name="meal_weight_estimate">approx. %1$d g</string>
+    <string name="meal_weight_field">Weight (empty: all that is left)</string>
+    <string name="meal_weight_one_open">Enter a weight for all dishes by weight but one.</string>
+    <string name="meal_weight_nothing_left">Nothing is left for the dish by weight.</string>
+    <string name="price_per_100g" translatable="false">/100 g</string>
     <string name="meal_search">Search dishes</string>
     <string name="meal_search_none">No known dish found.</string>
     <string name="meals_title">Your dishes</string>

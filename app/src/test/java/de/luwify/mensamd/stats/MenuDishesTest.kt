@@ -46,4 +46,14 @@ class MenuDishesTest {
         assertEquals(kept, MenuDishes.merge(kept, emptyList()))
         assertEquals(kept, MenuDishes.merge(kept, MenuDishes.onDay(pages, friday)))
     }
+
+    @Test fun weightFlagFromTheRulesAndKeptWhenMerging() {
+        val pasta = Dish(LocalizedText("Farfalle"), listOf(LocalizedText("Pastabuffet", "pasta buffet")), listOf(50, 80, 110), emptyList(), emptyList(), null, null)
+        val page = MenuPage(listOf(MenuDay(friday, listOf(pasta, dish("Curry", 310)))), Legend.EMPTY)
+        val snaps = MenuDishes.onDay("unicampus-oben", page, friday)
+        assertEquals(listOf(true, false), snaps.map { it.byWeight })
+        // A question from before the rules: its copy says fixed, the cached page knows better.
+        val merged = MenuDishes.merge(listOf(snaps[0].copy(byWeight = false)), snaps)
+        assertEquals(listOf(true, false), merged.map { it.byWeight })
+    }
 }

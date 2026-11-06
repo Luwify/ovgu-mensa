@@ -11,7 +11,10 @@ import java.util.Locale
  * name (either language), ignoring case and umlauts: "gemuse", "gemuese" and "Gemüse" all find "Gemüse". Pure.
  */
 object DishSearch {
-    /** A dish to pick. [price] in mills, null when the menu shows none; [mensaId] null for hand-named dishes. */
+    /**
+     * A dish to pick. [price] in mills, null when the menu shows none; [mensaId] null for hand-named dishes. [byWeight]:
+     * paid by weight, [price] is per 100 g (null for one known only from an earlier meal: that portion's price says nothing).
+     */
     data class Hit(
         val key: String,
         val name: LocalizedText,
@@ -19,11 +22,15 @@ object DishSearch {
         val price: Int?,
         val mensaId: String?,
         val onDay: Boolean,
+        val byWeight: Boolean = false,
     ) {
         private val plain = fold(Favorites.normalize(name.de) + " " + Favorites.normalize(name.en))
         private val collapsed = collapse(plain)
 
         internal fun matches(word: String) = word in plain || collapse(word) in collapsed
+
+        /** The weight a payment of [amount] buys of a dish paid by weight, else null. */
+        fun grams(amount: Int): Int? = price?.takeIf { byWeight && it > 0 }?.let { MealMatcher.estimateGrams(amount, it) }
     }
 
     private val MARKS = Regex("""\p{Mn}+""")
@@ -44,9 +51,9 @@ object DishSearch {
      */
     fun hits(day: List<SnapDish>, menus: List<SnapDish>, events: List<CardEvent>, custom: List<KnownDish>, group: Int): List<Hit> {
         fun SnapDish.hit(onDay: Boolean) =
-            Hit(Favorites.normalize(name.de), name, tags, MealMatcher.prices(this, group).firstOrNull(), mensaId, onDay)
+            Hit(Favorites.normalize(name.de), name, tags, MealMatcher.prices(this, group).firstOrNull(), mensaId, onDay, byWeight)
         val eaten = events.mapNotNull { it.meal }.flatMap { it.dishes }.asReversed() // the latest price wins
-            .map { Hit(it.key, it.name, it.tags, it.price, it.mensaId, false) }
+            .map { Hit(it.key, it.name, it.tags, it.price.takeIf { _ -> it.grams == null }, it.mensaId, false, it.grams != null) }
         val named = custom.map { Hit(it.key, it.name, it.tags, it.price, null, false) }
         val all = (day.map { it.hit(true) } + menus.map { it.hit(false) } + eaten + named).distinctBy { it.key to it.mensaId }
         val withMensa = all.filter { it.mensaId != null }.map { it.key }.toSet()

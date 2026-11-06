@@ -31,6 +31,7 @@ import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
@@ -59,6 +60,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import de.luwify.mensamd.R
@@ -120,6 +122,7 @@ internal fun MealQuestionScreen(
     val plan = remember(question, dishes, context, where) {
         MealMatcher.plan(question.amount, dishes, context?.defaultMensaId, group, where?.toSet())
     }
+    val weights = remember(dishes, context, where) { MealMatcher.weightDishes(dishes, context?.defaultMensaId, group, where?.toSet()) }
     val others = remember(plan, dishes, context, where) {
         MealMatcher.others((plan as? MealMatcher.Plan.Choose)?.candidates.orEmpty(), dishes, context?.defaultMensaId, where?.toSet())
     }
@@ -153,7 +156,7 @@ internal fun MealQuestionScreen(
                     focus = where?.toSet() ?: setOfNotNull(context?.defaultMensaId),
                 ) { answer(it) }
                 step == MealStep.SEARCH -> SearchStep(pages.orEmpty(), events, customDishes, dishes, group, language, locale, unknownMensa) { dish ->
-                    answer(MealRecord(dishes = listOf(EatenDish(dish.key, dish.name, dish.mensaId, question.amount, 1, dish.tags))))
+                    answer(MealRecord(dishes = listOf(EatenDish(dish.key, dish.name, dish.mensaId, question.amount, 1, dish.tags, dish.grams(question.amount)))))
                 }
                 else -> LazyColumn(
                     Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal)),
@@ -174,6 +177,12 @@ internal fun MealQuestionScreen(
                             )
                         }
                         is MealMatcher.Plan.AskWhere -> Unit
+                    }
+                    if (weights.isNotEmpty()) {
+                        item(key = "weight-title") { SheetHeading(stringResource(R.string.meal_by_weight)) }
+                        items(weights.size, key = { "weight-$it" }) { i ->
+                            WeightCard(weights[i], question.amount, language, locale, unknownMensa) { answer(weights[i].toRecord(question.amount)) }
+                        }
                     }
                     item(key = "options-title") { SheetHeading(stringResource(R.string.meal_other_options)) }
                     if (mensaIds.size > 1) item(key = "where") { OptionRow(stringResource(R.string.meal_where_option)) { step = MealStep.WHERE } }
@@ -248,6 +257,34 @@ private fun CandidateCard(c: MealMatcher.Candidate, language: String, locale: Lo
     }
 }
 
+/** A dish paid by weight as the whole payment: "Farfalle … · ca. 470 g", the Mensa and its price per 100 g above. */
+@Composable
+private fun WeightCard(w: MealMatcher.WeightDish, amount: Int, language: String, locale: Locale, unknownMensa: String, onPick: () -> Unit) {
+    Surface(
+        onClick = onPick,
+        shape = MaterialTheme.shapes.medium,
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+    ) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(
+                mensaName(w.dish.mensaId, language, unknownMensa) + " · " + perHundred(w.per100, locale),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Row(verticalAlignment = Alignment.Top) {
+                Text(w.dish.name.forLanguage(language), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+                Spacer(Modifier.width(12.dp))
+                Text(stringResource(R.string.meal_weight_estimate, w.grams(amount)), style = MaterialTheme.typography.bodyMedium)
+            }
+        }
+    }
+}
+
+/** "0,50 € /100 g". */
+@Composable
+private fun perHundred(price: Int, locale: Locale) = formatCardAmount(price, locale) + " " + stringResource(R.string.price_per_100g)
+
 /** A dish of that day that doesn't fit the payment's amount: the Mensa and its menu price below the name. */
 @Composable
 private fun OtherDishRow(d: SnapDish, group: Int, language: String, locale: Locale, unknownMensa: String, onPick: () -> Unit) {
@@ -299,8 +336,9 @@ private fun WhereStep(mensaIds: List<String>, preselected: Set<String>, language
 }
 
 /**
- * Real dishes with their price, then any number of extras; the rest of the payment goes to the extras as a total. The
- * dishes come from that day's menu, or (no menu kept) from the known dishes.
+ * Real dishes with their price, dishes paid by weight, then any number of extras; the rest of the payment goes to the
+ * extras as a total. A dish paid by weight takes all that is left unless a weight is entered. The dishes come from that
+ * day's menu, or (no menu kept) from the known dishes.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -322,7 +360,7 @@ private fun ExtrasStep(
     // Every pickable dish once, as a SnapDish with one price.
     val pickable: List<Pair<SnapDish, Int>> = remember(question, dishes, events, customDishes, group, allMensen) {
         if (dishes.isNotEmpty()) {
-            dishes.filter { allMensen || it.mensaId in focus }
+            dishes.filter { !it.byWeight && (allMensen || it.mensaId in focus) }
                 .flatMap { d -> MealMatcher.prices(d, group).map { d to it } }
                 .distinctBy { (d, p) -> Triple(d.mensaId, Favorites.normalize(d.name.de), p) }
                 .filter { it.second <= question.amount }
@@ -339,12 +377,19 @@ private fun ExtrasStep(
     var adding by rememberSaveable { mutableStateOf(false) }
     val picks = pickable.mapNotNull { (d, p) -> counts[keyOf(d, p)]?.takeIf { it > 0 }?.let { MealMatcher.Pick(d, it, p) } }
     val chosenExtras = (Extras.builtIn + customExtras).filter { extras[it] == true }
-    val record = MealMatcher.withExtras(question.amount, picks, chosenExtras)?.let { r ->
+    val weights = remember(dishes, group, allMensen) { MealMatcher.weightDishes(dishes.filter { allMensen || it.mensaId in focus }, null, group) }
+    // Ticked dishes paid by weight (by WeightDish.id) with the text of their weight field.
+    val weightTexts = remember { mutableStateMapOf<String, String>() }
+    val weightPicks = weights.mapNotNull { w ->
+        weightTexts[w.id]?.let { text -> MealMatcher.WeightPick(w, text.toIntOrNull()?.takeIf { it > 0 }) }
+    }
+    val record = MealMatcher.withExtras(question.amount, picks, chosenExtras, weightPicks)?.let { r ->
         // Dishes from the known list have no Mensa.
         r.copy(dishes = r.dishes.map { if (it.mensaId.isNullOrEmpty()) it.copy(mensaId = null) else it })
     }
-    val dishSum = picks.sumOf { it.count * it.price }
+    val dishSum = picks.sumOf { it.count * it.price } + weightPicks.sumOf { p -> p.grams?.let(p.weight::cost) ?: 0 }
     val rest = question.amount - dishSum
+    val openWeights = weightPicks.count { it.grams == null }
     val unknownMensa = stringResource(R.string.meal_unknown_mensa)
 
     Column(Modifier.fillMaxSize().navigationBarsPadding()) {
@@ -386,12 +431,27 @@ private fun ExtrasStep(
                     TextButton(onClick = { counts[keyOf(d, p)] = n + 1 }) { Text("+") }
                 }
             }
+            if (weights.isNotEmpty()) {
+                item(key = "weight-title") { SheetHeading(stringResource(R.string.meal_by_weight)) }
+                items(weights.size, key = { "weight-${weights[it].id}" }) { i ->
+                    val w = weights[i]
+                    val text = weightTexts[w.id]
+                    WeightRow(
+                        w, rest, text, language, locale, unknownMensa,
+                        onToggle = { on -> if (on) weightTexts[w.id] = "" else weightTexts.remove(w.id) },
+                        onText = { weightTexts[w.id] = it },
+                    )
+                }
+            }
         }
         HorizontalDivider()
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(
                 when {
                     rest < 0 -> stringResource(R.string.meal_dishes_too_much, formatCardAmount(dishSum, locale))
+                    openWeights > 1 -> stringResource(R.string.meal_weight_one_open)
+                    openWeights == 1 && rest == 0 -> stringResource(R.string.meal_weight_nothing_left)
+                    openWeights == 1 -> stringResource(R.string.meal_split_summary, formatCardAmount(question.amount, locale), formatCardAmount(0, locale))
                     rest > 0 && chosenExtras.isEmpty() -> stringResource(R.string.meal_rest_needs_extra, formatCardAmount(rest, locale))
                     else -> stringResource(R.string.meal_split_summary, formatCardAmount(dishSum, locale), formatCardAmount(rest.coerceAtLeast(0), locale))
                 },
@@ -412,6 +472,56 @@ private fun ExtrasStep(
             },
             onDismiss = { adding = false },
         )
+    }
+}
+
+/**
+ * A dish paid by weight in a mixed payment: ticked, it takes the [rest] of the payment, or as much as the weight entered
+ * below says ([text] null = not ticked).
+ */
+@Composable
+private fun WeightRow(
+    w: MealMatcher.WeightDish,
+    rest: Int,
+    text: String?,
+    language: String,
+    locale: Locale,
+    unknownMensa: String,
+    onToggle: (Boolean) -> Unit,
+    onText: (String) -> Unit,
+) {
+    val entered = text?.toIntOrNull()?.takeIf { it > 0 }
+    val details = listOfNotNull(
+        mensaName(w.dish.mensaId, language, unknownMensa),
+        perHundred(w.per100, locale),
+        when {
+            entered != null -> formatCardAmount(w.cost(entered), locale)
+            rest > 0 -> stringResource(R.string.meal_weight_estimate, w.grams(rest))
+            else -> null
+        },
+    )
+    Column(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Row(
+            Modifier.fillMaxWidth().toggleable(value = text != null, role = Role.Checkbox, onValueChange = onToggle),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(w.dish.name.forLanguage(language), style = MaterialTheme.typography.bodyMedium)
+                Text(details.joinToString(" · "), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Checkbox(checked = text != null, onCheckedChange = null, modifier = Modifier.padding(start = 12.dp))
+        }
+        if (text != null) {
+            OutlinedTextField(
+                value = text,
+                onValueChange = { typed -> onText(typed.filter(Char::isDigit).take(5)) },
+                singleLine = true,
+                suffix = { Text("g") },
+                label = { Text(stringResource(R.string.meal_weight_field)) },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
     }
 }
 
@@ -444,7 +554,10 @@ private fun SearchStep(
             items(results, key = { "${it.key}|${it.mensaId}" }) { d ->
                 Column(Modifier.fillMaxWidth().heightIn(min = 52.dp).clickable(role = Role.Button) { onPick(d) }.padding(vertical = 6.dp)) {
                     Text(d.name.forLanguage(language), style = MaterialTheme.typography.bodyLarge)
-                    val details = listOfNotNull(d.mensaId?.let { mensaName(it, language, unknownMensa) }, d.price?.let { formatCardAmount(it, locale) })
+                    val details = listOfNotNull(
+                        d.mensaId?.let { mensaName(it, language, unknownMensa) },
+                        d.price?.let { if (d.byWeight) perHundred(it, locale) else formatCardAmount(it, locale) },
+                    )
                     if (details.isNotEmpty()) {
                         Text(details.joinToString(" · "), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }

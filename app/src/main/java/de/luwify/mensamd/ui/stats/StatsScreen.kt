@@ -359,11 +359,14 @@ private fun StatTile(label: String, value: String, hero: Boolean = false) {
     }
 }
 
-/** "Seelachs, 2× Burger + Salatbar" (dishes, then extras), or "Sonstiges". */
+/** "Seelachs, 2× Burger, Farfalle (ca. 470 g), Salatbar" (dishes, then extras), or "Sonstiges". */
 @Composable
 internal fun mealSummary(meal: de.luwify.mensamd.stats.MealRecord, language: String): String {
     if (meal.other) return stringResource(R.string.meal_other)
-    val dishes = meal.dishes.map { (if (it.count > 1) "${it.count}× " else "") + it.name.forLanguage(language) }
+    val dishes = meal.dishes.map { d ->
+        (if (d.count > 1) "${d.count}× " else "") + d.name.forLanguage(language) +
+            (d.grams?.let { " (" + stringResource(R.string.meal_weight_estimate, it) + ")" } ?: "")
+    }
     val extras = meal.extras.map { extraName(it) }
     return (dishes + extras).joinToString(", ")
 }

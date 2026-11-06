@@ -80,6 +80,7 @@ import de.luwify.mensamd.model.FixedSection
 import de.luwify.mensamd.model.Legend
 import de.luwify.mensamd.model.MenuDay
 import de.luwify.mensamd.model.Tag
+import de.luwify.mensamd.model.WeightPricing
 import de.luwify.mensamd.ui.theme.footprintColor
 import de.luwify.mensamd.ui.theme.LocalMensaColors
 import java.text.NumberFormat
@@ -91,6 +92,7 @@ import java.util.Locale
 /** The body of one Mensa page: the continuous menu list, or a message when there is none. */
 @Composable
 fun MenuBody(
+    mensaId: String,
     ui: MenuUiState,
     days: List<MenuDay>,
     fixed: List<FixedSection>,
@@ -110,13 +112,13 @@ fun MenuBody(
             val rows = remember(days, ui.lastUpdatedMillis, ui.refreshFailed, ui.fromFallback) {
                 buildRows(days, ui.lastUpdatedMillis, ui.refreshFailed, ui.fromFallback)
             }
-            MenuList(ui, rows, today, prefs, footprints, onToggleFavorite, scrollTo, onScrolled)
+            MenuList(mensaId, ui, rows, today, prefs, footprints, onToggleFavorite, scrollTo, onScrolled)
         }
         fixed.isNotEmpty() -> {
             val rows = remember(fixed, ui.lastUpdatedMillis, ui.refreshFailed, ui.fromFallback) {
                 buildFixedRows(fixed, ui.lastUpdatedMillis, ui.refreshFailed, ui.fromFallback)
             }
-            MenuList(ui, rows, today, prefs, footprints, onToggleFavorite, scrollTo, onScrolled)
+            MenuList(mensaId, ui, rows, today, prefs, footprints, onToggleFavorite, scrollTo, onScrolled)
         }
         !ui.hasData && ui.refreshFailed -> Message(stringResource(R.string.error_no_data), onRetry)
         ui.hasData && !ui.isRefreshing -> Message(stringResource(R.string.empty_no_upcoming), null)
@@ -146,6 +148,7 @@ private fun Message(text: String, onRetry: (() -> Unit)?) {
  */
 @Composable
 private fun MenuList(
+    mensaId: String,
     ui: MenuUiState,
     rows: List<ListRow>,
     today: LocalDate,
@@ -196,7 +199,7 @@ private fun MenuList(
                     is ListRow.DishRow -> item(key = row.key, contentType = "dish") {
                         DishCard(
                             row.dish, ui.legend, codeIndex, locale.language, euro, prefs.priceGroup, row.date?.let { footprints[it] },
-                            prefs.compact, row.favoriteKey in prefs.favorites, { onToggleFavorite(row.dish) },
+                            prefs.compact, WeightPricing.isPer100g(mensaId, row.dish), row.favoriteKey in prefs.favorites, { onToggleFavorite(row.dish) },
                             Modifier.padding(horizontal = 16.dp),
                         )
                     }
@@ -298,6 +301,7 @@ private fun DishCard(
     priceGroup: Int,
     footprint: DayFootprint?,
     compact: Boolean,
+    byWeight: Boolean,
     favorite: Boolean,
     onToggleFavorite: () -> Unit,
     modifier: Modifier = Modifier,
@@ -307,9 +311,9 @@ private fun DishCard(
     val burst = remember { FavoriteBurst() }
     val body: @Composable () -> Unit = {
         if (full) {
-            FullCardBody(dish, legend, codeIndex, language, euro, priceGroup, footprint, favorite, onToggleFavorite, burst)
+            FullCardBody(dish, legend, codeIndex, language, euro, priceGroup, footprint, byWeight, favorite, onToggleFavorite, burst)
         } else {
-            CompactCardBody(dish, legend, language, euro, priceGroup, favorite, onToggleFavorite, burst)
+            CompactCardBody(dish, legend, language, euro, priceGroup, byWeight, favorite, onToggleFavorite, burst)
         }
     }
     val theme = LocalMensaColors.current
@@ -353,6 +357,7 @@ private fun FullCardBody(
     euro: NumberFormat,
     priceGroup: Int,
     footprint: DayFootprint?,
+    byWeight: Boolean,
     favorite: Boolean,
     onToggleFavorite: () -> Unit,
     burst: FavoriteBurst,
@@ -368,7 +373,7 @@ private fun FullCardBody(
     }
     val prices: @Composable () -> Unit = {
         if (dish.priceGroupsKnown) {
-            Prices(dish.prices, priceGroup, legend, language, euro, pricesExpanded) { pricesExpanded = !pricesExpanded }
+            Prices(dish.prices, priceGroup, legend, language, euro, byWeight, pricesExpanded) { pricesExpanded = !pricesExpanded }
         } else {
             UnlabeledPrices(dish.prices, euro, MaterialTheme.typography.titleMedium)
         }
@@ -446,6 +451,7 @@ private fun CompactCardBody(
     language: String,
     euro: NumberFormat,
     priceGroup: Int,
+    byWeight: Boolean,
     favorite: Boolean,
     onToggleFavorite: () -> Unit,
     burst: FavoriteBurst,
@@ -468,13 +474,16 @@ private fun CompactCardBody(
                     color = LocalMensaColors.current.price.container,
                     border = LocalMensaColors.current.price.border?.let { BorderStroke(1.dp, it) },
                 ) {
-                    Text(
-                        euro.format(dish.prices[split.selected] / 100.0),
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = LocalMensaColors.current.price.content,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
-                    )
+                    Row(Modifier.padding(horizontal = 8.dp, vertical = 3.dp)) {
+                        Text(
+                            euro.format(dish.prices[split.selected] / 100.0),
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = LocalMensaColors.current.price.content,
+                            modifier = Modifier.alignByBaseline(),
+                        )
+                        if (byWeight) PerHundred(LocalMensaColors.current.price.content, Modifier.alignByBaseline())
+                    }
                 }
             }
             // Row spacing 10 + 4: the heart's touch area (12dp beyond the icon) stays clear of the price pill.
@@ -582,6 +591,7 @@ private fun Prices(
     legend: Legend,
     language: String,
     euro: NumberFormat,
+    byWeight: Boolean,
     expanded: Boolean,
     onToggle: () -> Unit,
 ) {
@@ -603,12 +613,16 @@ private fun Prices(
                 if (expanded) {
                     Text(label(split.selected), style = MaterialTheme.typography.labelSmall, color = LocalMensaColors.current.price.content)
                 }
-                Text(
-                    euro.format(prices[split.selected] / 100.0),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = LocalMensaColors.current.price.content,
-                )
+                Row {
+                    Text(
+                        euro.format(prices[split.selected] / 100.0),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = LocalMensaColors.current.price.content,
+                        modifier = Modifier.alignByBaseline(),
+                    )
+                    if (byWeight) PerHundred(LocalMensaColors.current.price.content, Modifier.alignByBaseline())
+                }
             }
         }
         if (split.others.isNotEmpty()) {
@@ -626,13 +640,22 @@ private fun Prices(
                     split.others.forEach { index ->
                         Column {
                             Text(label(index), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Text(euro.format(prices[index] / 100.0), style = MaterialTheme.typography.titleSmall)
+                            Row {
+                                Text(euro.format(prices[index] / 100.0), style = MaterialTheme.typography.titleSmall, modifier = Modifier.alignByBaseline())
+                                if (byWeight) PerHundred(MaterialTheme.colorScheme.onSurfaceVariant, Modifier.alignByBaseline())
+                            }
                         }
                     }
                 }
             }
         }
     }
+}
+
+/** "/100 g" right after a price: the dish is paid by weight (`WeightPricing`). */
+@Composable
+private fun PerHundred(color: Color, modifier: Modifier = Modifier) {
+    Text(stringResource(R.string.price_per_100g), style = MaterialTheme.typography.labelSmall, color = color, modifier = modifier.padding(start = 3.dp))
 }
 
 /** Prefix badge ("Save the meal", "Aktionstheke", ...): outlined with the tertiary color, unlike the filled tag chips. */

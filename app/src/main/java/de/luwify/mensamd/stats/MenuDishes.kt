@@ -3,6 +3,7 @@ package de.luwify.mensamd.stats
 import de.luwify.mensamd.favorites.Favorites
 import de.luwify.mensamd.model.Dish
 import de.luwify.mensamd.model.MenuPage
+import de.luwify.mensamd.model.WeightPricing
 import java.time.LocalDate
 
 /** Menu pages as the statistics see them: [SnapDish]es, Mensa id attached. Pure. */
@@ -22,10 +23,16 @@ object MenuDishes {
 
     /**
      * A day's dishes for a meal question: [kept] (the menu saved with an open question, which outlives the page) plus
-     * [cached] (what the app has now, all a correction of an answered payment can use), each dish once.
+     * [cached] (what the app has now, all a correction of an answered payment can use), each dish once. Paid by weight
+     * when either copy says so: a question kept from before the weight rules doesn't know.
      */
-    fun merge(kept: List<SnapDish>, cached: List<SnapDish>): List<SnapDish> =
-        (kept + cached).distinctBy { Triple(it.mensaId, Favorites.normalize(it.name.de), it.prices) }
+    fun merge(kept: List<SnapDish>, cached: List<SnapDish>): List<SnapDish> {
+        fun SnapDish.id() = Triple(mensaId, Favorites.normalize(name.de), prices)
+        val all = kept + cached
+        val weighed = all.filter { it.byWeight }.mapTo(HashSet()) { it.id() }
+        return all.distinctBy { it.id() }.map { if (it.id() in weighed) it.copy(byWeight = true) else it }
+    }
 
-    private fun Dish.snap(mensaId: String) = SnapDish(mensaId, name, prices, priceGroupsKnown, tags)
+    private fun Dish.snap(mensaId: String) =
+        SnapDish(mensaId, name, prices, priceGroupsKnown, tags, byWeight = WeightPricing.isPer100g(mensaId, this))
 }

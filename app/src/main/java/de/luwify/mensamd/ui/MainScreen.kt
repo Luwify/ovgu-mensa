@@ -245,7 +245,7 @@ private fun MensaPage(
                 if (current != null) {
                     val dayRequest by vm.dayRequest.collectAsStateWithLifecycle()
                     MenuBody(
-                        current, shown, shownFixed, today, prefs, footprints, onToggleFavorite,
+                        mensaId, current, shown, shownFixed, today, prefs, footprints, onToggleFavorite,
                         scrollTo = dayRequest?.takeIf { it.mensaId == mensaId }?.date,
                         onScrolled = vm::consumeDayRequest,
                     ) { vm.refresh(mensaId) }

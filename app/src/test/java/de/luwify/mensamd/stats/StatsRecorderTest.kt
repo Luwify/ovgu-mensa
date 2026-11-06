@@ -124,4 +124,20 @@ class StatsRecorderTest {
             scope.cancel()
         }
     }
+
+    @Test fun theSoupAtItsMenuPriceIsAskedNotSaved() = runBlocking {
+        val scope = CoroutineScope(SupervisorJob())
+        try {
+            val soup = SnapDish("unicampus-unten", LocalizedText("Tagessuppe"), listOf(60, 80, 100), byWeight = true)
+            val r = recorder(scope, menu + soup)
+            r.register(fp, 10_000, 0, null)
+            now = now.plusHours(1)
+            r.record(9_400, 600, fp) // 0,60 €, the soup's price per 100 g
+            val data = r.store.load()
+            assertNull(data.events.single().meal)
+            assertTrue(data.open.single() is OpenItem.MealQuestion)
+        } finally {
+            scope.cancel()
+        }
+    }
 }

@@ -45,9 +45,13 @@ object MealSummary {
         )
     }
 
-    /** Every dish eaten or saved by hand, one entry per key (the latest), sorted by name: for days without a menu. */
+    /**
+     * Every dish eaten or saved by hand, one entry per key (the latest), sorted by name: for days without a menu. A dish
+     * paid by weight has no price to reuse, so it isn't one of them.
+     */
     fun knownDishes(events: List<CardEvent>, custom: List<KnownDish>): List<KnownDish> {
-        val fromHistory = events.mapNotNull { it.meal }.flatMap { it.dishes }.map { KnownDish(it.key, it.name, it.price, it.tags) }
+        val fromHistory = events.mapNotNull { it.meal }.flatMap { it.dishes }.filter { it.grams == null }
+            .map { KnownDish(it.key, it.name, it.price, it.tags) }
         return (fromHistory + custom).associateBy { it.key }.values.sortedBy { it.name.de.lowercase() }
     }
 }

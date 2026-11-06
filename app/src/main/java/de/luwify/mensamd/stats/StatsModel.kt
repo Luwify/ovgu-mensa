@@ -96,7 +96,10 @@ data class MealRecord(
     val other: Boolean = false,
 )
 
-/** A dish eaten [count] times for [price] each (mills). [key] = `Favorites.normalize(name.de)`. */
+/**
+ * A dish eaten [count] times for [price] each (mills). [key] = `Favorites.normalize(name.de)`. [grams]: a dish paid by
+ * weight, about that much; [price] is then what the portion cost, not the menu's price per 100 g.
+ */
 @Serializable
 data class EatenDish(
     val key: String,
@@ -105,6 +108,7 @@ data class EatenDish(
     val price: Int,
     val count: Int = 1,
     val tags: List<Tag> = emptyList(),
+    val grams: Int? = null,
 )
 
 /** A dish the user named by hand, with the price it was saved with (mills). */
@@ -120,6 +124,8 @@ data class SnapDish(
     val prices: List<Int>,
     val priceGroupsKnown: Boolean = true,
     val tags: List<Tag> = emptyList(),
+    /** Paid by weight ([de.luwify.mensamd.model.WeightPricing]): [prices] are per 100 g, never the price of a portion. */
+    val byWeight: Boolean = false,
 )
 
 /** Something only the user can decide. Every item belongs to the scan [scanId] that raised it. */

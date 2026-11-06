@@ -160,4 +160,73 @@ class MealMatcherTest {
         assertEquals(3_100, eaten.price)
         assertEquals("vegan", eaten.tags.single().key)
     }
+
+    private val pasta = SnapDish(oben, LocalizedText("Farfalle al Fungo"), listOf(50, 80, 110), byWeight = true)
+    private val soup = SnapDish(unten, LocalizedText("Tagessuppe"), listOf(60, 80, 100), byWeight = true)
+
+    @Test fun aWeightDishNeverMatchesAsAFixedPrice() {
+        val day = menu + pasta + soup
+        assertEquals(Plan.NoMatch, MealMatcher.plan(500, day, unten, 0)) // the pasta's menu price
+        assertEquals(Plan.NoMatch, MealMatcher.plan(600, day, unten, 0)) // the soup's menu price
+        assertEquals(Plan.NoMatch, MealMatcher.plan(1_000, day, unten, 0)) // twice the pasta
+        assertEquals(Plan.NoMatch, MealMatcher.plan(1_100, day, unten, 0)) // pasta + soup
+        assertEquals(listOf(listOf("1xSeelachs")), (MealMatcher.plan(3_100, day, unten, 0) as Plan.Choose).candidates.map(::names))
+        assertEquals(Plan.NoMatch, MealMatcher.plan(3_600, day, unten, 0)) // Seelachs + pasta: no pair
+    }
+
+    @Test fun weightDishAlone() {
+        val options = MealMatcher.weightDishes(menu + pasta + soup + pasta, unten, 0)
+        assertEquals(listOf("Tagessuppe", "Farfalle al Fungo"), options.map { it.dish.name.de }) // default Mensa first, once each
+        val farfalle = options[1]
+        assertEquals(500, farfalle.per100)
+        assertEquals(470, farfalle.grams(2_350))
+        val eaten = farfalle.toRecord(2_350).dishes.single()
+        assertEquals(2_350, eaten.price) // what was paid, not the price per 100 g
+        assertEquals(470, eaten.grams)
+        assertEquals(1, eaten.count)
+    }
+
+    @Test fun weightPriceFollowsThePriceGroup() {
+        assertEquals(800, MealMatcher.weightDishes(listOf(pasta), null, 1).single().per100)
+        assertEquals(300, MealMatcher.weightDishes(listOf(pasta), null, 1).single().grams(2_400))
+    }
+
+    @Test fun estimateRoundsToTenGrams() {
+        assertEquals(470, MealMatcher.estimateGrams(2_350, 500))
+        assertEquals(470, MealMatcher.estimateGrams(2_370, 500)) // 474
+        assertEquals(480, MealMatcher.estimateGrams(2_380, 500)) // 476
+        assertEquals(10, MealMatcher.estimateGrams(10, 500))
+    }
+
+    @Test fun weightDishAfterAFixedDish() {
+        val weight = MealMatcher.weightDishes(listOf(pasta), null, 0).single()
+        val fixed = MealMatcher.Pick(menu[0], 1, 3_100)
+        val record = MealMatcher.withExtras(5_450, listOf(fixed), emptyList(), listOf(MealMatcher.WeightPick(weight)))!!
+        assertEquals(listOf(3_100, 2_350), record.dishes.map { it.price })
+        assertEquals(listOf(null, 470), record.dishes.map { it.grams })
+        assertEquals(0, record.extrasAmount)
+    }
+
+    @Test fun weightDishPlusFixedDishPlusExtras() {
+        val weight = MealMatcher.weightDishes(listOf(pasta), null, 0).single()
+        val fixed = MealMatcher.Pick(menu[0], 1, 3_100)
+        val record = MealMatcher.withExtras(6_000, listOf(fixed), listOf(Extras.SALAD), listOf(MealMatcher.WeightPick(weight, 300)))!!
+        assertEquals(listOf(3_100, 1_500), record.dishes.map { it.price })
+        assertEquals(300, record.dishes[1].grams)
+        assertEquals(1_400, record.extrasAmount)
+        assertEquals(6_000, record.dishes.sumOf { it.price * it.count } + record.extrasAmount)
+    }
+
+    @Test fun weightPicksThatDoNotAddUpAreRefused() {
+        val (a, b) = MealMatcher.weightDishes(listOf(pasta, soup), null, 0)
+        val open = MealMatcher.WeightPick(a)
+        assertNull(MealMatcher.withExtras(2_000, emptyList(), emptyList(), listOf(open, MealMatcher.WeightPick(b)))) // two take the rest
+        assertNull(MealMatcher.withExtras(1_000, emptyList(), emptyList(), listOf(MealMatcher.WeightPick(a, 300)))) // costs more
+        assertNull(MealMatcher.withExtras(3_100, listOf(MealMatcher.Pick(menu[0], 1, 3_100)), emptyList(), listOf(open))) // nothing left
+        assertNull(MealMatcher.withExtras(2_000, emptyList(), emptyList(), listOf(MealMatcher.WeightPick(a, 100)))) // rest without an extra
+    }
+
+    @Test fun otherDishesLeaveOutTheWeightDishes() {
+        assertEquals(false, MealMatcher.others(emptyList(), menu + pasta, unten).any { it.byWeight })
+    }
 }
