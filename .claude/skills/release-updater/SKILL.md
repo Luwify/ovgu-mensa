@@ -35,8 +35,9 @@ Same scheme and tools as Stundenplan MD (`tools/` is a copy: keep the two in syn
 ## In-app updater
 Ported from Stundenplan MD; **keep both copies in sync** (fixes in one belong in the other). Mapping: Stundenplan's
 `:core` `update/` = `de.luwify.mensamd.update` here (pure Kotlin, no Android imports, tests in app/src/test), `data/update/`
-and `ui/UpdateScreens.kt` = the same files here. Left out here: "App teilen" (QR + APK share, needs ZXing) and the backup
-integration (Mensa MD has no backup). Mensa-only glue: `ui/UpdatePrompts.kt` (snackbar, update dialog and the running
+and `ui/UpdateScreens.kt` = the same files here. Left out here: "App teilen" (QR + APK share, needs ZXing) and the updater
+settings in the backup (Mensa MD's `backup/BackupFormat` covers the settings DataStore, not `updates`; Stundenplan MD's backup
+carries the automatic check and the skipped version). Mensa-only glue: `ui/UpdatePrompts.kt` (snackbar, update dialog and the running
 update's dialogs in `MensaRoot`, so they show above the settings and card overlays), the gear badge in `MainScreen`, the
 "Version" section and the version pages in `SettingsScreen`.
 - `update/UpdatePolicy.kt`: `UpdateSource` (manifest URL, APK prefix `.../releases/download/`, redirect rules, `override`
@@ -84,6 +85,6 @@ when the manifest offers nothing for this device), `ui/StundenplanBanner` (+ `St
 `ic_stundenplan.xml` = Stundenplan's adaptive launcher icon in one vector. Hide flag: settings key
 `stundenplan_banner_hidden` (X on the card, switch "Hinweis auf Stundenplan MD anzeigen" after the "Version" section;
 setter takes null = back to "never chosen"); unset: `CompanionPolicy.wanted` shows the card (first item of the
-settings) only while Stundenplan MD isn't installed. Same as Stundenplan MD's banner. Mensa-only differences: card
-colors from `LocalMensaColors`, `toUri()` for the release page (lint `UseKtx`), no backup (Stundenplan MD keeps the
-choice in its backup), and `CompanionTest` also checks that the banner stays during an install.
+settings) only while Stundenplan MD isn't installed. Same as Stundenplan MD's banner; a backup keeps the choice in both apps
+(here as an ordinary settings key). Mensa-only differences: card
+colors from `LocalMensaColors`, `toUri()` for the release page (lint `UseKtx`), and `CompanionTest` also checks that the banner stays during an install.
