@@ -126,6 +126,10 @@ internal fun MealQuestionScreen(
     val others = remember(plan, dishes, context, where) {
         MealMatcher.others((plan as? MealMatcher.Plan.Choose)?.candidates.orEmpty(), dishes, context?.defaultMensaId, where?.toSet())
     }
+    // Named until the page turns up (the user opened that Mensa meanwhile).
+    val missing = remember(question, pages) {
+        question.missingMensen.filter { id -> pages.orEmpty().none { (mensa, page) -> mensa == id && MenuDishes.onDay(id, page, question.date).isNotEmpty() } }
+    }
     val mensaIds = remember(dishes, context) { dishes.map { it.mensaId }.distinct().sortedBy { it != context?.defaultMensaId } }
     val amount = formatCardAmount(question.amount, locale)
     val unknownMensa = stringResource(R.string.meal_unknown_mensa)
@@ -162,6 +166,10 @@ internal fun MealQuestionScreen(
                     Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal)),
                     contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 24.dp),
                 ) {
+                    if (missing.isNotEmpty()) item(key = "missing") {
+                        val names = missing.map { mensaName(it, language, unknownMensa) }.joinToString(", ")
+                        NoteCard { Text(stringResource(R.string.meal_missing_mensen, names), style = MaterialTheme.typography.bodyMedium) }
+                    }
                     when (plan) {
                         is MealMatcher.Plan.Choose -> {
                             item(key = "cands-title") { SheetHeading(stringResource(R.string.meal_candidates)) }

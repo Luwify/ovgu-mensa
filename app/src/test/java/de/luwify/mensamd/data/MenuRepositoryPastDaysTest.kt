@@ -111,4 +111,50 @@ class MenuRepositoryPastDaysTest {
         tmp.root.resolve("menu-$id.json").writeText("""{"fetchedAt":1,"page":{"days":[],"legend":{"priceGroups":[],"codes":[],"notes":[]}},"schema":1}""")
         assertEquals(emptyList<MenuDay>(), FileMenuCache(tmp.root).read(id)!!.past)
     }
+
+    private class Counting(val answer: () -> String) : MenuFetcher {
+        var fetches = 0
+        override suspend fun fetch(url: String): String {
+            fetches++
+            return answer()
+        }
+    }
+
+    private fun cached(fetched: LocalDate, vararg days: MenuDay, past: List<MenuDay> = emptyList()) = Memory(
+        CachedMenu(fetched.atTime(8, 0).toInstant(ZoneOffset.UTC).toEpochMilli(), MenuPage(days.toList(), Legend.EMPTY), past = past),
+    )
+
+    @Test fun loadDay_aCachedDayNeedsNoFetch() = runTest {
+        val site = Counting { error("no fetch expected") }
+        assertTrue(repo(site, cached(monday.minusDays(3), day(monday))).loadDay(id, monday))
+        assertTrue(repo(site, cached(monday, past = listOf(day(monday.minusDays(2))))).loadDay(id, monday.minusDays(2)))
+        assertEquals(0, site.fetches)
+    }
+
+    @Test fun loadDay_nothingCachedIsFetched() = runTest {
+        val site = Counting { page(day(monday)) }
+        val repo = repo(site, Memory())
+        assertTrue(repo.loadDay(id, monday))
+        assertEquals(1, site.fetches)
+        assertEquals(listOf(monday), repo.current(id).page!!.days.map { it.date })
+    }
+
+    @Test fun loadDay_aFetchThatFailsIsReported() = runTest {
+        assertEquals(false, repo(Counting { throw java.io.IOException("down") }, Memory()).loadDay(id, monday))
+        // A cache from before that day can't say either.
+        assertEquals(false, repo(Counting { throw java.io.IOException("down") }, cached(monday.minusDays(3), day(monday.minusDays(3)))).loadDay(id, monday))
+    }
+
+    @Test fun loadDay_aPageFetchedThatDayWithoutTheDayMeansClosed() = runTest {
+        val site = Counting { page(day(monday.plusDays(1))) }
+        assertTrue(repo(site, cached(monday.minusDays(3), day(monday.minusDays(3)))).loadDay(id, monday)) // old cache: fetched first
+        assertEquals(1, site.fetches)
+        assertTrue(repo(site, cached(monday, day(monday.plusDays(1)))).loadDay(id, monday)) // fetched today: no second fetch
+        assertEquals(1, site.fetches)
+    }
+
+    @Test fun loadDay_aFixedMenuHoldsForEveryDay() = runTest {
+        val site = Counting { error("no fetch expected") }
+        assertTrue(repo(site, cached(monday.minusDays(30))).loadDay("pier16", monday))
+    }
 }

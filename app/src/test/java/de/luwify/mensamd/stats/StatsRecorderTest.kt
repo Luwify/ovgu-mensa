@@ -28,11 +28,11 @@ class StatsRecorderTest {
     private var now = LocalDateTime.of(2026, 11, 5, 13, 0)
     private val menu = listOf(SnapDish("unten", LocalizedText("Seelachs"), listOf(310, 520, 620)))
 
-    private fun recorder(scope: CoroutineScope, dishes: List<SnapDish> = menu): StatsRecorder = StatsRecorder(
+    private fun recorder(scope: CoroutineScope, dishes: List<SnapDish> = menu, missing: List<String> = emptyList()): StatsRecorder = StatsRecorder(
         store = StatsStore(File(tmp.root, "stats.json"), Dispatchers.Unconfined),
         settings = MutableStateFlow(CardStatsSettings(enabled = true, detailed = true)),
         mealContext = { MealContext("unten", 0) },
-        snapshot = { dishes },
+        snapshot = { DayMenu(dishes, missing) },
         scope = scope,
         clock = { now.atZone(zone).toInstant().toEpochMilli() },
         zone = { zone },
@@ -101,7 +101,7 @@ class StatsRecorderTest {
                 mealContext = { MealContext("unten", 0) },
                 snapshot = {
                     menusLoaded.await()
-                    menu
+                    DayMenu(menu)
                 },
                 scope = scope,
                 clock = { now.atZone(zone).toInstant().toEpochMilli() },
@@ -136,6 +136,44 @@ class StatsRecorderTest {
             val data = r.store.load()
             assertNull(data.events.single().meal)
             assertTrue(data.open.single() is OpenItem.MealQuestion)
+        } finally {
+            scope.cancel()
+        }
+    }
+
+    @Test fun aSingleMatchIsAskedWhileAMensaIsMissing_andTheQuestionNamesIt() = runBlocking {
+        val scope = CoroutineScope(SupervisorJob())
+        try {
+            val r = recorder(scope, missing = listOf("stendal", "herrenkrug"))
+            r.register(fp, 10_000, 0, null)
+            now = now.plusHours(1)
+            r.record(6_900, 3_100, fp) // Seelachs would be saved with every menu at hand
+            val data = r.store.load()
+            assertNull(data.events.single().meal)
+            val question = data.open.single() as OpenItem.MealQuestion
+            assertEquals(listOf("stendal", "herrenkrug"), question.missingMensen)
+            assertEquals(menu, question.dishes)
+        } finally {
+            scope.cancel()
+        }
+    }
+
+    @Test fun aFailingSnapshotCountsAsAllMissing() = runBlocking {
+        val scope = CoroutineScope(SupervisorJob())
+        try {
+            val r = StatsRecorder(
+                store = StatsStore(File(tmp.root, "stats.json"), Dispatchers.Unconfined),
+                settings = MutableStateFlow(CardStatsSettings(enabled = true, detailed = true)),
+                mealContext = { MealContext("unten", 0) },
+                snapshot = { error("no menus") },
+                scope = scope,
+                clock = { now.atZone(zone).toInstant().toEpochMilli() },
+                zone = { zone },
+            )
+            r.register(fp, 10_000, 0, null)
+            now = now.plusHours(1)
+            r.record(6_900, 3_100, fp)
+            assertTrue((r.store.load().open.single() as OpenItem.MealQuestion).missingMensen.isNotEmpty())
         } finally {
             scope.cancel()
         }

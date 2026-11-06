@@ -133,11 +133,11 @@ object StatsOps {
     /** Drops an open question without storing anything for it. */
     fun dismiss(data: StatsData, itemId: Long): StatsData = data.copy(open = data.open.filterNot { it.id == itemId })
 
-    /** Adds meal questions for [payments] (detailed statistics), each with that day's menu [dishes]. */
-    fun askMeals(data: StatsData, payments: List<CardEvent>, dishes: List<SnapDish>): StatsData {
+    /** Adds meal questions for [payments] (detailed statistics), each with that day's menu [dishes] and its [missing] Mensen. */
+    fun askMeals(data: StatsData, payments: List<CardEvent>, dishes: List<SnapDish>, missing: List<String> = emptyList()): StatsData {
         var nextId = data.nextId
         val asked = payments.filter { p -> p.kind == EventKind.PAYMENT && data.open.none { it is OpenItem.MealQuestion && it.eventId == p.id } }
-            .map { OpenItem.MealQuestion(nextId++, it.scanId, it.date, it.dateKnown, it.id, it.amount, dishes) }
+            .map { OpenItem.MealQuestion(nextId++, it.scanId, it.date, it.dateKnown, it.id, it.amount, dishes, missing) }
         return if (asked.isEmpty()) data else data.copy(open = data.open + asked, nextId = nextId)
     }
 

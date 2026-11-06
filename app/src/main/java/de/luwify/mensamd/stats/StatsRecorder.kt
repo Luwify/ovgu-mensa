@@ -1,6 +1,8 @@
 package de.luwify.mensamd.stats
 
 import de.luwify.mensamd.data.settings.CardStatsSettings
+import de.luwify.mensamd.model.MensaCatalog
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.async
@@ -32,7 +34,7 @@ class StatsRecorder(
     val store: StatsStore,
     private val settings: Flow<CardStatsSettings>,
     private val mealContext: suspend () -> MealContext,
-    private val snapshot: suspend (LocalDate) -> List<SnapDish>,
+    private val snapshot: suspend (LocalDate) -> DayMenu,
     private val scope: CoroutineScope,
     private val clock: () -> Long = System::currentTimeMillis,
     private val zone: () -> ZoneId = ZoneId::systemDefault,
@@ -124,17 +126,24 @@ class StatsRecorder(
         if (dated.isEmpty()) return
         val context = mealContext()
         dated.groupBy { it.date }.forEach { (date, list) ->
-            val dishes = runCatching { snapshot(date) }.getOrDefault(emptyList())
+            val menu = try {
+                snapshot(date)
+            } catch (c: CancellationException) {
+                throw c
+            } catch (_: Exception) {
+                DayMenu(emptyList(), MensaCatalog.all.map { it.id })
+            }
             store.update { data ->
                 var next = data
                 list.filter { p -> next.events.any { it.id == p.id } }.forEach { payment ->
-                    val plan = MealMatcher.plan(payment.amount, dishes, context.defaultMensaId, context.priceGroup)
-                    // Saved without asking only when both scans were on the same day: with the previous scan on an
-                    // earlier day the payment may also have been on that day, after that scan.
+                    val plan = MealMatcher.plan(payment.amount, menu.dishes, context.defaultMensaId, context.priceGroup)
+                    // Saved without asking only with every Mensa's menu at hand (a missing one might have the same
+                    // price) and when both scans were on the same day: with the previous scan on an earlier day the
+                    // payment may also have been on that day, after that scan.
                     val single = (plan as? MealMatcher.Plan.Choose)?.candidates?.singleOrNull()
-                        ?.takeIf { StatsOps.sameDayAsPrevious(next, payment.scanId) }
+                        ?.takeIf { menu.missing.isEmpty() && StatsOps.sameDayAsPrevious(next, payment.scanId) }
                     next = if (single != null) StatsOps.setMeal(next, payment.id, single.toRecord())
-                    else StatsOps.askMeals(next, listOf(payment), dishes)
+                    else StatsOps.askMeals(next, listOf(payment), menu.dishes, menu.missing)
                 }
                 next
             }

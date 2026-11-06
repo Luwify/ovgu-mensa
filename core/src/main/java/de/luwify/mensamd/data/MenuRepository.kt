@@ -26,6 +26,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.IOException
 import java.time.Instant
@@ -201,6 +202,30 @@ class MenuRepository(
 
     /** The current state (cache loaded if needed), without fetching: for the background favorites check. */
     suspend fun current(id: String): MenuState = loadCache(id)
+
+    /**
+     * Makes sure the app knows what Mensa [id] served on [date], loading the page if it can't tell yet (the usual
+     * fallback rules and timeouts). Returns false when it still can't tell: the fetch failed, or the day is past and
+     * was never cached. A running refresh is waited for.
+     */
+    suspend fun loadDay(id: String, date: LocalDate): Boolean {
+        val e = entry(id)
+        val mensa = catalog.firstOrNull { it.id == id }
+        if (loadCache(id).knows(mensa, date)) return true
+        e.refreshLock.withLock {} // a fetch already running may bring the day
+        if (e.state.value.knows(mensa, date)) return true
+        refreshIfStale(id)
+        e.refreshLock.withLock {} // refreshIfStale doesn't wait when another fetch started in between
+        return e.state.value.knows(mensa, date)
+    }
+
+    /** A fixed list holds for every day. Otherwise the day is there, or the page fetched that day doesn't list it: closed. */
+    private fun MenuState.knows(mensa: Mensa?, date: LocalDate): Boolean {
+        val page = page ?: return false
+        if (mensa?.format == PageFormat.FIXED) return true
+        if (page.days.any { it.date == date } || past.any { it.date == date }) return true
+        return fetchedAt?.let { Instant.ofEpochMilli(it).atZone(zone()).toLocalDate() } == date
+    }
 
     /** Fills the state from disk once; returns the state after that. */
     private suspend fun loadCache(id: String): MenuState {

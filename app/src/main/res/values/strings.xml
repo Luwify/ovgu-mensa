@@ -427,6 +427,7 @@
     <string name="meal_weight_one_open">Enter a weight for all dishes by weight but one.</string>
     <string name="meal_weight_nothing_left">Nothing is left for the dish by weight.</string>
     <string name="price_per_100g" translatable="false">/100 g</string>
+    <string name="meal_missing_mensen">Menus not loaded: %1$s. Dishes from there are missing, so nothing was saved automatically.</string>
     <string name="meal_search">Search dishes</string>
     <string name="meal_search_none">No known dish found.</string>
     <string name="meals_title">Your dishes</string>

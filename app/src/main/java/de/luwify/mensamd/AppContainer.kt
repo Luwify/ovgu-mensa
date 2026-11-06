@@ -16,9 +16,9 @@ import de.luwify.mensamd.notify.FavoriteScheduler
 import de.luwify.mensamd.notify.CardReminderScheduler
 import de.luwify.mensamd.model.MenuPage
 import de.luwify.mensamd.model.resolveOrder
+import de.luwify.mensamd.stats.DayMenu
 import de.luwify.mensamd.stats.MealContext
 import de.luwify.mensamd.stats.MenuDishes
-import de.luwify.mensamd.stats.SnapDish
 import de.luwify.mensamd.stats.StatsRecorder
 import de.luwify.mensamd.stats.StatsStore
 import kotlinx.coroutines.CoroutineExceptionHandler
@@ -29,7 +29,6 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.withTimeoutOrNull
 import java.io.File
 import de.luwify.mensamd.backup.BackupRepository
 import java.time.LocalDate
@@ -83,15 +82,16 @@ class AppContainer(context: Context) {
     suspend fun cachedPages(): List<Pair<String, MenuPage>> =
         orderedMensaIds().mapNotNull { id -> menuRepository.current(id).pageWithPast?.let { id to it } }
 
-    /** Every dish on [date] of every Mensa. For today, stale menus are refreshed first (at most 8 s in all; a failure uses the cache). */
-    private suspend fun menuSnapshot(date: LocalDate): List<SnapDish> {
-        if (date == LocalDate.now()) {
-            val ids = orderedMensaIds()
-            withTimeoutOrNull(8_000) {
-                coroutineScope { ids.map { id -> async { runCatching { menuRepository.refreshIfStale(id) } } }.awaitAll() }
-            }
-        }
-        return MenuDishes.onDay(cachedPages(), date)
+    /**
+     * Every dish on [date] of every Mensa. Mensen the app can't answer for yet are loaded first, in parallel (usual
+     * fallback and timeouts); those that still fail are named, so nothing is saved on a half-known menu.
+     */
+    private suspend fun menuSnapshot(date: LocalDate): DayMenu {
+        val ids = orderedMensaIds()
+        val missing = coroutineScope {
+            ids.map { id -> async { id.takeUnless { menuRepository.loadDay(id, date) } } }.awaitAll()
+        }.filterNotNull()
+        return DayMenu(MenuDishes.onDay(cachedPages(), date), missing)
     }
 
     private val versionName: String? by lazy { runCatching { app.packageManager.getPackageInfo(app.packageName, 0).versionName }.getOrNull() }

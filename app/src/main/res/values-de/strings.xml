@@ -418,6 +418,7 @@
     <string name="meal_weight_field">Gewicht (leer: alles, was übrig ist)</string>
     <string name="meal_weight_one_open">Trage bei allen Gerichten nach Gewicht außer einem das Gewicht ein.</string>
     <string name="meal_weight_nothing_left">Für das Gericht nach Gewicht bleibt nichts übrig.</string>
+    <string name="meal_missing_mensen">Nicht geladen: %1$s. Gerichte von dort fehlen, deshalb wurde nichts automatisch gespeichert.</string>
     <string name="meal_search">Gerichte suchen</string>
     <string name="meal_search_none">Kein bekanntes Gericht gefunden.</string>
     <string name="meals_title">Deine Gerichte</string>

@@ -128,6 +128,9 @@ data class SnapDish(
     val byWeight: Boolean = false,
 )
 
+/** A day's menu as far as the app could load it: [dishes] of every Mensa, and the ids of the [missing] ones. */
+data class DayMenu(val dishes: List<SnapDish>, val missing: List<String> = emptyList())
+
 /** Something only the user can decide. Every item belongs to the scan [scanId] that raised it. */
 @Serializable
 sealed interface OpenItem {
@@ -167,7 +170,10 @@ sealed interface OpenItem {
         val suggested: Int? = null,
     ) : OpenItem
 
-    /** Which dish(es) did payment [eventId] buy? [dishes] is that day's menu of every Mensa with one. */
+    /**
+     * Which dish(es) did payment [eventId] buy? [dishes] is that day's menu of every Mensa with one; [missingMensen] are
+     * the Mensen whose menu of that day could not be loaded, so [dishes] may be incomplete.
+     */
     @Serializable
     @SerialName("meal")
     data class MealQuestion(
@@ -178,6 +184,7 @@ sealed interface OpenItem {
         val eventId: Long,
         val amount: Int,
         val dishes: List<SnapDish> = emptyList(),
+        val missingMensen: List<String> = emptyList(),
     ) : OpenItem
 }
 
