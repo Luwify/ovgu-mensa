@@ -1,14 +1,25 @@
 package de.luwify.mensamd.data.cache
 
+import de.luwify.mensamd.model.MenuDay
 import de.luwify.mensamd.model.MenuPage
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import java.io.File
 import java.io.IOException
 
-/** The parsed page (legend included), when we fetched it (epoch millis) and whether from a fallback host. */
+/**
+ * The parsed page (legend included), when we fetched it (epoch millis) and whether from a fallback host. [past] = recent
+ * days the site no longer lists, kept for the card statistics; [page] stays exactly what the site gave, so the menu
+ * screens never see them.
+ */
 @Serializable
-data class CachedMenu(val fetchedAt: Long, val page: MenuPage, val schema: Int = SCHEMA, val fromFallback: Boolean = false) {
+data class CachedMenu(
+    val fetchedAt: Long,
+    val page: MenuPage,
+    val schema: Int = SCHEMA,
+    val fromFallback: Boolean = false,
+    val past: List<MenuDay> = emptyList(),
+) {
     companion object {
         /** Bump when the model changes incompatibly; older files are then ignored and refetched. */
         const val SCHEMA = 1

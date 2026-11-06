@@ -6,6 +6,7 @@ import de.luwify.mensamd.data.remote.MenuFetcher
 import de.luwify.mensamd.data.remote.MenuHosts
 import de.luwify.mensamd.model.Legend
 import de.luwify.mensamd.model.Mensa
+import de.luwify.mensamd.model.MenuDay
 import de.luwify.mensamd.model.MenuPage
 import de.luwify.mensamd.model.PageFormat
 import de.luwify.mensamd.model.MensaCatalog
@@ -27,6 +28,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.withContext
 import java.io.IOException
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -43,7 +47,27 @@ data class MenuState(
     val refreshFailed: Boolean = false,
     /** [page] came from a fallback host ([MenuHosts]), not the main site. */
     val fromFallback: Boolean = false,
-)
+    /** Recent days the site no longer lists (see [PAST_DAYS_KEPT]). Only the card statistics use them. */
+    val past: List<MenuDay> = emptyList(),
+) {
+    /** [page] plus the [past] days, oldest first: what the statistics can look up. */
+    val pageWithPast: MenuPage? get() = page?.let { if (past.isEmpty()) it else it.copy(days = past + it.days) }
+}
+
+/** How many days back a menu stays cached after the site dropped it: corrections of recent payments still find it. */
+const val PAST_DAYS_KEPT = 14L
+
+/**
+ * What to keep of [old] next to the [fresh] page: its days up to [today] that [fresh] no longer lists, at most
+ * [PAST_DAYS_KEPT] days back. A future day the site dropped was cancelled, so it goes.
+ */
+fun keptPastDays(old: MenuState, fresh: MenuPage, today: LocalDate): List<MenuDay> {
+    val listed = fresh.days.mapTo(HashSet()) { it.date }
+    val oldest = today.minusDays(PAST_DAYS_KEPT)
+    return (old.page?.days.orEmpty() + old.past).distinctBy { it.date } // the page's copy of a day is the newer one
+        .filter { it.date in oldest..today && it.date !in listed && it.dishes.isNotEmpty() }
+        .sortedBy { it.date }
+}
 
 private class EmptyResultException : IOException("page parsed to zero days")
 
@@ -59,6 +83,7 @@ class MenuRepository(
     private val staleAfterMillis: Long = 30 * 60 * 1000L,
     private val catalog: List<Mensa> = MensaCatalog.all,
     private val hosts: List<String> = MenuHosts.all,
+    private val zone: () -> ZoneId = ZoneId::systemDefault,
 ) {
     private val fallback = HostFallback(hosts, clock)
 
@@ -114,7 +139,9 @@ class MenuRepository(
                 val (host, parsed) = fetchFromHosts(mensa, cacheHasDishes = e.state.value.page?.isBlank == false)
                 withContext(workDispatcher) {
                     val page = withBorrowedLegend(mensa, parsed)
-                    val cached = CachedMenu(fetchedAt = clock(), page = page, fromFallback = host != hosts.first())
+                    val now = clock()
+                    val past = keptPastDays(e.state.value, page, Instant.ofEpochMilli(now).atZone(zone()).toLocalDate())
+                    val cached = CachedMenu(fetchedAt = now, page = page, fromFallback = host != hosts.first(), past = past)
                     // A failing cache write must not hide a good fetch from the UI.
                     runCatching { cache.write(id, cached) }
                     cached
@@ -124,7 +151,7 @@ class MenuRepository(
             if (failure is CancellationException) throw failure
             val fresh = result.getOrNull()
             e.state.update {
-                if (fresh != null) MenuState(fresh.page, fresh.fetchedAt, fromFallback = fresh.fromFallback)
+                if (fresh != null) MenuState(fresh.page, fresh.fetchedAt, fromFallback = fresh.fromFallback, past = fresh.past)
                 else it.copy(isRefreshing = false, refreshFailed = true)
             }
         } finally {
@@ -186,7 +213,11 @@ class MenuRepository(
                 // A refresh that already finished is newer than anything on disk.
                 if (cached != null) {
                     e.state.update {
-                        if (it.fetchedAt == null) it.copy(page = cached.page, fetchedAt = cached.fetchedAt, fromFallback = cached.fromFallback) else it
+                        if (it.fetchedAt == null) {
+                            it.copy(page = cached.page, fetchedAt = cached.fetchedAt, fromFallback = cached.fromFallback, past = cached.past)
+                        } else {
+                            it
+                        }
                     }
                 }
                 e.cacheLoaded = true

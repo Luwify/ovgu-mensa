@@ -77,9 +77,9 @@ class AppContainer(context: Context) {
     private suspend fun orderedMensaIds(): List<String> =
         (listOfNotNull(settings.defaultMensaId.first()) + resolveOrder(settings.mensaOrder.first()).map { it.id }).distinct()
 
-    /** The menu page of every Mensa the app has one of, default Mensa first; never fetches. */
+    /** The menu page of every Mensa the app has one of, with its kept past days, default Mensa first; never fetches. */
     suspend fun cachedPages(): List<Pair<String, MenuPage>> =
-        orderedMensaIds().mapNotNull { id -> menuRepository.current(id).page?.let { id to it } }
+        orderedMensaIds().mapNotNull { id -> menuRepository.current(id).pageWithPast?.let { id to it } }
 
     /** Every dish on [date] of every Mensa. For today, stale menus are refreshed first (at most 8 s in all; a failure uses the cache). */
     private suspend fun menuSnapshot(date: LocalDate): List<SnapDish> {
