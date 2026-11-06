@@ -7,3 +7,8 @@ New:
 - Top-up amounts (10, 20, 30, 50 €) and Pfand amounts (0.08, 0.15, 0.25 €) can be set in the card settings. A balance increase that is a sum of Pfand amounts up to 5 €, with no payment since the last scan, counts as a Pfand return that "Assign differently" can turn into a top-up plus payment; an equal top-up amount wins.
 - Backup in the settings: export settings, favorites and card statistics as one file and import them again, with a confirmation and "Undo".
 - The end of the statistics overview links to the new website with statistics on all menus: how often each dish appears, price history, vegan and vegetarian share per Mensa.
+
+Fixed:
+- Detailed statistics: matching a payment to the menu now looks at all Mensen. A dish is only saved without asking when exactly one fits overall that day; otherwise the app asks and shows the Mensa next to each dish, the default Mensa first.
+- Correcting a payment now lists that day's dishes from all Mensen, those with a matching price first, then all others.
+- "Choose an existing dish" now searches the menus of all Mensen and days plus eaten and custom dishes, finds parts of words and ignores case and umlauts. That day's dishes come first.

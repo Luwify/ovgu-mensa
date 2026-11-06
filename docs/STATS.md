@@ -40,7 +40,7 @@ Resume point for the card statistics feature (started 2026-11-05). Tick items as
       statistics website (`StatsLinks.MEAL_STATS_URL`, hidden while empty). Charts: own Canvas code, no library.
 
 ## Phase 3: detailed statistics
-- [x] Matching (single, same dish twice, two dishes; default Mensa first) + tests (`MealMatcher`); one candidate is saved without asking
+- [x] Matching (single, same dish twice, two dishes; all Mensen, default Mensa first) + tests (`MealMatcher`); one candidate overall is saved without asking
 - [x] Where-did-you-eat question, pick among matches, extras flow, no-match flow (`MealViews`), tested on the phone
 - [x] Meals overview (most eaten, by Mensa, vegan/vegetarian share, average per meal, add to favorites) (`MealSummary`)
 
@@ -73,7 +73,13 @@ Resume point for the card statistics feature (started 2026-11-05). Tick items as
       top-up d + L is preselected when it is a top-up amount); unchanged and a Pfand sum (<= 5 €) -> Pfand, with
       "Anders zuordnen" in the card screen's snackbar and in the history (back to the question; the question also
       offers "Nur eine Pfandrückgabe"); anything else -> asked.
-- [ ] **UNVERIFIED: the "last payment" signal on a top-up.** The rules assume a top-up keeps the card's last payment
-      value (DESFire limited credit = debits of the last transaction with a debit). Check with a real top-up: scan
-      right before and right after topping up (no payment between) and compare "Letzte Abbuchung". If a top-up changes
-      it, every top-up looks like "top-up + payment" and the rule must change (`BalanceDiff.derive`, d > 0).
+- [x] **The "last payment" signal on a top-up, checked on a real card (2026-11-06).** The user scanned right before and
+      right after topping up 30 € (no payment between) and the app recorded a plain top-up without a question. In
+      `BalanceDiff.derive` a positive d with a changed last payment above 0 is always asked, and the top-up amount rule
+      comes after that check, so the card's last payment did not change to another amount: a top-up keeps it, as the
+      rules assume. Not told apart by this: a last payment reset to 0 (the rule ignores 0), which would also read as a
+      plain top-up. Seen once, on one card.
+- [x] Meal matching across Mensen (2026-11-06, first real use: Pommes at the default Mensa was saved for a Chili of
+      the same price elsewhere): all Mensen count, only one candidate overall is saved, more are asked. Corrections
+      read the cached pages (`MenuDishes`), since the menu is kept only with an open question; once the site has dropped
+      a past day, only the search over other days, eaten and custom dishes is left for that payment.
