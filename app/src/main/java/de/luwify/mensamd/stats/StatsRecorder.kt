@@ -18,7 +18,7 @@ import java.time.ZoneId
 /** The result of the scan with sequence number [seq] (see `CardScanState.Success.seq`). */
 data class ScanRecord(val seq: Long, val result: RecordResult)
 
-/** What matching needs from the app: the default Mensa (tried first) and the user's price group. */
+/** What matching needs from the app: the default Mensa (listed first) and the user's price group. */
 data class MealContext(val defaultMensaId: String?, val priceGroup: Int)
 
 /**

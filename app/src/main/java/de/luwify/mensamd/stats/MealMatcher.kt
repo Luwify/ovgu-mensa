@@ -4,8 +4,8 @@ import de.luwify.mensamd.favorites.Favorites
 
 /**
  * Matches a payment to that day's menu (detailed statistics). Pure. A payment can be one dish, the same dish twice or
- * two different dishes of one Mensa, at the user's price group. The default Mensa is tried first; the others only
- * when it has no match. Too many candidates: the user first says where they ate ([Plan.AskWhere]).
+ * two different dishes of one Mensa, at the user's price group. Every Mensa with a menu that day counts, the default
+ * Mensa only comes first in the list. Too many candidates: the user first says where they ate ([Plan.AskWhere]).
  */
 object MealMatcher {
     /** More candidates than this: ask where first. */
@@ -61,23 +61,21 @@ object MealMatcher {
         }
     }
 
-    /** What to show for a payment of [amount]. [where] = the Mensen the user said they ate at (null: not asked yet). */
+    /**
+     * What to show for a payment of [amount]: all candidates of every Mensa in [dishes] (only one candidate overall may
+     * be saved without asking), the default Mensa's first. [where] = the Mensen the user said they ate at (null: not
+     * asked yet).
+     */
     fun plan(amount: Int, dishes: List<SnapDish>, defaultId: String?, group: Int, where: Set<String>? = null): Plan {
-        val mensaIds = dishes.map { it.mensaId }.distinct().let { ids ->
-            if (defaultId != null && defaultId in ids) listOf(defaultId) + (ids - defaultId) else ids
-        }
-        if (where != null) {
-            val chosen = candidates(amount, dishes.filter { it.mensaId in where }, group)
-            return if (chosen.isEmpty()) Plan.NoMatch else Plan.Choose(chosen)
-        }
-        val atDefault = candidates(amount, dishes.filter { it.mensaId == defaultId }, group)
-        if (atDefault.size in 1..MAX_CHOICES) return Plan.Choose(atDefault)
-        if (atDefault.size > MAX_CHOICES) return Plan.AskWhere(mensaIds, setOfNotNull(defaultId))
-        val elsewhere = candidates(amount, dishes.filter { it.mensaId != defaultId }, group)
+        val found = candidates(amount, dishes.filter { where == null || it.mensaId in where }, group)
+            .sortedBy { it.mensaId != defaultId } // stable: otherwise the order of [dishes]
         return when {
-            elsewhere.isEmpty() -> Plan.NoMatch
-            elsewhere.size <= MAX_CHOICES -> Plan.Choose(elsewhere)
-            else -> Plan.AskWhere(mensaIds, emptySet())
+            found.isEmpty() -> Plan.NoMatch
+            where != null || found.size <= MAX_CHOICES -> Plan.Choose(found)
+            else -> {
+                val ids = dishes.map { it.mensaId }.distinct().sortedBy { it != defaultId }
+                Plan.AskWhere(ids, found.map { it.mensaId }.filter { it == defaultId }.toSet())
+            }
         }
     }
 

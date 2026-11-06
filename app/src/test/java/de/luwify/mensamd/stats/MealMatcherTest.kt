@@ -2,11 +2,13 @@ package de.luwify.mensamd.stats
 
 import de.luwify.mensamd.model.LocalizedText
 import de.luwify.mensamd.model.Tag
+import de.luwify.mensamd.parser.MenuPageParser
 import de.luwify.mensamd.stats.MealMatcher.Plan
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.time.LocalDate
 
 class MealMatcherTest {
     private fun dish(mensa: String, name: String, vararg cents: Int, known: Boolean = true) =
@@ -22,6 +24,9 @@ class MealMatcherTest {
         dish(oben, "Pasta", 280, 490, 590),
         dish(oben, "Salat", 250, 400, 500),
     )
+
+    private fun fixture(path: String) =
+        checkNotNull(javaClass.getResourceAsStream("/fixtures/$path")).use { it.readBytes().toString(Charsets.UTF_8) }
 
     private fun names(c: MealMatcher.Candidate) = c.picks.map { "${it.count}x${it.dish.name.de}" }
 
@@ -47,13 +52,40 @@ class MealMatcherTest {
         assertEquals(5_700, plan.candidates.single().total)
     }
 
-    @Test fun defaultMensaFirstOthersOnlyWithoutMatch() {
-        // 2.50 €: Pfannkuchen unten (default) and Salat oben; the default wins.
+    @Test fun aMatchAtTheDefaultMensaDoesNotHideTheOthers() {
+        // 2.50 €: Pfannkuchen unten (default) and Salat oben: both are offered, the default first.
         val plan = MealMatcher.plan(2_500, menu, unten, 0) as Plan.Choose
-        assertEquals(listOf(listOf("1xPfannkuchen")), plan.candidates.map(::names))
-        // 2.80 €: only oben has it.
+        assertEquals(listOf(unten, oben), plan.candidates.map { it.mensaId })
+        // The other way round with oben as the default, even though unten comes first in the menu list.
+        val swapped = MealMatcher.plan(2_500, menu, oben, 0) as Plan.Choose
+        assertEquals(listOf(oben, unten), swapped.candidates.map { it.mensaId })
+        // 2.80 €: only oben has it, so it is the one candidate although it isn't the default Mensa.
         val other = MealMatcher.plan(2_800, menu, unten, 0) as Plan.Choose
         assertEquals(oben, other.candidates.single().mensaId)
+    }
+
+    @Test fun theSameDishInTwoMensenIsTwoCandidates() {
+        val m = listOf(dish(unten, "Kuchen", 150), dish(oben, "Kuchen", 150))
+        val plan = MealMatcher.plan(1_500, m, unten, 0) as Plan.Choose
+        assertEquals(listOf(unten, oben), plan.candidates.map { it.mensaId })
+    }
+
+    @Test fun tooManyAcrossMensenAsksWhereWithTheDefaultTicked() {
+        val m = (1..3).map { dish(unten, "Unten $it", 300) } + (1..3).map { dish(oben, "Oben $it", 300) }
+        assertEquals(Plan.AskWhere(listOf(unten, oben), setOf(unten)), MealMatcher.plan(3_000, m, unten, 0))
+        val onlyOben = MealMatcher.plan(3_000, m, unten, 0, where = setOf(oben)) as Plan.Choose
+        assertEquals(setOf(oben), onlyOben.candidates.map { it.mensaId }.toSet())
+    }
+
+    /** The real case of 2026-11-06: Pommes at the default Mensa and the Chili that was eaten both cost 2.00 €. */
+    @Test fun realMenusOfTwoMensenAreNotSavedBlindly() {
+        fun day(mensa: String) = MenuPageParser.parse(fixture("2026-11-06/$mensa.html")).days
+            .first { it.date == LocalDate.of(2026, 11, 6) }.dishes
+            .map { SnapDish(mensa, it.name, it.prices, it.priceGroupsKnown, it.tags) }
+        val plan = MealMatcher.plan(2_000, day(unten) + day(oben), unten, 0) as Plan.Choose
+        assertEquals(unten, plan.candidates.first().mensaId)
+        assertTrue(plan.candidates.first().picks.single().dish.name.de.startsWith("Portion Pommes Frites"))
+        assertTrue(plan.candidates.any { c -> c.mensaId == oben && c.picks.singleOrNull()?.dish?.name?.de.orEmpty().startsWith("Chili sin carne") })
     }
 
     @Test fun ambiguousGivesSeveralCandidates() {

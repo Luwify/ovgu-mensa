@@ -25,11 +25,11 @@ class StatsRecorderTest {
     private var now = LocalDateTime.of(2026, 11, 5, 13, 0)
     private val menu = listOf(SnapDish("unten", LocalizedText("Seelachs"), listOf(310, 520, 620)))
 
-    private fun recorder(scope: CoroutineScope): StatsRecorder = StatsRecorder(
+    private fun recorder(scope: CoroutineScope, dishes: List<SnapDish> = menu): StatsRecorder = StatsRecorder(
         store = StatsStore(File(tmp.root, "stats.json"), Dispatchers.Unconfined),
         settings = MutableStateFlow(CardStatsSettings(enabled = true, detailed = true)),
         mealContext = { MealContext("unten", 0) },
-        snapshot = { menu },
+        snapshot = { dishes },
         scope = scope,
         clock = { now.atZone(zone).toInstant().toEpochMilli() },
         zone = { zone },
@@ -48,6 +48,25 @@ class StatsRecorderTest {
             val data = r.store.load()
             assertNull(data.events.last().meal)
             assertTrue(data.open.single() is OpenItem.MealQuestion)
+        } finally {
+            scope.cancel()
+        }
+    }
+
+    @Test fun aMatchInAnotherMensaTooIsAskedNotSaved() = runBlocking {
+        val scope = CoroutineScope(SupervisorJob())
+        try {
+            val both = listOf(
+                SnapDish("unten", LocalizedText("Portion Pommes Frites"), listOf(200, 380, 520)),
+                SnapDish("oben", LocalizedText("Chili sin carne"), listOf(200, 380, 520)),
+            )
+            val r = recorder(scope, both)
+            r.register(fp, 10_000, 0, null)
+            now = now.plusHours(1)
+            r.record(8_000, 2_000, fp)
+            val data = r.store.load()
+            assertNull(data.events.single().meal)
+            assertEquals(both, (data.open.single() as OpenItem.MealQuestion).dishes)
         } finally {
             scope.cancel()
         }

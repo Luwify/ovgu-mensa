@@ -34,7 +34,7 @@ class StatsViewModel(private val container: AppContainer) : ViewModel() {
     val registering = recorder.registering
     val favorites: StateFlow<Set<String>> = settingsRepo.favorites.stateIn(viewModelScope, SharingStarted.Eagerly, emptySet())
 
-    /** Default Mensa (tried first when matching) and price group, for the meal questions. */
+    /** Default Mensa (listed first when matching) and price group, for the meal questions. */
     val mealContext: StateFlow<MealContext?> = combine(settingsRepo.defaultMensaId, settingsRepo.priceGroup) { id, group ->
         MealContext(id, group)
     }.stateIn(viewModelScope, SharingStarted.Eagerly, null)
