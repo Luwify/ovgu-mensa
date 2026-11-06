@@ -2,12 +2,15 @@ package de.luwify.mensamd.stats
 
 import de.luwify.mensamd.data.settings.CardStatsSettings
 import de.luwify.mensamd.model.LocalizedText
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -83,6 +86,40 @@ class StatsRecorderTest {
             val result = r.record(6_900, 3_100, fp)
             assertEquals(card, r.store.load().card)
             assertTrue((result as RecordResult.Recorded).newEvents.isNotEmpty()) // not a new baseline
+        } finally {
+            scope.cancel()
+        }
+    }
+
+    @Test fun theScanResultDoesNotWaitForTheMenus() = runBlocking {
+        val scope = CoroutineScope(SupervisorJob())
+        try {
+            val menusLoaded = CompletableDeferred<Unit>()
+            val r = StatsRecorder(
+                store = StatsStore(File(tmp.root, "stats.json"), Dispatchers.Unconfined),
+                settings = MutableStateFlow(CardStatsSettings(enabled = true, detailed = true)),
+                mealContext = { MealContext("unten", 0) },
+                snapshot = {
+                    menusLoaded.await()
+                    menu
+                },
+                scope = scope,
+                clock = { now.atZone(zone).toInstant().toEpochMilli() },
+                zone = { zone },
+            )
+            r.register(fp, 10_000, 0, null)
+            now = now.plusHours(1)
+
+            val result = withTimeout(5_000) { r.recordAsync(7, 6_900, 3_100, fp).await() } // the menus never came yet
+            assertEquals(1, (result as RecordResult.Recorded).newEvents.size)
+            assertEquals(7L, r.last.value?.seq)
+            val payment = r.store.load().events.single()
+            assertEquals(3_100, payment.amount)
+            assertNull(payment.meal)
+
+            menusLoaded.complete(Unit)
+            val saved = withTimeout(5_000) { r.store.data.first { it?.events?.single()?.meal != null } }
+            assertEquals("Seelachs", saved!!.events.single().meal!!.dishes.single().name.de)
         } finally {
             scope.cancel()
         }

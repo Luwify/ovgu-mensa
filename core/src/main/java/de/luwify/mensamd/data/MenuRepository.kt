@@ -84,8 +84,9 @@ class MenuRepository(
     private val catalog: List<Mensa> = MensaCatalog.all,
     private val hosts: List<String> = MenuHosts.all,
     private val zone: () -> ZoneId = ZoneId::systemDefault,
+    hostMemory: HostMemory? = null,
 ) {
-    private val fallback = HostFallback(hosts, clock)
+    private val fallback = HostFallback(hosts, clock, memory = hostMemory)
 
     private class Entry {
         val state = MutableStateFlow(MenuState())
@@ -172,6 +173,7 @@ class MenuRepository(
     private suspend fun fetchFromHosts(mensa: Mensa, cacheHasDishes: Boolean): Pair<String, MenuPage> {
         var blank: Pair<String, MenuPage>? = null
         var failure: Exception? = null
+        withContext(workDispatcher) { fallback.restore() } // off the main thread: it may read a file
         for (host in fallback.order()) {
             val html = try {
                 fetcher.fetch(host + mensa.path)
@@ -183,7 +185,7 @@ class MenuRepository(
             }
             val parsed = withContext(workDispatcher) { parse(mensa, html) }
             if (!parsed.isBlank || (!cacheHasDishes && withContext(workDispatcher) { PageCheck.hasContentBlock(html) })) {
-                fallback.succeeded(host)
+                withContext(workDispatcher) { fallback.succeeded(host) }
                 return host to parsed
             }
             if (blank == null) blank = host to parsed

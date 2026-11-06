@@ -70,4 +70,51 @@ class HostFallbackTest {
         only.succeeded(main)
         assertEquals(listOf(main), only.order())
     }
+
+    private class Memory(var stored: RememberedHost? = null) : HostMemory {
+        var writes = 0
+        override fun read() = stored
+        override fun write(host: RememberedHost?) {
+            stored = host
+            writes++
+        }
+    }
+
+    private fun restarted(memory: HostMemory) = HostFallback(listOf(main, backup, third), { now }, memory = memory)
+
+    @Test
+    fun aColdStartKeepsTheFallback_forTheRestOfTheHour() {
+        val memory = Memory()
+        restarted(memory).succeeded(backup)
+        now += 30 * minute
+        assertEquals(listOf(backup, main, third), restarted(memory).order())
+        now += 30 * minute // the hour counts from the first success, across starts
+        assertEquals(listOf(main, backup, third), restarted(memory).order())
+    }
+
+    @Test
+    fun usingTheRestoredFallbackDoesNotExtendIt() {
+        val memory = Memory()
+        restarted(memory).succeeded(backup)
+        now += 59 * minute
+        restarted(memory).succeeded(backup)
+        assertEquals(1, memory.writes)
+        now += 2 * minute
+        assertEquals(listOf(main, backup, third), restarted(memory).order())
+    }
+
+    @Test
+    fun theMainHostWorking_forgetsItForTheNextStartToo() {
+        val memory = Memory()
+        restarted(memory).succeeded(backup)
+        restarted(memory).succeeded(main)
+        assertEquals(null, memory.stored)
+        assertEquals(listOf(main, backup, third), restarted(memory).order())
+    }
+
+    @Test
+    fun aRemovedHostOrAnEarlierClockIsIgnored() {
+        assertEquals(listOf(main, backup, third), restarted(Memory(RememberedHost("https://gone.example/", now))).order())
+        assertEquals(listOf(main, backup, third), restarted(Memory(RememberedHost(backup, now + minute))).order())
+    }
 }

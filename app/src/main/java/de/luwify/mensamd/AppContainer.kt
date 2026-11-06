@@ -2,6 +2,7 @@ package de.luwify.mensamd
 
 import android.content.Context
 import de.luwify.mensamd.data.MenuRepository
+import de.luwify.mensamd.data.cache.FileHostMemory
 import de.luwify.mensamd.data.cache.FileMenuCache
 import de.luwify.mensamd.data.remote.HttpMenuFetcher
 import de.luwify.mensamd.data.settings.SettingsRepository
@@ -49,7 +50,8 @@ class AppContainer(context: Context) {
     val menuRepository: MenuRepository by lazy {
         val version = runCatching { app.packageManager.getPackageInfo(app.packageName, 0).versionName }.getOrNull() ?: "0"
         // cacheDir: it is a cache, and it stays out of backups.
-        MenuRepository(HttpMenuFetcher(version), FileMenuCache(File(app.cacheDir, "menus")))
+        val dir = File(app.cacheDir, "menus")
+        MenuRepository(HttpMenuFetcher(version), FileMenuCache(dir), hostMemory = FileHostMemory(File(dir, "fallback-host.txt")))
     }
 
     /** Work that must outlive a screen (a scan from the popup is stored after the popup closed). */

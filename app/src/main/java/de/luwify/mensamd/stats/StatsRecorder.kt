@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.time.Instant
@@ -24,7 +25,8 @@ data class MealContext(val defaultMensaId: String?, val priceGroup: Int)
 /**
  * Turns card scans into statistics: checks the card, stores the scan, derives events and, with detailed statistics,
  * matches new payments to the day's menu ([snapshot]). Runs in [scope] (the app's), so a scan from the popup is
- * stored even when the popup closes right away. Never logs card data.
+ * stored even when the popup closes right away. The scan's result is out before the matching starts, which may have
+ * to load menus first. Never logs card data.
  */
 class StatsRecorder(
     val store: StatsStore,
@@ -53,14 +55,22 @@ class StatsRecorder(
     /** Serializes scans, so two quick scans never derive from the same previous scan. */
     private val scanLock = Mutex()
 
-    /** Records a scan in the app scope; the result also lands in [last]. */
+    /**
+     * Records a scan in the app scope. The result lands in [last] and the deferred as soon as the scan is stored; the
+     * meal of a new payment follows in the app scope (saved, or a question).
+     */
     fun recordAsync(seq: Long, balance: Int, lastDebit: Int?, fingerprint: String?): Deferred<RecordResult> = scope.async {
-        val result = record(balance, lastDebit, fingerprint)
+        val result = storeScan(balance, lastDebit, fingerprint)
         _last.value = ScanRecord(seq, result)
+        (result as? RecordResult.Recorded)?.let { scope.launch { matchPayments(it.newEvents) } }
         result
     }
 
-    suspend fun record(balance: Int, lastDebit: Int?, fingerprint: String?): RecordResult = scanLock.withLock {
+    /** Stores the scan and matches its payments before returning. */
+    suspend fun record(balance: Int, lastDebit: Int?, fingerprint: String?): RecordResult =
+        storeScan(balance, lastDebit, fingerprint).also { result -> (result as? RecordResult.Recorded)?.let { matchPayments(it.newEvents) } }
+
+    private suspend fun storeScan(balance: Int, lastDebit: Int?, fingerprint: String?): RecordResult = scanLock.withLock {
         val config = settings.first()
         if (!config.enabled || store.readOnly) return@withLock RecordResult.Off
         if (fingerprint == null) return@withLock RecordResult.OtherCard // no id: can't be "my" card
@@ -76,7 +86,6 @@ class StatsRecorder(
             result = r
             next
         }
-        (result as? RecordResult.Recorded)?.let { matchPayments(it.newEvents, config) }
         result
     }
 
@@ -109,9 +118,8 @@ class StatsRecorder(
     }
 
     /** Payments that just got known (from a scan or an answered question): match them when detailed statistics are on. */
-    suspend fun matchPayments(payments: List<CardEvent>, config: CardStatsSettings? = null) {
-        val c = config ?: settings.first()
-        if (!c.detailedActive) return
+    suspend fun matchPayments(payments: List<CardEvent>) {
+        if (!settings.first().detailedActive) return
         val dated = payments.filter { it.kind == EventKind.PAYMENT && it.dateKnown && it.meal == null }
         if (dated.isEmpty()) return
         val context = mealContext()

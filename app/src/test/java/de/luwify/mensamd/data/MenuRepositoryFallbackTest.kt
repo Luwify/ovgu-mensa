@@ -214,4 +214,25 @@ class MenuRepositoryFallbackTest {
         assertEquals(MenuHosts.all.size, MenuHosts.all.toSet().size)
         assertTrue(MensaCatalog.all.all { !it.path.startsWith("/") && it.path.endsWith("/") })
     }
+
+    @Test
+    fun afterAColdStart_theRememberedFallbackIsAskedFirst() = runTest {
+        val memory = object : HostMemory {
+            var stored: RememberedHost? = null
+            override fun read() = stored
+            override fun write(host: RememberedHost?) {
+                stored = host
+            }
+        }
+        fun started(fetcher: MenuFetcher) = MenuRepository(
+            fetcher, FakeCache(), { now }, UnconfinedTestDispatcher(testScheduler), hosts = listOf(main, backup), hostMemory = memory,
+        )
+        val down = mutableMapOf<String, Any>(main to SocketTimeoutException(), backup to backupHtml)
+        started(HostFetcher(down)).refresh(id)
+
+        now += 10 * minute
+        val fetcher = HostFetcher(down)
+        started(fetcher).refresh(id)
+        assertEquals(listOf(backup + path), fetcher.urls)
+    }
 }

@@ -1,5 +1,7 @@
 package de.luwify.mensamd.data.cache
 
+import de.luwify.mensamd.data.HostMemory
+import de.luwify.mensamd.data.RememberedHost
 import de.luwify.mensamd.model.MenuDay
 import de.luwify.mensamd.model.MenuPage
 import kotlinx.serialization.Serializable
@@ -56,6 +58,26 @@ class FileMenuCache(private val dir: File) : MenuCache {
         if (!tmp.renameTo(target)) {
             tmp.delete()
             throw IOException("could not replace ${target.name}")
+        }
+    }
+}
+
+/** The remembered fallback host as two lines in [file] (host, then epoch millis); anything else counts as nothing. */
+class FileHostMemory(private val file: File) : HostMemory {
+    override fun read(): RememberedHost? = runCatching {
+        val (host, since) = file.readLines()
+        RememberedHost(host, since.toLong())
+    }.getOrNull()
+
+    override fun write(host: RememberedHost?) {
+        // Losing it only costs one wait for the main host's timeout.
+        runCatching {
+            if (host == null) {
+                file.delete()
+            } else {
+                file.parentFile?.mkdirs()
+                file.writeText("${host.host}\n${host.since}\n")
+            }
         }
     }
 }

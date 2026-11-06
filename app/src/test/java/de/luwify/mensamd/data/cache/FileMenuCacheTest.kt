@@ -1,8 +1,10 @@
 package de.luwify.mensamd.data.cache
 
+import de.luwify.mensamd.data.RememberedHost
 import de.luwify.mensamd.parser.MenuPageParser
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -70,5 +72,18 @@ class FileMenuCacheTest {
         val read = cache.read("old")!!
         assertEquals(emptyList<de.luwify.mensamd.model.FixedSection>(), read.page.fixed)
         assertTrue(read.page.days.single().dishes.single().priceGroupsKnown)
+    }
+
+    @Test
+    fun hostMemory_roundTripAndBrokenFile() {
+        val file = File(tmp.root, "sub/fallback-host.txt")
+        val memory = FileHostMemory(file)
+        assertNull(memory.read())
+        memory.write(RememberedHost("https://backup.example/", 42))
+        assertEquals(RememberedHost("https://backup.example/", 42), FileHostMemory(file).read())
+        file.writeText("garbage")
+        assertNull(memory.read())
+        memory.write(null)
+        assertFalse(file.exists())
     }
 }
