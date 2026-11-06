@@ -54,7 +54,7 @@ data class KnownAmounts(val topUps: List<Int>, val pfand: List<Int>) {
  *   d + L is preselected when it is a top-up amount). L unchanged: a top-up amount d is a top-up; a Pfand sum d (up to
  *   5 €) is a Pfand return (shown with "Anders zuordnen", see [StatsOps.reassignCredit]); anything else is asked.
  *
- * UNVERIFIED (docs/STATS.md): that a top-up leaves L as it is. If a real top-up changes L, the d > 0 rules change.
+ * A top-up leaves L as it is: seen on a real card (docs/STATS.md; a reset to 0 would look the same and is not ruled out).
  */
 object BalanceDiff {
     sealed interface Outcome {

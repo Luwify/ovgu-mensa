@@ -52,13 +52,8 @@ class MealSummaryTest {
         assertNull(s.averagePerMeal)
     }
 
-    @Test fun knownDishesAndSearch() {
+    @Test fun knownDishes() {
         val custom = listOf(KnownDish("smoothie bowl", LocalizedText("Smoothie Bowl"), 3_500))
-        val today = listOf(SnapDish("unten", LocalizedText("Seelachs, Dillsauce", "Pollock, dill sauce"), listOf(310, 520, 620)))
-        val known = MealSummary.knownDishes(events, custom, today, 1)
-        assertEquals(listOf("burger", "curry", "pasta", "seelachs, dillsauce", "smoothie bowl"), known.map { it.key })
-        assertEquals(5_200, known.first { it.key.startsWith("seelachs") }.price)
-        assertEquals(listOf("seelachs, dillsauce"), MealSummary.search(known, "dill").map { it.key })
-        assertEquals(listOf("seelachs, dillsauce"), MealSummary.search(known, "POLLOCK sauce").map { it.key })
+        assertEquals(listOf("burger", "curry", "pasta", "smoothie bowl"), MealSummary.knownDishes(events, custom).map { it.key })
     }
 }

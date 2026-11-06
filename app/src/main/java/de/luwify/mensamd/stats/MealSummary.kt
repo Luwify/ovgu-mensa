@@ -45,22 +45,9 @@ object MealSummary {
         )
     }
 
-    /**
-     * Every dish the user could mean when picking an existing one: eaten before, saved by hand, or on [today]'s menu;
-     * one entry per key (the latest), sorted by name.
-     */
-    fun knownDishes(events: List<CardEvent>, custom: List<KnownDish>, today: List<SnapDish>, group: Int): List<KnownDish> {
+    /** Every dish eaten or saved by hand, one entry per key (the latest), sorted by name: for days without a menu. */
+    fun knownDishes(events: List<CardEvent>, custom: List<KnownDish>): List<KnownDish> {
         val fromHistory = events.mapNotNull { it.meal }.flatMap { it.dishes }.map { KnownDish(it.key, it.name, it.price, it.tags) }
-        val fromToday = today.mapNotNull { d ->
-            MealMatcher.prices(d, group).firstOrNull()?.let { KnownDish(de.luwify.mensamd.favorites.Favorites.normalize(d.name.de), d.name, it, d.tags) }
-        }
-        return (fromHistory + custom + fromToday).associateBy { it.key }.values.sortedBy { it.name.de.lowercase() }
-    }
-
-    /** [dishes] whose name contains every word of [query] (case-insensitive, either language). */
-    fun search(dishes: List<KnownDish>, query: String): List<KnownDish> {
-        val words = query.lowercase().split(' ').filter { it.isNotBlank() }
-        if (words.isEmpty()) return dishes
-        return dishes.filter { d -> val text = (d.name.de + " " + d.name.en).lowercase(); words.all { it in text } }
+        return (fromHistory + custom).associateBy { it.key }.values.sortedBy { it.name.de.lowercase() }
     }
 }

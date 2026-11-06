@@ -67,6 +67,7 @@ import de.luwify.mensamd.favorites.Favorites
 import de.luwify.mensamd.model.MensaCatalog
 import de.luwify.mensamd.model.MenuPage
 import de.luwify.mensamd.stats.CardEvent
+import de.luwify.mensamd.stats.DishSearch
 import de.luwify.mensamd.stats.EatenDish
 import de.luwify.mensamd.stats.Extras
 import de.luwify.mensamd.stats.KnownDish
@@ -151,8 +152,8 @@ internal fun MealQuestionScreen(
                     vm, question, dishes, events, customDishes, customExtras, group, language, locale,
                     focus = where?.toSet() ?: setOfNotNull(context?.defaultMensaId),
                 ) { answer(it) }
-                step == MealStep.SEARCH -> SearchStep(events, customDishes, dishes, group, language, locale) { dish ->
-                    answer(MealRecord(dishes = listOf(EatenDish(dish.key, dish.name, null, question.amount, 1, dish.tags))))
+                step == MealStep.SEARCH -> SearchStep(pages.orEmpty(), events, customDishes, dishes, group, language, locale, unknownMensa) { dish ->
+                    answer(MealRecord(dishes = listOf(EatenDish(dish.key, dish.name, dish.mensaId, question.amount, 1, dish.tags))))
                 }
                 else -> LazyColumn(
                     Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal)),
@@ -326,7 +327,7 @@ private fun ExtrasStep(
                 .distinctBy { (d, p) -> Triple(d.mensaId, Favorites.normalize(d.name.de), p) }
                 .filter { it.second <= question.amount }
         } else {
-            MealSummary.knownDishes(events, customDishes, emptyList(), group)
+            MealSummary.knownDishes(events, customDishes)
                 .filter { it.price <= question.amount }
                 .map { SnapDish("", it.name, emptyList(), tags = it.tags) to it.price }
         }
@@ -414,20 +415,22 @@ private fun ExtrasStep(
     }
 }
 
-/** "Vorhandenes Gericht wählen": search over every dish eaten, saved or on that day's menu. */
+/** "Vorhandenes Gericht wählen": search over every cached menu, every dish eaten or saved; that day's dishes first. */
 @Composable
 private fun SearchStep(
+    pages: List<Pair<String, MenuPage>>,
     events: List<CardEvent>,
     customDishes: List<KnownDish>,
-    today: List<SnapDish>,
+    day: List<SnapDish>,
     group: Int,
     language: String,
     locale: Locale,
-    onPick: (KnownDish) -> Unit,
+    unknownMensa: String,
+    onPick: (DishSearch.Hit) -> Unit,
 ) {
     var query by rememberSaveable { mutableStateOf("") }
-    val known = remember(events, customDishes, today, group) { MealSummary.knownDishes(events, customDishes, today, group) }
-    val results = remember(known, query) { MealSummary.search(known, query) }
+    val hits = remember(pages, events, customDishes, day, group) { DishSearch.hits(day, MenuDishes.all(pages), events, customDishes, group) }
+    val results = remember(hits, query) { DishSearch.search(hits, query) }
     Column(Modifier.fillMaxSize().padding(horizontal = 16.dp).navigationBarsPadding()) {
         OutlinedTextField(
             value = query,
@@ -438,13 +441,13 @@ private fun SearchStep(
         )
         if (results.isEmpty()) Hint(stringResource(R.string.meal_search_none), Modifier.padding(top = 12.dp))
         LazyColumn(Modifier.weight(1f)) {
-            items(results, key = { it.key }) { d ->
-                Row(
-                    Modifier.fillMaxWidth().heightIn(min = 52.dp).clickable(role = Role.Button) { onPick(d) }.padding(vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(d.name.forLanguage(language), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
-                    Text(formatCardAmount(d.price, locale), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            items(results, key = { "${it.key}|${it.mensaId}" }) { d ->
+                Column(Modifier.fillMaxWidth().heightIn(min = 52.dp).clickable(role = Role.Button) { onPick(d) }.padding(vertical = 6.dp)) {
+                    Text(d.name.forLanguage(language), style = MaterialTheme.typography.bodyLarge)
+                    val details = listOfNotNull(d.mensaId?.let { mensaName(it, language, unknownMensa) }, d.price?.let { formatCardAmount(it, locale) })
+                    if (details.isNotEmpty()) {
+                        Text(details.joinToString(" · "), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                 }
             }
         }
