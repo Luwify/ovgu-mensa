@@ -74,12 +74,23 @@ Resume point for the card statistics feature (started 2026-11-05). Tick items as
       "Anders zuordnen" in the card screen's snackbar and in the history (back to the question; the question also
       offers "Nur eine Pfandrückgabe"); anything else -> asked.
 - [x] **The "last payment" signal on a top-up, checked on a real card (2026-11-06).** The user scanned right before and
-      right after topping up 30 € (no payment between) and the app recorded a plain top-up without a question. In
+      right after a top-up (no payment between) and the app recorded a plain top-up without a question. In
       `BalanceDiff.derive` a positive d with a changed last payment above 0 is always asked, and the top-up amount rule
       comes after that check, so the card's last payment did not change to another amount: a top-up keeps it, as the
       rules assume. Not told apart by this: a last payment reset to 0 (the rule ignores 0), which would also read as a
       plain top-up. Seen once, on one card.
 - [x] Meal matching across Mensen (2026-11-06, first real use: Pommes at the default Mensa was saved for a Chili of
       the same price elsewhere): all Mensen count, only one candidate overall is saved, more are asked. Corrections
-      read the cached pages (`MenuDishes`), since the menu is kept only with an open question; once the site has dropped
-      a past day, only the search over other days, eaten and custom dishes is left for that payment.
+      read the cached pages (`MenuDishes`), since the menu is kept only with an open question.
+- [x] Past days (2026-11-06): the menu cache keeps days the site dropped for 14 days (`CachedMenu.past`, statistics only), so
+      corrections of recent payments still find that day's dishes; older ones only have the search.
+- [x] Dishes priced per 100 g (2026-11-06): no hint on the pages (all 8 dated pages live and every fixture searched for
+      "100 g", "pro 100", "Gewicht" and the like), so rules in `WeightPricing`: badge "Pastabuffet" (0,50 | 0,80 | 1,10, in
+      several Mensen), and the soup icon in UniCampus unten (0,60 | 0,80 | 1,00; soups and stews at 2,00 elsewhere have no
+      icon, or are a portion). Never a fixed match, never saved automatically; a single fixed match still saves even on a
+      day with such dishes, whose weight can fit any amount.
+- [x] No automatic saving on incomplete data (2026-11-06): unknown menus of that day are loaded first; Mensen that still
+      fail are named in the question. Statistics schema 2 (`SnapDish.byWeight`, `EatenDish.grams`, `missingMensen`).
+- [x] Scan speed (2026-11-06): the result is published before the matching; the popup draws the balance before the note.
+      Measured with fake scans on the phone: about 0.55 s until stored in a warm process (the PBKDF2 card check), the meal step 0.1 s
+      later with all menus cached, about 1.5 s more with 7 Mensen to load.

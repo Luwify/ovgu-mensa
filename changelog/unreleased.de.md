@@ -7,8 +7,14 @@ Neu:
 - Aufladebeträge (10, 20, 30, 50 €) und Pfandbeträge (0,08, 0,15, 0,25 €) sind in den Karteneinstellungen einstellbar. Steigt das Guthaben um eine Summe von Pfandbeträgen bis 5 € und gab es seit dem letzten Scan keine Zahlung, zählt das als Pfandrückgabe, die sich mit „Anders zuordnen“ in Aufladung plus Zahlung ändern lässt; ein gleich hoher Aufladebetrag hat Vorrang.
 - Sicherung in den Einstellungen: Einstellungen, Favoriten und Kartenstatistik als eine Datei exportieren und wieder importieren, mit Rückfrage und „Rückgängig“.
 - Am Ende der Statistik-Übersicht führt ein Link zur neuen Website mit Statistiken zu allen Speiseplänen: wie oft es welches Gericht gibt, Preisverlauf, Anteil vegan und vegetarisch je Mensa.
+- Pastabuffet und die Suppe in UniCampus unten werden nach Gewicht bezahlt: Im Speiseplan steht jetzt „/100 g“ neben dem Preis.
 
 Behoben:
 - Detaillierte Statistik: Der Abgleich mit dem Speiseplan berücksichtigt jetzt alle Mensen. Ohne Nachfrage wird ein Gericht nur noch gespeichert, wenn an dem Tag insgesamt genau eines passt; sonst fragt die App und zeigt neben jedem Gericht die Mensa, die Standard-Mensa zuerst.
 - Beim Korrigieren einer Zahlung erscheinen jetzt die Gerichte des Tages aus allen Mensen, zuerst die mit passendem Preis, danach alle anderen.
 - „Vorhandenes Gericht wählen“ durchsucht jetzt die Speisepläne aller Mensen und Tage sowie gegessene und eigene Gerichte, findet auch Wortteile und unterscheidet weder Groß- und Kleinschreibung noch Umlaute. Gerichte des Tages stehen oben.
+- Detaillierte Statistik: Gerichte nach Gewicht zählen nicht mehr als Festpreis und werden nie automatisch gespeichert. Sie stehen stattdessen mit dem geschätzten Gewicht zur Auswahl („ca. 470 g“), allein oder im Schritt „Gericht + Extras“ zusammen mit festen Gerichten und Extras. Der Durchschnitt pro Mahlzeit nutzt den wirklich bezahlten Betrag.
+- Ein Gericht wird nur noch automatisch gespeichert, wenn die Speisepläne aller Mensen vorliegen. Fehlende lädt die App beim Scan nach; klappt das nicht, fragt sie nach und nennt die Mensen.
+- Nach dem Scan erscheinen Guthaben und erkannte Zahlung sofort, die Frage nach dem Gericht kann kurz danach folgen.
+- Speisepläne vergangener Tage bleiben 14 Tage gespeichert, damit Korrekturen die Gerichte dieser Tage weiter finden.
+- Ein funktionierender Ersatzserver bleibt auch nach einem Neustart der App für den Rest der Stunde gemerkt, so entfällt die Wartezeit auf die nicht erreichbare Hauptseite.

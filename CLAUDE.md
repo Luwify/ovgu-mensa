@@ -24,21 +24,14 @@ git-ignored `CLAUDE.local.md` at the repo root, which Claude Code loads after th
   Sparkles (`ui/Sparkle.kt`, math in `SparkleMath`, unit-tested): tapping an empty heart plays a one-shot burst (heart
   pop + gold/red stars and a ring, 650 ms; only the tapped heart, via `FavoriteBurst.pending`; `FavoriteEffects` draws
   only this burst). "Favoriten funkeln" (`legendary_favorites`, default on) = the aura on every favorite (the old gold
-  sweep-edge frame with twinkling stars was removed 2026-10-02). Aura: drawn by `SuperAuraOverlay`, ONE Canvas above the LazyColumn for all visible favorite cards (positioned from
-  `layoutInfo`), so it lies over neighboring cards and headers. The shader (`AuraShader.kt`, Android 13+) masks the
-  card's own area, fades out over 28 dp below the pinned header (`SparkleMath.pinnedHeaderBottom`) and before the
-  viewport end, falls off as (1 - d/R)^p (exactly zero; p 4, flattening to 1.6 toward the tail) and is dithered
-  (triangular IGN, 1/255). It always hugs the card: only the reach changes per direction (`SparkleMath.trailReach`:
-  + up to `TAIL_EXTRA_DP` 70 dp behind, strongest mid-edge, -25 % ahead). Drag (`ScrollDrag`, part of "Favoriten funkeln"; the former hidden Super-Funkeln was merged in and removed 2026-10-08):
-  velocity per scroll step (dp/s), low-pass `TRAIL_TAU_MS` 70 ms, target = tanh(|v| / `TRAIL_REFERENCE_DP_S` 1600)
-  (500 dp/s 30 %, 1500 dp/s 73 %, fling ~100 %), followed per frame (`TRAIL_FOLLOW_MS` 50 ms; never restart an
-  animation per scroll step: it gets cancelled before its first frame); `RELEASE_MS` 60 ms after the last step an
-  underdamped spring (0.3 / 140) returns it (overshoot ~1/3 of the stretch). Draw area: base reach on all sides, tail
-  only on the trailing side. Iridescent gold, sparkles on the outline. Below API 33: nested filled round rects
-  (`stackedAlphas`), anchored to the card. ~30 fps clock only while a favorite card is visible.
-  Card glows (AMOLED/custom `cardGlow`) are `EdgeGlow` (`EdgeGlow.kt`): one AGSL gradient per card built in
-  `drawWithCache`, dithered; below API 33 14 non-overlapping ring strokes (forced on a phone, AMOLED list: 1.9 %
-  janky / p99 18 ms vs 0.7-0.8 % / 16 ms shader). `MEASURE_EDGE_GLOW_FALLBACK` must stay false in commits.
+  sweep-edge frame with twinkling stars was removed 2026-10-02). Aura: `SuperAuraOverlay`, ONE Canvas above the
+  LazyColumn for all visible favorite cards (so it lies over neighbors and headers); shader in `AuraShader.kt`
+  (Android 13+), math and constants in `SparkleMath`, scroll drag in `ScrollDrag` (the former hidden Super-Funkeln was
+  merged in 2026-10-08). Gotcha: the drag target is followed per frame; never restart an animation per scroll step (it
+  gets cancelled before its first frame). Below API 33: nested filled round rects. ~30 fps clock only while a
+  favorite card is visible.
+  Card glows (AMOLED/custom `cardGlow`) are `EdgeGlow` (`EdgeGlow.kt`, AGSL; below API 33 ring strokes: forced on a
+  phone, 1.9 % janky / p99 18 ms vs 0.7-0.8 % / 16 ms shader). `MEASURE_EDGE_GLOW_FALLBACK` must stay false in commits.
   Measured on a phone (release, System theme, test data, 2026-10-02, with drag): scroll p99 16 ms, janky 0.69 %; idle 30
   frames/s, frame p50 10 ms / GPU 6 ms. Known: a card hidden under the pinned header can still glow below it while
   scrolling (faded in, no line).
@@ -103,18 +96,25 @@ git-ignored `CLAUDE.local.md` at the repo root, which Claude Code loads after th
   `filesDir/stats/stats.json`, versioned via `StatsMigrations` (raise CURRENT + add a step + test for any shape change;
   older file kept as `.v<n>`, newer never written, broken moved aside), atomic writes under one lock), `StatsOps`,
   `BalanceDiff` (rules in its KDoc; unclear changes become `OpenItem`s answered in `StatsScreen`), `MealMatcher`
-  (detailed statistics: one dish / same dish twice / two dishes of one Mensa at the user's price group, default Mensa
-  first, >5 candidates -> "where did you eat?", one candidate saved directly only when both scans were on the same day; the day's dishes are kept only with an open
-  question), `StatsSummary`/`MealSummary`, `CardReminderRules`. `StatsRecorder` (app scope) records scans from reader mode
-  and the popup. "Meine Karte": only scans of the registered card are stored; the UID becomes a fingerprint in memory
+  (detailed statistics: one dish / same dish twice / two dishes of one Mensa at the user's price group, all Mensen, default
+  Mensa first, >5 candidates -> "where did you eat?", one candidate overall saved directly only when both scans were on the same day
+  and every Mensa's menu of that day is known: `MenuRepository.loadDay` loads the unknown ones first, those that still fail
+  are named in the question (`missingMensen`); the day's dishes are kept with an open question; past days stay in the menu
+  cache for 14 days), `StatsSummary`/`MealSummary`, `CardReminderRules`. `StatsRecorder` (app scope) records scans from reader mode
+  and the popup; the result is out as soon as the scan is stored, the matching follows in the app scope. "Meine Karte": only scans of the registered card are stored; the UID becomes a fingerprint in memory
   (`CardIdentity`), only a salted PBKDF2 hash of it is stored. Amounts are mills (card unit); menu prices are cents x 10.
   Charts are own Canvas code (`ui/stats/Charts.kt`), no library. Reminder: `notify/CardReminder.kt` (one-time
   WorkManager job re-enqueued like the favorites job; tap -> `EXTRA_OPEN_CARD`). Backup: `backup/BackupFormat`
   (`mensamd-backup` v1: every settings key except device state, language, statistics) + `BackupRepository`, settings page.
   Meal statistics website link: `StatsLinks.MEAL_STATS_URL` (hidden while empty). Pfand: a credit up to 5 € that is a
   sum of the per-bottle amounts (default 0.08/0.15/0.25 €) is a Pfand return when the last payment did not change
-  (changed: top-up + payment, asked), with "Anders zuordnen"; a top-up amount wins. Top-up keeping the last payment
-  value is UNVERIFIED (docs/STATS.md).
+  (changed: top-up + payment, asked), with "Anders zuordnen"; a top-up amount wins. A real top-up kept the last payment
+  (docs/STATS.md).
+- **Dishes priced per 100 g:** the pages don't say so, so `model/WeightPricing` decides (the only place with these rules:
+  badge "Pastabuffet", soup icon in UniCampus unten). Menu cards show "/100 g" at the price. Such dishes never match as a
+  fixed price and are never saved automatically: the meal question lists them with the weight the amount buys
+  (`MealMatcher.weightDishes`, "ca. 470 g"), the extras step takes them next to fixed dishes and extras (all that is left, or
+  an entered weight). `EatenDish.price` is what was paid, `grams` the weight; `SnapDish.byWeight` marks them.
 - **License GPL-3.0-or-later** (see below).
 - Not done / only if asked: a baseline profile (separate `:baselineprofile` module). Swipe smoothness (B3) is closed.
 
@@ -141,16 +141,9 @@ header saying it was translated to Kotlin and modified (with the date); `NOTICE`
 taken from those projects needs the same treatment.
 
 ## Stack
-- Kotlin 2.4 (AGP 9 built-in Kotlin), AGP 9.4, Gradle 9.8 (wrapper), JDK 21 (Android Studio JBR)
-- Jetpack Compose + Material 3 (BOM 2026.09), dynamic color, edge-to-edge, dark mode
-- compileSdk 37, targetSdk 37, minSdk 26
-- WorkManager 2.12 (only for the daily favorites job and the card reminder)
-- Coroutines/Flow, ViewModel, DataStore Preferences (no Navigation library: the card screen is an overlay in `MensaRoot`)
-- Jsoup (HTML parsing), kotlinx.serialization (JSON cache)
-- Manual DI (`AppContainer`), no Hilt/Koin, no OkHttp/Retrofit
-- Package / applicationId: `de.luwify.mensamd`, app name "Mensa MD"; debug builds `de.luwify.mensamd.preview` ("Mensa Preview")
-- lifecycle-process (only for the updater's foreground check)
-- Versions live in `gradle/libs.versions.toml`
+Versions in `gradle/libs.versions.toml`. Deliberately minimal: manual DI (`AppContainer`); no Hilt/Koin, OkHttp/Retrofit,
+Room or Navigation library (screens are overlays in `MensaRoot`); WorkManager only for the favorites job and the card reminder,
+lifecycle-process only for the updater's foreground check.
 
 ## Architecture (`:app`, `:core`, `:scraper`)
 `:core` is plain Kotlin/JVM and holds what doesn't need Android: `model`, `parser`, `data/HostFallback`,
@@ -167,8 +160,8 @@ the others, exit 1 only when no Mensa could be fetched (pages without dishes are
   fetch fails (timeout, error status) or its page has no dishes and either lacks `div.entry-content`
   (`PageCheck.hasContentBlock`: maintenance/PHP error pages, often 200) or would replace cached dishes. A page with the
   block but no dishes over an empty cache = closed Mensa, accepted from the main site without asking a fallback. A
-  fallback that worked is tried first for 1 h (in memory, shared by all Mensen, not extended while used), then the
-  main site again; the main site working forgets it. Nothing usable anywhere: as before (cache kept, "update failed").
+  fallback that worked is tried first for 1 h (shared by all Mensen, not extended while used, kept in
+  `cache/menus/fallback-host.txt` across cold starts: `HostMemory`), then the main site again; the main site working forgets it. Nothing usable anywhere: as before (cache kept, "update failed").
   Data from a fallback is marked (`CachedMenu.fromFallback` -> `MenuState` -> footer "Daten vom Ersatzserver").
   Tests: `HostFallbackTest`, `MenuRepositoryFallbackTest`.
 - `parser`: **pure Kotlin, no Android imports**, JVM unit-testable
@@ -181,6 +174,8 @@ the others, exit 1 only when no Mensa could be fetched (pages without dishes are
   in the background (stale-while-revalidate). The page has no ETag/Last-Modified
   (`max-age=600` only), so freshness uses our own timer: refresh when older than ~30 min,
   on app foreground, or on pull-to-refresh. On failure it keeps the cache and shows "last updated".
+  Days the site dropped stay up to `PAST_DAYS_KEPT` (14) days in `CachedMenu.past` for the statistics only
+  (`MenuState.pageWithPast`); `page` stays what the site gave, so the menu screens and the fallback rules don't see them.
 - `data/settings`: one DataStore (`SettingsRepository`, built only by `AppContainer`): default Mensa id, tab order, tag filters,
   excluded codes, price group, compact mode, theme mode, favorites (+ their `favorite_info`), card statistics settings, notification settings/dedup set (string sets where
   values can contain commas). The first-run picker is shown only when the default is unset. The updater has its own
@@ -226,164 +221,16 @@ Lint's "a newer version of X is available" notices (NewerVersionAvailable, Gradl
 depend on what is published that day; versions are kept in step with Stundenplan MD, so they are bumped in both apps
 together, not on their own.
 
-## Releases
-Same scheme and tools as Stundenplan MD (`tools/` is a copy: keep the two in sync; this app's settings are only in
-`release/app.conf` and `release/signing-cert.sha256`).
-- **Version:** `version.properties` (`version=major.minor.patch`) is the only source; `app/build.gradle.kts` derives
-  versionName and versionCode = major*10000 + minor*100 + patch (minor, patch < 100). Raise it in a commit before
-  releasing (with `changelog/<ver>.de.md` and `.en.md`, short, for users); the script doesn't bump. 1.0.0 is the first
-  public release.
-  Changelog style (`unreleased.*.md` and release files): impersonal and user-facing, grouped under short headings when
-  there are several kinds of change; describe what the app does now ("Der Kuchen-Filter zeigt jetzt …"), no first
-  person, "du" only where needed; no internal details (class names, timings, test numbers).
-- **Signing:** release build type uses `signingConfigs.release` from the Gradle properties `LUWIFY_STORE_FILE`,
-  `LUWIFY_STORE_PASSWORD`, `LUWIFY_KEY_ALIAS`, `LUWIFY_KEY_PASSWORD` (in the maintainer's `~/.gradle/gradle.properties`;
-  the same key as Stundenplan MD). Missing -> `checkReleaseSigning` fails the release build (never debug-key fallback);
-  debug builds don't need them. Pinned certificate SHA-256 in `release/signing-cert.sha256` (CN=Luwify, `d717d70f…941549af`);
-  the script refuses a real release without a valid pin.
-- **GitHub releases** (repo `Luwify/ovgu-mensa`, branch `main`): every release has the APK `mensa-md-<ver>.apk`, the GPL
-  source archive and `updates.json` with the full history. The app reads
-  `https://github.com/Luwify/ovgu-mensa/releases/latest/download/updates.json`.
-  `updates.json`: `update/UpdateManifest` (`schema` 1, `app`, `releases` newest first: versionName, versionCode, date,
-  minSdk, changelog de/en, apkUrl `.../releases/download/v<ver>/mensa-md-<ver>.apk`, sha256, size, withdrawn),
-  `Manifests.parse` (TooNew/Broken, validation, unknown keys ignored), `updateFor(installed, sdk)`. Written only via
-  `./gradlew :app:manifest` (`ManifestTool.kt` in app/src/test: add/withdraw/check, run on the unit-test classpath), so
-  the writer is the app's parser.
-- **tools/release.sh <ver> [--dry-run]** (gh CLI): preflight (gh login, remote = the GitHub repo, repo public, branch
-  main, clean tree, version.properties == ver, changelogs, tag neither local nor on the remote, no such release, no newer
-  release, tests + lint), assembleRelease with `-PupdateManifestUrl` set explicitly, apksigner cert == pin, aapt2
-  package/versionCode/versionName/not debuggable/minSdk, manifest URL in the APK, sha256 + size, `git archive` source
-  tarball (`.gitattributes` export-ignore: CLAUDE.md, notes/, prompt.md, tools/, release/), new updates.json from the
-  newest release's one + diff; dry run stops there (output in `build/release/<ver>/`; it also runs before the GitHub
-  remote exists, with a warning). Real run: tag + push, draft release with notes and all three files, check the asset
-  sizes, publish (`--latest`), then an anonymous outsider check (https only, at most 3 redirects, final host = the ones
-  the app allows). On failure it prints what was done and how to clean up (deletes nothing). **Only the maintainer runs
-  the real release.** `--backfill <tag>` rebuilds an existing tag (not needed so far).
-- `tools/withdraw.sh <ver>` sets withdrawn=true in updates.json of the latest release (with confirmation).
+## Releases, updater, Stundenplan MD banner
+Details in the skill `release-updater` (`.claude/skills/release-updater/SKILL.md`): version and changelog rules,
+signing, updates.json, `tools/release.sh`, updater and banner internals. `tools/`, the updater (`update/`, `data/update/`,
+`ui/UpdateScreens.kt`) and the banner are copies of Stundenplan MD: **keep both copies in sync**. **Only the maintainer
+runs the real release** (`tools/release.sh <ver> --dry-run` is allowed). New third-party code, libraries or icons go into
+NOTICE and `LicensesScreen`.
 
-## In-app updater
-Ported from Stundenplan MD; **keep both copies in sync** (fixes in one belong in the other). Mapping: Stundenplan's
-`:core` `update/` = `de.luwify.mensamd.update` here (pure Kotlin, no Android imports, tests in app/src/test), `data/update/`
-and `ui/UpdateScreens.kt` = the same files here. Left out here: "App teilen" (QR + APK share, needs ZXing) and the backup
-integration (Mensa MD has no backup). Mensa-only glue: `ui/UpdatePrompts.kt` (snackbar, update dialog and the running
-update's dialogs in `MensaRoot`, so they show above the settings and card overlays), the gear badge in `MainScreen`, the
-"Version" section and the version pages in `SettingsScreen`.
-- `update/UpdatePolicy.kt`: `UpdateSource` (manifest URL, APK prefix `.../releases/download/`, redirect rules, `override`
-  for debug; `forManifestUrl` accepts only `https://github.com/<owner>/<repo>/releases/latest/download/<file>`),
-  `UpdatePolicy` (auto check at most every 6 h since the last successful one, overview hides withdrawn except the
-  installed one, `canInstall` = newer + not withdrawn + minSdk, `offer` minus the skipped version, snackbar once per
-  version), `ApkCheck` (size, sha256, package, versionCode > installed and == manifest, signer set == installed). Manifest
-  validation allows plain http only for 127.0.0.1/localhost (the release source still requires https).
-- **Manifest URL per build:** Gradle property `updateManifestUrl` (default the GitHub URL above) ->
-  `BuildConfig.UPDATE_MANIFEST_URL` -> `data/update/ReleaseSource.kt`; `ReleaseSourceTest` checks that it parses.
-- **Redirects:** GitHub answers `latest/download/<f>` with 302 -> `github.com/<repo>/releases/download/<tag>/<f>` -> 302
-  -> `release-assets.githubusercontent.com/...?<signed query>`. `UpdateHttp` follows redirects by hand, each hop through
-  `UpdateSource.redirect` (https only, no user info, default port, no fragment; below the repo's `releases/download/` on
-  github.com, or any path on `release-assets.githubusercontent.com`); at most 3. Anything else fails safe.
-- `data/update/`: `Updates` (process-wide in `AppContainer`: state, check whenever the app comes to the foreground
-  (`ProcessLifecycleOwner` ON_START registered in `MensaApp`, after the next frame; the card popup counts as foreground
-  too, the 6 h throttle applies), download to `cacheDir/updates` with progress/cancel, verify, PackageInstaller session,
-  "install unknown apps" explanation once then `ACTION_MANAGE_UNKNOWN_APP_SOURCES`, continues in `MainActivity.onResume`;
-  APKs deleted after the session write and once per process start), `UpdateHttp` (HttpURLConnection, checked redirects,
-  User-Agent `MensaMD/<version>`, no identifiers), `ApkInspector`/`ApkInstaller`/`InstallResultReceiver`, `UpdateSettings`
-  (DataStore `updates`, `schema_version` 1: auto_check, last_check, manifest (last good one, shown offline),
-  announced_code, skipped_code, unknown_sources_explained).
-- UI `UpdateScreens.kt`: settings section "Version" (App-Version, Versionsübersicht, "Update auf x", Nach Updates suchen
-  + status, Automatisch suchen), overview (radio = installed), detail (changelog de/en, Installieren only if installable),
-  `UpdateDialog` (snackbar "Anzeigen"; "nicht erneut anzeigen" = skip), download dialog (Abbrechen/Minimieren; while
-  installing "Schließen", because Android may never report back, e.g. Play Protect), failure dialog.
-- **Debug-only override** (src/debug; src/release has none): `files/debug_update_url` in the .preview app, e.g.
-  `http://127.0.0.1:8765/updates.json` served on the dev machine with `adb reverse tcp:8765 tcp:8765`; cleartext only to
-  127.0.0.1/localhost (debug network_security_config); no redirects. Test APKs: debug builds with a raised
-  version.properties (never commit that), manifest via `:app:manifest add` with app id `de.luwify.mensamd.preview`.
-- Licenses: settings section "Über die App" -> `LicensesScreen` (GPL notice, source link `SOURCE_URL`, not-affiliated
-  note, MensaGuthaben/FareBot credits, libraries, jsoup MIT text from `res/raw/license_jsoup.txt`). New third-party code,
-  libraries or icons go into NOTICE and this screen.
-
-## Stundenplan MD banner (settings, top)
-Ported from Stundenplan MD's Mensa MD banner; **keep both copies in sync** (same mapping as the updater). Pure:
-`update/Companion.kt` = Stundenplan's `:core` `update/Companion.kt` with `CompanionApp.STUNDENPLAN` (package
-`de.luwify.stundenplanmd`, manifest of `Luwify/ovgu-stundenplan`, release page, pinned certificate =
-`release/signing-cert.sha256`, the same key), `CompanionPolicy` (`banner` state, `release`, `problems`: signer must be
-exactly the pin, not this app's own, so the .preview build installs it the same way); tests `update/CompanionTest`.
-App: `data/update/Companion.kt` (`CompanionInstaller`: installed check via `<queries>`, re-checked in
-`MainActivity.onResume`; download with the updater's `UpdateHttp`; `ApkInstaller.install(packageName, companion = true)`
-so `InstallResultReceiver` routes the result; "unknown apps" via the shared `UnknownSourcesDialog`; `Failure.Unavailable`
-when the manifest offers nothing for this device), `ui/StundenplanBanner` (+ `StundenplanDialogs`). Icon
-`ic_stundenplan.xml` = Stundenplan's adaptive launcher icon in one vector. Hide flag: settings key
-`stundenplan_banner_hidden` (X on the card, switch "Hinweis auf Stundenplan MD anzeigen" after the "Version" section;
-setter takes null = back to "never chosen"); unset: `CompanionPolicy.wanted` shows the card (first item of the
-settings) only while Stundenplan MD isn't installed. Same as Stundenplan MD's banner. Mensa-only differences: card
-colors from `LocalMensaColors`, `toUri()` for the release page (lint `UseKtx`), no backup (Stundenplan MD keeps the
-choice in its backup), and `CompanionTest` also checks that the banner stays during an install.
-
-## Data-source findings (investigated 2026-09-30 with curl)
-- **No API/feed.** The site is WordPress; `/wp-json/` has no menu routes. The OpenMensa entries
-  (ids 1, 157, 2, 3, 4, 5) are dead (no days, old address). → Scrape HTML with Jsoup.
-- **One GET per Mensa returns all published days** (usually ~6 working days, sometimes with gaps,
-  e.g. 05.10 then 12.10–14.10). Date query params are ignored. Take the day from the heading
-  text, never from its position. Response is ~25 KB gzipped.
-- robots.txt only disallows `/wp-admin/`. Be polite: cache, no polling, UA `MensaMD/<version> (student project)`.
-- Canonical URLs (`https://www.studentenwerk-magdeburg.de/mensen-cafeterien/…`):
-
-  | page_id | slug | notes |
-  |---|---|---|
-  | 1684 | `mensa-unicampus-speiseplan-unten/` | UniCampus lower hall |
-  | 2200 | `mensa-unicampus-speiseplan-oben/` | UniCampus upper hall |
-  | 4851 | `mensa-kellercafe-speiseplan/` | Kellercafé (Zschokkestraße / Geb. 40) |
-  | 1679 | `mensa-herrenkrug-speiseplan/` | Herrenkrug |
-  | 16740 | `pier-16-speiseplan/` | **different format** (`PageFormat.FIXED`), implemented, see below |
-  | 1676 | `mensa-stendal-speiseplan/` | |
-  | 1672 | `mensa-halberstadt-speiseplan/` | DomCafete |
-  | 656 | `mensa-wernigerode-speiseplan/` | |
-  | – | `blub-wernigerode-speiseplan/` | often 1 dish per day |
-
-- Markup (the `#content .entry-content` block):
-  - `div.mensa > table` per day; the date is in `thead` ("Donnerstag / Thursday, 01.10.2026")
-  - `tbody tr` per dish:
-    - `td[80%]`: the German name is the first text (possibly wrapped in `span.gruen`),
-      the English name is `span.grau`, prices are `span.mensapreis` "(3,40 | 5,10 | 6,50)"
-    - `div.mensakennsymb img`: tag icons (`class=lazyload`, `data-src`; a duplicate sits in `<noscript>`)
-    - `div.mensakennzahl`: codes "(1) (9) (a1) (g)"
-    - `div.mensaeaternity` ×2: "1119g CO₂e / Portion", "16l / Portion", or "Keine Daten / No data" → hide
-  - `span.gruen` = vegan or vegetarian highlight (redundant with the icons)
-  - Name prefixes "Save the meal:", "Grab the prep:", "Aktionstheke:" / "Promotional counter:"
-    → strip and show as a badge. "BIO-" appears inside names.
-- Tags: there is **no text legend for tag icons** (`#legendeeaternity` explains only CO2e/water).
-  - Key = icon filename (`mensasym_<key>.png`); label = alt text minus "Symbol ".
-  - The site emits broken alt text (`"Symbol enth lt Alkohol"`), so never key on alt.
-  - Known keys (2026-09): vegan, vegetarisch, knoblauch, gefluegel, schwein, fisch, rind, alkohol, suppe.
-  - Unknown keys must render with the alt label.
-- `div.legende` (parse, cache, don't hardcode) has German text plus English in `span.grau`:
-  - price groups (Studenten | Bedienstete | Gäste)
-  - additives 1–10, allergens a1–n, other codes A/P/Q/R/S/T
-  - "Save the meal" / "Grab the prep"
-  - The German allergen list is missing h7–h9, which only the English list has → merge both.
-- PIER 16 (Gebäude 16, Denhardtstr. 2, 39106 Magdeburg): **implemented**, but the parser is **best effort** because
-  the page is hand-edited and can change shape without notice. A hand-edited fixed list, no dates, mostly German only.
-  - Markup (checked live 2026-10-01, identical to 2026-09-30): one `table`, one `tr` per dish,
-    `<strong>Name</strong> (3, 9,a1,i,j, k, rin)<br /> English text<br /> 4,20 l 5,90 l 7,30`.
-    The English line is optional; the price separator is a literal letter `l`; no headings, sections, dates or legend today.
-  - Codes and tags share the parentheses: tokens like `3`, `a1`, `g` are codes (same legend as the other Mensen);
-    `kno rin sch get veg vgt` are tags, mapped to knoblauch/rind/schwein/gefluegel/vegan/vegetarisch.
-    Unknown tokens are kept as tags (shown as text), never dropped.
-  - Prices: 3 = students | staff | guests (same as the other Mensen); **only 2 cannot be matched to groups**, so those dishes
-    have `priceGroupsKnown = false` and show plain amounts without group names or a highlighted pill.
-  - Headings (`h2-h4`) or a bold-only row start a new `FixedSection`; none exist on the page today.
-  - No legend on the page: `MenuRepository` borrows the legend of the first dated Mensa that has one cached
-    (without any cached, codes show raw). No CO2e/water data. Codes are typed by hand, so a dish **without** an allergen
-    code is not known to be free of it (the filter sheet says so).
-  - Model: `MenuPage.fixed` (undated `FixedSection`s) next to `days`; the UI shows one "Festes Angebot" label instead of day headers.
-  - It never throws: a changed, empty or garbled page parses to an empty result; over a cached menu that counts as a failed refresh.
-- The `/en/` variant of the pages adds nothing (same German alt texts), so don't fetch it.
-- **Fallback host** `www.studiwerkmagdeburg.de` (the Studentenwerk's test server; checked 2026-10-22 while the main site
-  was down): the same paths and the same `#content .entry-content` markup on all 9 pages, current days, PIER 16's list
-  identical; the parsers read all of them (fixtures `2026-10-22-fallback/`, `FallbackHostFixturesTest`). Its `/en/`
-  pages redirect (301) to the German ones. It is a test server: its data can differ, hence the footer note.
-- Test fixtures: every page from 2026-09-30, a PIER 16 copy from 2026-10-01 and every page of the fallback host from
-  2026-10-22 (`2026-10-22-fallback/`) in `app/src/test/resources/fixtures/`,
-  trimmed to the `div.entry-content` block (the raw markup of that block is unchanged; the site's header, footer and
-  scripts are left out). A new fixture is trimmed the same way: only the block the parsers read.
+## Data source
+No API: the menus are scraped from the Studentenwerk HTML (Jsoup). Markup, URLs, PIER 16, the fallback host and the
+fixture rules are in the skill `studentenwerk-site` (`.claude/skills/studentenwerk-site/SKILL.md`).
 
 ## Rules
 - Check the real environment before assuming anything; be direct and technical.
