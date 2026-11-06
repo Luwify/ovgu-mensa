@@ -18,6 +18,21 @@ class StatsOpsTest {
     private fun scan(data: StatsData, balance: Int, debit: Int?, date: LocalDate = day, card: String = fp) =
         StatsOps.recordScan(data, card, 0, date, balance, debit, known)
 
+    /** The wrong automatic match of 2026-11-06: corrected in place, the payment itself stays as it was. */
+    @Test fun correctingAMealKeepsThePayment() {
+        val pommes = SnapDish("unten", LocalizedText("Portion Pommes Frites"), listOf(200, 380, 520))
+        val chili = SnapDish("oben", LocalizedText("Chili sin carne"), listOf(200, 380, 520))
+        val (first, _) = scan(registered, 10_000, 0)
+        val (paid, _) = scan(first, 8_000, 2_000)
+        val payment = paid.events.single()
+        val wrong = StatsOps.setMeal(paid, payment.id, MealMatcher.asPayment(pommes, payment.amount))
+        val fixed = StatsOps.setMeal(wrong, payment.id, MealMatcher.asPayment(chili, payment.amount))
+        val event = fixed.events.single()
+        assertEquals(payment.copy(meal = event.meal), event)
+        assertEquals(listOf("oben" to "chili sin carne"), event.meal!!.dishes.map { it.mensaId to it.key })
+        assertEquals(paid.scans, fixed.scans)
+    }
+
     @Test fun nothingWithoutCard() = assertEquals(RecordResult.NoCard, scan(StatsData(), 1_000, 0).second)
 
     @Test fun otherCardIsNotStored() {

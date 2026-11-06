@@ -397,6 +397,7 @@
     <string name="meal_candidates">Matching dishes</string>
     <string name="meal_no_menu">No menu of that day is known. Pick a dish, name a new one or save it as other.</string>
     <string name="meal_no_match">No dish (or pair of dishes) of that day costs exactly %1$s.</string>
+    <string name="meal_other_dishes">Other dishes of that day</string>
     <string name="meal_other_options">Something else</string>
     <string name="meal_where_option">I ate somewhere else…</string>
     <string name="meal_with_extras">Dish + extras (salad bar, dessert, drink…)</string>

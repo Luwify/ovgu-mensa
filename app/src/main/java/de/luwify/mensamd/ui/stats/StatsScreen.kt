@@ -277,7 +277,7 @@ fun StatsScreen(vm: StatsViewModel, mainVm: MainViewModel, onBack: () -> Unit) {
     }
 }
 
-/** A payment opened for editing: the meal flow without that day's menu (it is not kept). */
+/** A payment opened for editing: the meal flow; that day's menu comes from the cached pages (see [MealQuestionScreen]). */
 private fun CardEvent.asQuestion() = OpenItem.MealQuestion(-id, scanId, date, dateKnown, id, amount)
 
 @Composable

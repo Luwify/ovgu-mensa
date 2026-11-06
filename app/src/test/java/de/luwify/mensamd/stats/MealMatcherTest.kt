@@ -119,6 +119,28 @@ class MealMatcherTest {
         assertTrue(MealMatcher.plan(1_500, cake, unten, 2) is Plan.Choose)
     }
 
+    @Test fun correctionListHasPriceMatchesFirstThenEverythingElseOnceWithItsMensa() {
+        val m = menu + dish(unten, "Suppe", 130, 200, 250) // lunch and dinner: one row
+        val matched = (MealMatcher.plan(2_500, m, oben, 0) as Plan.Choose).candidates
+        assertEquals(listOf(listOf("1xSalat"), listOf("1xPfannkuchen")), matched.map(::names))
+        val others = MealMatcher.others(matched, m, oben)
+        assertEquals(listOf(oben to "Pasta", unten to "Seelachs", unten to "Burger", unten to "Suppe"), others.map { it.mensaId to it.name.de })
+        assertEquals(listOf(oben to "Pasta", oben to "Salat"), MealMatcher.others(emptyList(), m, unten, where = setOf(oben)).map { it.mensaId to it.name.de })
+    }
+
+    @Test fun aDishInAPairStaysInTheCorrectionList() {
+        val matched = (MealMatcher.plan(5_700, menu, unten, 0) as Plan.Choose).candidates // Burger + Suppe
+        assertTrue(MealMatcher.others(matched, menu, unten).any { it.name.de == "Burger" })
+    }
+
+    @Test fun aDishPickedFromTheListTakesTheWholePaymentAndKeepsItsMensa() {
+        val eaten = MealMatcher.asPayment(menu[4], 2_000).dishes.single()
+        assertEquals("pasta", eaten.key)
+        assertEquals(oben, eaten.mensaId)
+        assertEquals(2_000, eaten.price)
+        assertEquals("vegan", eaten.tags.single().key)
+    }
+
     @Test fun extrasTakeTheRest() {
         val pick = MealMatcher.Pick(menu[0], 1, 3_100)
         val record = MealMatcher.withExtras(4_250, listOf(pick), listOf(Extras.SALAD, Extras.DRINK))!!

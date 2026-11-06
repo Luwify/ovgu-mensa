@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import de.luwify.mensamd.AppContainer
 import de.luwify.mensamd.data.settings.CardStatsSettings
 import de.luwify.mensamd.favorites.FavoriteInfo
+import de.luwify.mensamd.model.MenuPage
 import de.luwify.mensamd.stats.CardEvent
 import de.luwify.mensamd.stats.EatenDish
 import de.luwify.mensamd.stats.EventKind
@@ -42,6 +43,9 @@ class StatsViewModel(private val container: AppContainer) : ViewModel() {
     init {
         viewModelScope.launch { store.load() }
     }
+
+    /** What the app has of every Mensa's menu, for the meal questions and corrections; never fetches. */
+    suspend fun cachedPages(): List<Pair<String, MenuPage>> = container.cachedPages()
 
     private fun edit(block: suspend () -> Unit) {
         // The app scope: an answer is saved even if the screen closes right after the tap.

@@ -80,6 +80,22 @@ object MealMatcher {
     }
 
     /**
+     * The rest of the day for a correction list: every dish of [dishes] (of [where], if given) that isn't already one
+     * of the [matched] candidates on its own, once per Mensa, the default Mensa's first.
+     */
+    fun others(matched: List<Candidate>, dishes: List<SnapDish>, defaultId: String?, where: Set<String>? = null): List<SnapDish> {
+        val shown = matched.filter { it.picks.size == 1 }.map { it.mensaId to Favorites.normalize(it.picks.single().dish.name.de) }.toSet()
+        return dishes.filter { where == null || it.mensaId in where }
+            .distinctBy { it.mensaId to Favorites.normalize(it.name.de) }
+            .filterNot { (it.mensaId to Favorites.normalize(it.name.de)) in shown }
+            .sortedBy { it.mensaId != defaultId }
+    }
+
+    /** The user says [dish] was this payment of [amount], whatever the menu asks for it. */
+    fun asPayment(dish: SnapDish, amount: Int): MealRecord =
+        MealRecord(dishes = listOf(EatenDish(Favorites.normalize(dish.name.de), dish.name, dish.mensaId, amount, 1, dish.tags)))
+
+    /**
      * Real dishes plus extras: the [picks] with their prices, the rest of [amount] goes to [extras] as a total. Null
      * when the dishes cost more than the payment, or money is left over without an extra to put it on.
      */

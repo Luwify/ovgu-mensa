@@ -13,10 +13,10 @@ import de.luwify.mensamd.data.update.updateSettings
 import de.luwify.mensamd.notify.FavoriteNotifier
 import de.luwify.mensamd.notify.FavoriteScheduler
 import de.luwify.mensamd.notify.CardReminderScheduler
-import de.luwify.mensamd.model.MensaCatalog
-import de.luwify.mensamd.model.PageFormat
+import de.luwify.mensamd.model.MenuPage
 import de.luwify.mensamd.model.resolveOrder
 import de.luwify.mensamd.stats.MealContext
+import de.luwify.mensamd.stats.MenuDishes
 import de.luwify.mensamd.stats.SnapDish
 import de.luwify.mensamd.stats.StatsRecorder
 import de.luwify.mensamd.stats.StatsStore
@@ -73,27 +73,23 @@ class AppContainer(context: Context) {
         )
     }
 
-    /**
-     * Every dish on [date] of every Mensa, default Mensa first, then tab order; PIER 16's fixed list counts for every
-     * day. For today, stale menus are refreshed first (at most 8 s in all; a failure uses the cache).
-     */
+    /** Every Mensa id, default Mensa first, then tab order. */
+    private suspend fun orderedMensaIds(): List<String> =
+        (listOfNotNull(settings.defaultMensaId.first()) + resolveOrder(settings.mensaOrder.first()).map { it.id }).distinct()
+
+    /** The menu page of every Mensa the app has one of, default Mensa first; never fetches. */
+    suspend fun cachedPages(): List<Pair<String, MenuPage>> =
+        orderedMensaIds().mapNotNull { id -> menuRepository.current(id).page?.let { id to it } }
+
+    /** Every dish on [date] of every Mensa. For today, stale menus are refreshed first (at most 8 s in all; a failure uses the cache). */
     private suspend fun menuSnapshot(date: LocalDate): List<SnapDish> {
-        val default = settings.defaultMensaId.first()
-        val order = resolveOrder(settings.mensaOrder.first())
-        val ids = (listOfNotNull(default) + order.map { it.id }).distinct()
         if (date == LocalDate.now()) {
+            val ids = orderedMensaIds()
             withTimeoutOrNull(8_000) {
                 coroutineScope { ids.map { id -> async { runCatching { menuRepository.refreshIfStale(id) } } }.awaitAll() }
             }
         }
-        return ids.flatMap { id ->
-            val page = menuRepository.current(id).page ?: return@flatMap emptyList()
-            val dishes = when (MensaCatalog.byId(id)?.format) {
-                PageFormat.FIXED -> page.fixed.flatMap { it.dishes }
-                else -> page.days.firstOrNull { it.date == date }?.dishes.orEmpty()
-            }
-            dishes.filter { it.prices.isNotEmpty() }.map { SnapDish(id, it.name, it.prices, it.priceGroupsKnown, it.tags) }
-        }
+        return MenuDishes.onDay(cachedPages(), date)
     }
 
     private val versionName: String? by lazy { runCatching { app.packageManager.getPackageInfo(app.packageName, 0).versionName }.getOrNull() }

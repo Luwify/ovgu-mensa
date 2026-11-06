@@ -389,6 +389,7 @@
     <string name="meal_candidates">Passende Gerichte</string>
     <string name="meal_no_menu">Vom Speiseplan dieses Tages ist nichts bekannt. Wähle ein Gericht, benenne ein neues oder speichere es als Sonstiges.</string>
     <string name="meal_no_match">Kein Gericht (und kein Paar von Gerichten) dieses Tages kostet genau %1$s.</string>
+    <string name="meal_other_dishes">Weitere Gerichte dieses Tages</string>
     <string name="meal_other_options">Etwas anderes</string>
     <string name="meal_where_option">Ich habe woanders gegessen …</string>
     <string name="meal_with_extras">Gericht + Extras (Salatbar, Dessert, Getränk …)</string>

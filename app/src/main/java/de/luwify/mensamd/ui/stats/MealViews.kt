@@ -47,6 +47,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -64,6 +65,7 @@ import de.luwify.mensamd.R
 import de.luwify.mensamd.card.formatCardAmount
 import de.luwify.mensamd.favorites.Favorites
 import de.luwify.mensamd.model.MensaCatalog
+import de.luwify.mensamd.model.MenuPage
 import de.luwify.mensamd.stats.CardEvent
 import de.luwify.mensamd.stats.EatenDish
 import de.luwify.mensamd.stats.Extras
@@ -71,6 +73,7 @@ import de.luwify.mensamd.stats.KnownDish
 import de.luwify.mensamd.stats.MealMatcher
 import de.luwify.mensamd.stats.MealRecord
 import de.luwify.mensamd.stats.MealSummary
+import de.luwify.mensamd.stats.MenuDishes
 import de.luwify.mensamd.stats.OpenItem
 import de.luwify.mensamd.stats.SnapDish
 import de.luwify.mensamd.stats.StatsData
@@ -86,9 +89,10 @@ private fun mensaName(id: String?, language: String, unknown: String): String =
     id?.let { MensaCatalog.byId(it)?.name?.forLanguage(language) ?: it } ?: unknown
 
 /**
- * Which dish(es) did a payment buy? Candidates from that day's menu (default Mensa first; too many: "where did you
- * eat?" first), or dishes + extras, an existing dish, a new dish, "Sonstiges". A question with a negative id is a payment
- * opened for editing (no menu kept). Full-screen overlay; back goes one step back, then closes.
+ * Which dish(es) did a payment buy? Candidates from that day's menu of every Mensa (default Mensa first; too many:
+ * "where did you eat?" first), or dishes + extras, an existing dish, a new dish, "Sonstiges", or any other dish of that
+ * day. The menu is the one kept with the question plus the cached pages; a question with a negative id is a payment
+ * opened for editing, which only has the cached pages. Full-screen overlay; back goes one step back, then closes.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -109,14 +113,16 @@ internal fun MealQuestionScreen(
     var where by rememberSaveable { mutableStateOf<List<String>?>(null) }
     var naming by rememberSaveable { mutableStateOf(false) }
     BackHandler { if (step != MealStep.MAIN) step = MealStep.MAIN else onClose() }
-    val plan = remember(question, context, where) {
-        MealMatcher.plan(question.amount, question.dishes, context?.defaultMensaId, group, where?.toSet())
+    // Null until the cached pages are read (one file per Mensa at most, usually already in memory).
+    val pages by produceState<List<Pair<String, MenuPage>>?>(null) { value = vm.cachedPages() }
+    val dishes = remember(question, pages) { MenuDishes.merge(question.dishes, MenuDishes.onDay(pages.orEmpty(), question.date)) }
+    val plan = remember(question, dishes, context, where) {
+        MealMatcher.plan(question.amount, dishes, context?.defaultMensaId, group, where?.toSet())
     }
-    val mensaIds = remember(question, context) {
-        val ids = question.dishes.map { it.mensaId }.distinct()
-        val def = context?.defaultMensaId
-        if (def != null && def in ids) listOf(def) + (ids - def) else ids
+    val others = remember(plan, dishes, context, where) {
+        MealMatcher.others((plan as? MealMatcher.Plan.Choose)?.candidates.orEmpty(), dishes, context?.defaultMensaId, where?.toSet())
     }
+    val mensaIds = remember(dishes, context) { dishes.map { it.mensaId }.distinct().sortedBy { it != context?.defaultMensaId } }
     val amount = formatCardAmount(question.amount, locale)
     val unknownMensa = stringResource(R.string.meal_unknown_mensa)
     fun answer(record: MealRecord?) {
@@ -142,10 +148,10 @@ internal fun MealQuestionScreen(
                     step = MealStep.MAIN
                 }
                 step == MealStep.EXTRAS -> ExtrasStep(
-                    vm, question, events, customDishes, customExtras, group, language, locale,
+                    vm, question, dishes, events, customDishes, customExtras, group, language, locale,
                     focus = where?.toSet() ?: setOfNotNull(context?.defaultMensaId),
                 ) { answer(it) }
-                step == MealStep.SEARCH -> SearchStep(events, customDishes, question.dishes, group, language, locale) { dish ->
+                step == MealStep.SEARCH -> SearchStep(events, customDishes, dishes, group, language, locale) { dish ->
                     answer(MealRecord(dishes = listOf(EatenDish(dish.key, dish.name, null, question.amount, 1, dish.tags))))
                 }
                 else -> LazyColumn(
@@ -159,9 +165,9 @@ internal fun MealQuestionScreen(
                                 CandidateCard(plan.candidates[i], language, locale, unknownMensa) { answer(plan.candidates[i].toRecord()) }
                             }
                         }
-                        MealMatcher.Plan.NoMatch -> item(key = "none") {
+                        MealMatcher.Plan.NoMatch -> if (pages != null) item(key = "none") {
                             Text(
-                                if (question.dishes.isEmpty()) stringResource(R.string.meal_no_menu) else stringResource(R.string.meal_no_match, amount),
+                                if (dishes.isEmpty()) stringResource(R.string.meal_no_menu) else stringResource(R.string.meal_no_match, amount),
                                 style = MaterialTheme.typography.bodyLarge,
                                 modifier = Modifier.padding(vertical = 12.dp),
                             )
@@ -190,6 +196,12 @@ internal fun MealQuestionScreen(
                                 vm.dismiss(question.id)
                                 onClose()
                             }
+                        }
+                    }
+                    if (others.isNotEmpty()) {
+                        item(key = "others-title") { SheetHeading(stringResource(R.string.meal_other_dishes)) }
+                        items(others.size, key = { "other-$it" }) { i ->
+                            OtherDishRow(others[i], group, language, locale, unknownMensa) { answer(MealMatcher.asPayment(others[i], question.amount)) }
                         }
                     }
                 }
@@ -232,6 +244,19 @@ private fun CandidateCard(c: MealMatcher.Candidate, language: String, locale: Lo
                 }
             }
         }
+    }
+}
+
+/** A dish of that day that doesn't fit the payment's amount: the Mensa and its menu price below the name. */
+@Composable
+private fun OtherDishRow(d: SnapDish, group: Int, language: String, locale: Locale, unknownMensa: String, onPick: () -> Unit) {
+    Column(Modifier.fillMaxWidth().heightIn(min = 52.dp).clickable(role = Role.Button, onClick = onPick).padding(vertical = 6.dp)) {
+        Text(d.name.forLanguage(language), style = MaterialTheme.typography.bodyLarge)
+        Text(
+            (listOf(mensaName(d.mensaId, language, unknownMensa)) + MealMatcher.prices(d, group).map { formatCardAmount(it, locale) }).joinToString(" · "),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 
@@ -281,6 +306,7 @@ private fun WhereStep(mensaIds: List<String>, preselected: Set<String>, language
 private fun ExtrasStep(
     vm: StatsViewModel,
     question: OpenItem.MealQuestion,
+    dishes: List<SnapDish>,
     events: List<CardEvent>,
     customDishes: List<KnownDish>,
     customExtras: List<String>,
@@ -291,11 +317,11 @@ private fun ExtrasStep(
     onSave: (MealRecord) -> Unit,
 ) {
     // Only the Mensen in [focus] (where the user said they ate, else the default) until "all Mensen" is chosen.
-    var allMensen by rememberSaveable { mutableStateOf(question.dishes.none { it.mensaId in focus }) }
+    var allMensen by rememberSaveable { mutableStateOf(dishes.none { it.mensaId in focus }) }
     // Every pickable dish once, as a SnapDish with one price.
-    val pickable: List<Pair<SnapDish, Int>> = remember(question, events, customDishes, group, allMensen) {
-        if (question.dishes.isNotEmpty()) {
-            question.dishes.filter { allMensen || it.mensaId in focus }
+    val pickable: List<Pair<SnapDish, Int>> = remember(question, dishes, events, customDishes, group, allMensen) {
+        if (dishes.isNotEmpty()) {
+            dishes.filter { allMensen || it.mensaId in focus }
                 .flatMap { d -> MealMatcher.prices(d, group).map { d to it } }
                 .distinctBy { (d, p) -> Triple(d.mensaId, Favorites.normalize(d.name.de), p) }
                 .filter { it.second <= question.amount }
@@ -336,7 +362,7 @@ private fun ExtrasStep(
                 }
             }
             item(key = "dishes-title") { SheetHeading(stringResource(R.string.meal_pick_dishes)) }
-            if (question.dishes.any { it.mensaId !in focus } && question.dishes.any { it.mensaId in focus }) {
+            if (dishes.any { it.mensaId !in focus } && dishes.any { it.mensaId in focus }) {
                 item(key = "all-mensen") {
                     FilterChip(selected = allMensen, onClick = { allMensen = !allMensen }, label = { Text(stringResource(R.string.meal_all_mensen)) })
                 }
