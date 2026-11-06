@@ -24,3 +24,9 @@
 
 # Private Claude Code notes (devices, paths, release infrastructure): loaded after CLAUDE.md, never commit.
 /CLAUDE.local.md
+
+# Claude Code: the skills are committed, anything local to this machine is not.
+/.claude/settings.local.json
+/.claude/*.local.*
+/.claude/*.lock
+/.claude/worktrees/

@@ -244,6 +244,8 @@ fixture rules are in the skill `studentenwerk-site` (`.claude/skills/studentenwe
 - **Secrets:** never read, print, cat, grep or copy `~/.gradle/gradle.properties`, the keystore or any token; never
   put secrets into the repo, logs or commit messages. Builds that use the signing config and
   `tools/release.sh --dry-run` are allowed; the real release only the user runs.
+- **Card values:** docs, tests, fixtures, changelogs and commit messages never contain real card values (balances, amounts
+  of real payments or top-ups, UIDs, card bytes). Test values are made up; docs describe what happened, without the amount.
 - Speed is the main feature: cached menu instantly, no blocking splash, parse off the main thread,
   minimal dependencies, R8 for release.
 - Don't hardcode tag/allergen legends. Unknown tags must render, never crash or be dropped.
