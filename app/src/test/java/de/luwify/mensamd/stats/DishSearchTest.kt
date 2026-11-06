@@ -82,4 +82,20 @@ class DishSearchTest {
     }
 
     @Test fun emptyQueryKeepsEverything() = assertEquals(realHits, DishSearch.search(realHits, "  "))
+
+    @Test fun aDishByWeightKeepsItsPricePer100gAndEstimatesTheWeight() {
+        val pasta = SnapDish("oben", LocalizedText("Farfalle"), listOf(50, 80, 110), byWeight = true)
+        val hit = DishSearch.hits(listOf(pasta), emptyList(), emptyList(), emptyList(), 0).single()
+        assertEquals(true, hit.byWeight)
+        assertEquals(500, hit.price)
+        assertEquals(470, hit.grams(2_350))
+    }
+
+    @Test fun anEatenPortionByWeightGivesNoPriceToReuse() {
+        val eaten = EatenDish("farfalle", LocalizedText("Farfalle"), "oben", 2_350, 1, emptyList(), grams = 470)
+        val event = CardEvent(1, 1, EventKind.PAYMENT, 2_350, java.time.LocalDate.of(2026, 11, 6), true, MealRecord(listOf(eaten)))
+        val hit = DishSearch.hits(emptyList(), emptyList(), listOf(event), emptyList(), 0).single()
+        assertEquals(null, hit.price)
+        assertEquals(null, hit.grams(2_350))
+    }
 }

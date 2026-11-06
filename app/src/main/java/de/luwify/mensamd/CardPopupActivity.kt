@@ -52,7 +52,6 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeoutOrNull
 import de.luwify.mensamd.stats.CardIdentity
 import de.luwify.mensamd.stats.RecordResult
 
@@ -125,18 +124,19 @@ class CardPopupActivity : ComponentActivity() {
             val result = withContext(Dispatchers.IO) { readCardFromTag(tag) }
             when (result) {
                 is CardReadResult.Success -> {
-                    // The statistics (if on) store the scan in the app scope; the popup waits briefly for the outcome.
+                    // The statistics (if on) store the scan in the app scope; the balance doesn't wait for them, the note follows.
                     val fingerprint = tag.id?.takeIf { it.isNotEmpty() }?.let(CardIdentity::fingerprint)
                     val recording = (application as MensaApp).container.statsRecorder
                         .recordAsync(-1, result.balance.value, result.balance.lastTransaction, fingerprint)
-                    val note = when (val r = withTimeoutOrNull(1_500) { recording.await() }) {
+                    show(Popup.Success(result.balance, null), mode.await())
+                    val note = when (val r = recording.await()) {
                         is RecordResult.Recorded -> if (r.newQuestions.isNotEmpty()) R.string.popup_stats_question else R.string.popup_stats_saved
                         RecordResult.Unchanged -> R.string.popup_stats_saved
                         RecordResult.OtherCard -> R.string.scan_other_card
                         RecordResult.NoCard -> R.string.popup_stats_no_card
                         else -> null
                     }
-                    show(Popup.Success(result.balance, note), mode.await())
+                    if (note != null) popup = Popup.Success(result.balance, note)
                 }
                 CardReadResult.Failed -> show(Popup.Error, mode.await())
                 // Not our card: leave silently. An already visible popup stays as it is.

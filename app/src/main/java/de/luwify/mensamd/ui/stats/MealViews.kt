@@ -162,7 +162,8 @@ internal fun MealQuestionScreen(
                 step == MealStep.SEARCH -> SearchStep(pages.orEmpty(), events, customDishes, dishes, group, language, locale, unknownMensa) { dish ->
                     answer(MealRecord(dishes = listOf(EatenDish(dish.key, dish.name, dish.mensaId, question.amount, 1, dish.tags, dish.grams(question.amount)))))
                 }
-                else -> LazyColumn(
+                // Only with the cached pages read: an item added later above the others would stay scrolled out of view.
+                pages != null -> LazyColumn(
                     Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal)),
                     contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 24.dp),
                 ) {
@@ -177,7 +178,7 @@ internal fun MealQuestionScreen(
                                 CandidateCard(plan.candidates[i], language, locale, unknownMensa) { answer(plan.candidates[i].toRecord()) }
                             }
                         }
-                        MealMatcher.Plan.NoMatch -> if (pages != null) item(key = "none") {
+                        MealMatcher.Plan.NoMatch -> item(key = "none") {
                             Text(
                                 if (dishes.isEmpty()) stringResource(R.string.meal_no_menu) else stringResource(R.string.meal_no_match, amount),
                                 style = MaterialTheme.typography.bodyLarge,
