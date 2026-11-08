@@ -135,6 +135,26 @@ class StatsRecorderTest {
         }
     }
 
+    @Test fun theCardIdIsWantedOnlyWithTheStatisticsOn() = runBlocking {
+        val scope = CoroutineScope(SupervisorJob())
+        try {
+            val settings = MutableStateFlow(CardStatsSettings(enabled = false))
+            val r = StatsRecorder(
+                store = StatsStore(File(tmp.root, "stats.json"), Dispatchers.Unconfined),
+                settings = settings,
+                mealContext = { MealContext("unten", 0) },
+                snapshot = { DayMenu(menu) },
+                scope = scope,
+            )
+            assertEquals(false, r.wantsCardId())
+            assertEquals(RecordResult.Off, r.recordAsync(1, 5_000, null, null).await())
+            settings.value = CardStatsSettings(enabled = true)
+            assertEquals(true, r.wantsCardId())
+        } finally {
+            scope.cancel()
+        }
+    }
+
     @Test fun withoutDetailedStatisticsNothingWaits_andWhatWaitedIsDropped() = runBlocking {
         val scope = CoroutineScope(SupervisorJob())
         try {

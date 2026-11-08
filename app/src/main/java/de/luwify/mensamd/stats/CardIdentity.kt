@@ -6,7 +6,7 @@ import javax.crypto.SecretKeyFactory
 import javax.crypto.spec.PBEKeySpec
 
 /**
- * Recognizing "Meine Karte" without storing its UID. The NFC layer turns the UID into a [fingerprint] right away (the
+ * Recognizing "Meine Karte" without storing its UID, with the statistics on only (`StatsRecorder.wantsCardId`). The NFC layer turns the UID into a [fingerprint] right away (the
  * raw UID never leaves the NFC callback); only a salted hash of the fingerprint ([hash]) is stored. The UID of the
  * Studentenwerk's cards is fixed (7 bytes, not random; checked on a real card 2026-11-05), so the hash is stable.
  */

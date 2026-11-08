@@ -41,6 +41,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.lifecycleScope
 import de.luwify.mensamd.card.CardBalance
 import de.luwify.mensamd.card.CardReadResult
+import de.luwify.mensamd.card.cardFingerprint
 import de.luwify.mensamd.card.formatCardAmount
 import de.luwify.mensamd.card.readCardFromTag
 import de.luwify.mensamd.data.settings.ThemeChoice
@@ -52,7 +53,6 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import de.luwify.mensamd.stats.CardIdentity
 import de.luwify.mensamd.stats.RecordResult
 
 /**
@@ -125,8 +125,9 @@ class CardPopupActivity : ComponentActivity() {
             when (result) {
                 is CardReadResult.Success -> {
                     // The statistics (if on) store the scan in the app scope; the balance doesn't wait for them, the note follows.
-                    val fingerprint = tag.id?.takeIf { it.isNotEmpty() }?.let(CardIdentity::fingerprint)
-                    val recording = (application as MensaApp).container.statsRecorder
+                    val recorder = (application as MensaApp).container.statsRecorder
+                    val fingerprint = if (recorder.wantsCardId()) cardFingerprint(tag.id) else null
+                    val recording = recorder
                         .recordAsync(-1, result.balance.value, result.balance.lastTransaction, fingerprint)
                     show(Popup.Success(result.balance, null), mode.await())
                     val note = when (val r = recording.await()) {

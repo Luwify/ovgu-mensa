@@ -11,16 +11,16 @@ import de.luwify.mensamd.stats.CardIdentity
 import java.util.concurrent.atomic.AtomicLong
 
 /**
- * Reads the Mensa card through NFC reader mode, only between [start] and [stop] (i.e. while the
- * card screen is resumed). Reader mode needs no manifest intent filters, and the card never opens
- * the app from outside.
+ * Reads the Mensa card through NFC reader mode, only between [start] and [stop] (i.e. while
+ * MainActivity is resumed). Reader mode needs no manifest intent filters.
  *
- * Privacy: nothing is logged or sent. The card's UID only becomes a fingerprint in memory
- * (`CardIdentity.fingerprint`); [onRead] hands the result to the card statistics, which store
+ * Privacy: nothing is logged or sent. The card's UID is looked at only after a successful read and
+ * only if [wantsCardId] says so (statistics on); it then only becomes a fingerprint in memory
+ * (`CardIdentity.fingerprint`). [onRead] hands the result to the card statistics, which store
  * anything only when the user turned them on and registered this card. [state] is the only other
  * place the result lives, and [stop] clears it.
  */
-class NfcCardScanner(private val adapter: NfcAdapter?) {
+class NfcCardScanner(private val adapter: NfcAdapter?, private val wantsCardId: () -> Boolean = { false }) {
     /** Called on the NFC thread after every successful read (the card statistics). */
     @Volatile var onRead: ((CardScanState.Success) -> Unit)? = null
 
@@ -79,7 +79,7 @@ class NfcCardScanner(private val adapter: NfcAdapter?) {
             return
         }
         publish(CardScanState.Reading)
-        val state = isoDep.readCard().toState(tag.id, scanSeq.incrementAndGet())
+        val state = isoDep.readCard().toState(scanSeq.incrementAndGet()) { if (wantsCardId()) tag.id else null }
         if (state is CardScanState.Success && active) onRead?.invoke(state)
         publish(state)
     }

@@ -158,13 +158,23 @@ class CardReadersTest {
     @Test fun readResultsMapToScreenStates() {
         val b = CardBalance(1, null)
         val uid = byteArrayOf(4, 1, 2, 3, 4, 5, 6)
-        val success = CardReadResult.Success(b).toState(uid, 7) as CardScanState.Success
+        val success = CardReadResult.Success(b).toState(7) { uid } as CardScanState.Success
         assertEquals(b, success.balance)
         assertEquals(7L, success.seq)
         // Only the fingerprint is kept, never the UID bytes themselves.
         assertEquals(de.luwify.mensamd.stats.CardIdentity.fingerprint(uid), success.fingerprint)
-        assertEquals(null, (CardReadResult.Success(b).toState(ByteArray(0), 1) as CardScanState.Success).fingerprint)
-        assertEquals(CardScanState.Unsupported, CardReadResult.Unsupported.toState(uid, 1))
-        assertEquals(CardScanState.Error, CardReadResult.Failed.toState(uid, 1))
+        assertEquals(null, (CardReadResult.Success(b).toState(1) { ByteArray(0) } as CardScanState.Success).fingerprint)
+        assertEquals(null, (CardReadResult.Success(b).toState(1) { null } as CardScanState.Success).fingerprint)
+    }
+
+    /** A bank card and the like: the id is never looked at. */
+    @Test fun theCardIdIsAskedForOnlyAfterASuccessfulRead() {
+        var asked = 0
+        val uid = { asked++; byteArrayOf(4, 1, 2) }
+        assertEquals(CardScanState.Unsupported, CardReadResult.Unsupported.toState(1, uid))
+        assertEquals(CardScanState.Error, CardReadResult.Failed.toState(1, uid))
+        assertEquals(0, asked)
+        CardReadResult.Success(CardBalance(1, null)).toState(1, uid)
+        assertEquals(1, asked)
     }
 }

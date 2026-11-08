@@ -59,6 +59,9 @@ class StatsRecorder(
     /** One [matchPending] at a time: the app start and the statistics screen can meet. */
     private val pendingLock = Mutex()
 
+    /** Whether a successful read should look at the card's id at all: only to recognize or register a card, so only with the statistics on. */
+    suspend fun wantsCardId(): Boolean = settings.first().enabled && !store.readOnly
+
     /** Records a scan in the app scope. The result lands in [last] and the deferred as soon as the scan is stored. */
     fun recordAsync(seq: Long, balance: Int, lastDebit: Int?, fingerprint: String?): Deferred<RecordResult> = scope.async {
         val result = storeScan(balance, lastDebit, fingerprint)

@@ -201,7 +201,7 @@ the others, exit 1 only when no Mensa could be fetched (pages without dishes are
     consumes the tag once. Theme and settings come from the same `AppContainer` (one DataStore per process: never create a
     second DataStore for `settings`; `SingleDataStoreTest` guards this). While the app is in the foreground, reader mode takes
     precedence over the popup. Any other app with an IsoDep `TECH_DISCOVERED` filter makes Android show a chooser.
-  - Privacy rules: no network, never log card data (not even in debug), never store or log the UID (it only becomes a
+  - Privacy rules: no network, never log card data (not even in debug), never store or log the UID (looked at only after a successful read with the statistics on, and it only becomes a
     fingerprint in memory, `CardIdentity`). Nothing is stored unless the user turns on the card statistics and registers
     the card; then only scans of that card (balance, last debit, time) and a salted hash. Test bytes are synthetic.
 

@@ -41,6 +41,7 @@ import de.luwify.mensamd.ui.MensaPickerScreen
 import de.luwify.mensamd.ui.SettingsScreen
 import de.luwify.mensamd.ui.UpdatePrompts
 import de.luwify.mensamd.ui.theme.MensaTheme
+import kotlinx.coroutines.runBlocking
 
 class MainActivity : ComponentActivity() {
     private val viewModel: MainViewModel by viewModels {
@@ -48,8 +49,9 @@ class MainActivity : ComponentActivity() {
     }
 
     private val cardScanner by lazy {
-        NfcCardScanner(NfcAdapter.getDefaultAdapter(this)).also { scanner ->
-            val recorder = (application as MensaApp).container.statsRecorder
+        val recorder = (application as MensaApp).container.statsRecorder
+        // Runs on the NFC thread, which may block.
+        NfcCardScanner(NfcAdapter.getDefaultAdapter(this), wantsCardId = { runBlocking { recorder.wantsCardId() } }).also { scanner ->
             scanner.onRead = { s -> recorder.recordAsync(s.seq, s.balance.value, s.balance.lastTransaction, s.fingerprint) }
         }
     }
