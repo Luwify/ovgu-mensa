@@ -101,7 +101,7 @@ git-ignored `CLAUDE.local.md` at the repo root, which Claude Code loads after th
   and every Mensa's menu of that day is known: `MenuRepository.loadDay` loads the unknown ones first, those that still fail
   are named in the question (`missingMensen`); the day's dishes are kept with an open question; past days stay in the menu
   cache for 14 days), `StatsSummary`/`MealSummary`, `CardReminderRules`. `StatsRecorder` (app scope) records scans from reader mode
-  and the popup; the result is out as soon as the scan is stored, the matching follows in the app scope. "Meine Karte": only scans of the registered card are stored; the UID becomes a fingerprint in memory
+  and the popup; the result is out as soon as the scan is stored. A card tap touches no network (update check included): payments wait in `StatsData.pendingMatch` until `matchPending` (main UI start, statistics screen). "Meine Karte": only scans of the registered card are stored; the UID becomes a fingerprint in memory
   (`CardIdentity`), only a salted PBKDF2 hash of it is stored. Amounts are mills (card unit); menu prices are cents x 10.
   Charts are own Canvas code (`ui/stats/Charts.kt`), no library. Reminder: `notify/CardReminder.kt` (one-time
   WorkManager job re-enqueued like the favorites job; tap -> `EXTRA_OPEN_CARD`). Backup: `backup/BackupFormat`

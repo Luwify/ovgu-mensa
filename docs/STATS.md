@@ -94,3 +94,4 @@ Resume point for the card statistics feature (started 2026-11-05). Tick items as
 - [x] Scan speed (2026-11-06): the result is published before the matching; the popup draws the balance before the note.
       Measured with fake scans on the phone: about 0.55 s until stored in a warm process (the PBKDF2 card check), the meal step 0.1 s
       later with all menus cached, about 1.5 s more with 7 Mensen to load.
+- [x] No network from a card tap (2026-11-09): a scan only marks its payments (`pendingMatch`, schema 3); matching and any menu loading run when the main UI or the statistics screen opens.

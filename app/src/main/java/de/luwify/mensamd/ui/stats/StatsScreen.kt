@@ -110,6 +110,7 @@ fun StatsScreen(vm: StatsViewModel, mainVm: MainViewModel, onBack: () -> Unit) {
     BackHandler(enabled = mealOverlay == null && editEvent == null, onBack = onBack)
     // "Anders zuordnen" (here or in the card screen's snackbar) opens the new question as soon as it exists.
     val focus by vm.focusQuestion.collectAsStateWithLifecycle()
+    LaunchedEffect(Unit) { vm.matchPending() }
     LaunchedEffect(focus, d?.open) {
         val id = focus ?: return@LaunchedEffect
         if (d?.open?.any { it.id == id } == true) {

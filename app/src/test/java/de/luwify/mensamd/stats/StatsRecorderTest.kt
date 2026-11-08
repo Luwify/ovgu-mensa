@@ -2,13 +2,11 @@ package de.luwify.mensamd.stats
 
 import de.luwify.mensamd.data.settings.CardStatsSettings
 import de.luwify.mensamd.model.LocalizedText
-import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
@@ -91,16 +89,63 @@ class StatsRecorderTest {
         }
     }
 
-    @Test fun theScanResultDoesNotWaitForTheMenus() = runBlocking {
+    @Test fun aCardTapLoadsNoMenus_theNextVisitMatches() = runBlocking {
         val scope = CoroutineScope(SupervisorJob())
         try {
-            val menusLoaded = CompletableDeferred<Unit>()
+            var loads = 0
+            val make = {
+                StatsRecorder(
+                    store = StatsStore(File(tmp.root, "stats.json"), Dispatchers.Unconfined),
+                    settings = MutableStateFlow(CardStatsSettings(enabled = true, detailed = true)),
+                    mealContext = { MealContext("unten", 0) },
+                    snapshot = {
+                        loads++
+                        DayMenu(menu)
+                    },
+                    scope = scope,
+                    clock = { now.atZone(zone).toInstant().toEpochMilli() },
+                    zone = { zone },
+                )
+            }
+            val r = make()
+            r.register(fp, 10_000, 0, null)
+            now = now.plusHours(1)
+
+            val result = withTimeout(5_000) { r.recordAsync(7, 6_900, 3_100, fp).await() }
+            assertEquals(1, (result as RecordResult.Recorded).newEvents.size)
+            assertEquals(7L, r.last.value?.seq)
+            val payment = r.store.load().events.single()
+            assertEquals(3_100, payment.amount)
+            assertNull(payment.meal)
+            assertEquals(0, loads)
+            assertEquals(listOf(payment.id), r.store.load().pendingMatch)
+
+            // Survives the process: the popup's scan is matched when the app is opened later.
+            val later = make()
+            later.matchPending()
+            assertEquals(1, loads)
+            val saved = later.store.load()
+            assertEquals("Seelachs", saved.events.single().meal!!.dishes.single().name.de)
+            assertEquals(emptyList<Long>(), saved.pendingMatch)
+
+            later.matchPending() // nothing left: no second load
+            assertEquals(1, loads)
+        } finally {
+            scope.cancel()
+        }
+    }
+
+    @Test fun withoutDetailedStatisticsNothingWaits_andWhatWaitedIsDropped() = runBlocking {
+        val scope = CoroutineScope(SupervisorJob())
+        try {
+            val settings = MutableStateFlow(CardStatsSettings(enabled = true, detailed = true))
+            var loads = 0
             val r = StatsRecorder(
                 store = StatsStore(File(tmp.root, "stats.json"), Dispatchers.Unconfined),
-                settings = MutableStateFlow(CardStatsSettings(enabled = true, detailed = true)),
+                settings = settings,
                 mealContext = { MealContext("unten", 0) },
                 snapshot = {
-                    menusLoaded.await()
+                    loads++
                     DayMenu(menu)
                 },
                 scope = scope,
@@ -109,17 +154,17 @@ class StatsRecorderTest {
             )
             r.register(fp, 10_000, 0, null)
             now = now.plusHours(1)
+            r.recordAsync(1, 6_900, 3_100, fp).await()
+            assertEquals(1, r.store.load().pendingMatch.size)
 
-            val result = withTimeout(5_000) { r.recordAsync(7, 6_900, 3_100, fp).await() } // the menus never came yet
-            assertEquals(1, (result as RecordResult.Recorded).newEvents.size)
-            assertEquals(7L, r.last.value?.seq)
-            val payment = r.store.load().events.single()
-            assertEquals(3_100, payment.amount)
-            assertNull(payment.meal)
+            settings.value = CardStatsSettings(enabled = true, detailed = false)
+            r.matchPending()
+            assertEquals(0, loads)
+            assertEquals(emptyList<Long>(), r.store.load().pendingMatch)
 
-            menusLoaded.complete(Unit)
-            val saved = withTimeout(5_000) { r.store.data.first { it?.events?.single()?.meal != null } }
-            assertEquals("Seelachs", saved!!.events.single().meal!!.dishes.single().name.de)
+            now = now.plusHours(1)
+            r.recordAsync(2, 3_800, 3_100, fp).await()
+            assertEquals(emptyList<Long>(), r.store.load().pendingMatch)
         } finally {
             scope.cancel()
         }

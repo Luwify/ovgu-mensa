@@ -6,6 +6,7 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.work.Configuration
 import de.luwify.mensamd.update.MainUiGate
+import kotlinx.coroutines.launch
 
 class MensaApp : Application(), Configuration.Provider {
     val container: AppContainer by lazy { AppContainer(this) }
@@ -19,9 +20,11 @@ class MensaApp : Application(), Configuration.Provider {
         })
     }
 
-    /** MainActivity started: the update check (throttled, if on). Not from the card popup: a card tap starts no network. */
+    /** MainActivity started: update check (throttled, if on), payments left to match. Not from the card popup: a card tap starts no network. */
     fun mainUiStarted() {
-        if (mainUi.started()) container.updates.onForeground()
+        if (!mainUi.started()) return
+        container.updates.onForeground()
+        container.appScope.launch { container.statsRecorder.matchPending() }
     }
 
     /** On-demand WorkManager initialization (the startup initializer is removed in the manifest). */

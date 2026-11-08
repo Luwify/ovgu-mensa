@@ -12,13 +12,14 @@ class StatsTooNewException(val version: Int) : Exception("statistics version $ve
  * Schema versions of [StatsData]. Any change of the stored shape: raise [CURRENT], add the step `STEPS[old]`
  * (old -> old + 1, on the raw JSON) and a test in StatsMigrationsTest. Never drop or rename a stored field without a
  * step. Version 1 = the first release of the statistics (2026-11). Version 2 = dishes paid by weight (`SnapDish.byWeight`,
- * `EatenDish.grams`) and `MealQuestion.missingMensen`: all optional, nothing to convert.
+ * `EatenDish.grams`) and `MealQuestion.missingMensen`: all optional, nothing to convert. Version 3 = `StatsData.pendingMatch`:
+ * optional, nothing to convert.
  */
 object StatsMigrations {
-    const val CURRENT = 2
+    const val CURRENT = 3
 
     /** n -> n + 1. */
-    private val STEPS: Map<Int, (JsonObject) -> JsonObject> = mapOf(1 to { it })
+    private val STEPS: Map<Int, (JsonObject) -> JsonObject> = mapOf(1 to { it }, 2 to { it })
 
     fun versionOf(obj: JsonObject): Int = obj["version"]?.jsonPrimitive?.intOrNull ?: 1
 

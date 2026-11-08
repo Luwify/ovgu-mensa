@@ -59,6 +59,13 @@ class StatsStoreTest {
         assertEquals("{not json", File(tmp.root, "stats.json.broken-42").readText())
     }
 
+    @Test fun aVersion2FileLoadsWithNothingPending() {
+        val data = decodeStats(statsJson.parseToJsonElement("""{"version":2,"nextId":5}""") as JsonObject)
+        assertEquals(StatsMigrations.CURRENT, data.version)
+        assertEquals(emptyList<Long>(), data.pendingMatch)
+        assertEquals(5L, data.nextId)
+    }
+
     @Test fun migrationStepsRunInOrder() {
         val steps: Map<Int, (JsonObject) -> JsonObject> = mapOf(
             1 to { o -> JsonObject(o + ("a" to JsonPrimitive(1))) },

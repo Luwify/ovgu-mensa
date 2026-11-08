@@ -141,6 +141,12 @@ object StatsOps {
         return if (asked.isEmpty()) data else data.copy(open = data.open + asked, nextId = nextId)
     }
 
+    /** Remembers the dated, unmatched payments among [events] for the next visit to the app (see `StatsRecorder.matchPending`). */
+    fun markForMatching(data: StatsData, events: List<CardEvent>): StatsData {
+        val ids = events.filter { it.kind == EventKind.PAYMENT && it.dateKnown && it.meal == null }.map { it.id }
+        return if (ids.isEmpty()) data else data.copy(pendingMatch = data.pendingMatch + ids)
+    }
+
     /** Sets what payment [eventId] bought (null clears it) and closes its meal question. */
     fun setMeal(data: StatsData, eventId: Long, meal: MealRecord?): StatsData = data.copy(
         events = data.events.map { if (it.id == eventId && it.kind == EventKind.PAYMENT) it.copy(meal = meal) else it },

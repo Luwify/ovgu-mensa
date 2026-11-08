@@ -86,6 +86,9 @@ class StatsViewModel(private val container: AppContainer) : ViewModel() {
         recorder.matchPayments(payments)
     }
 
+    /** The statistics screen opened: a scan made while the app was open has its payment matched now. */
+    fun matchPending() = edit { recorder.matchPending() }
+
     fun dismiss(itemId: Long) = edit { store.update { StatsOps.dismiss(it, itemId) } }
 
     private val _focusQuestion = MutableStateFlow<Long?>(null)

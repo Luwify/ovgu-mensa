@@ -11,7 +11,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.time.Instant
@@ -26,9 +25,9 @@ data class MealContext(val defaultMensaId: String?, val priceGroup: Int)
 
 /**
  * Turns card scans into statistics: checks the card, stores the scan, derives events and, with detailed statistics,
- * matches new payments to the day's menu ([snapshot]). Runs in [scope] (the app's), so a scan from the popup is
- * stored even when the popup closes right away. The scan's result is out before the matching starts, which may have
- * to load menus first. Never logs card data.
+ * marks new payments for matching to the day's menu ([snapshot]). Runs in [scope] (the app's), so a scan from the popup
+ * is stored even when the popup closes right away. A scan never touches the network: the matching, which may have to
+ * load menus, waits for [matchPending]. Never logs card data.
  */
 class StatsRecorder(
     val store: StatsStore,
@@ -57,20 +56,19 @@ class StatsRecorder(
     /** Serializes scans, so two quick scans never derive from the same previous scan. */
     private val scanLock = Mutex()
 
-    /**
-     * Records a scan in the app scope. The result lands in [last] and the deferred as soon as the scan is stored; the
-     * meal of a new payment follows in the app scope (saved, or a question).
-     */
+    /** One [matchPending] at a time: the app start and the statistics screen can meet. */
+    private val pendingLock = Mutex()
+
+    /** Records a scan in the app scope. The result lands in [last] and the deferred as soon as the scan is stored. */
     fun recordAsync(seq: Long, balance: Int, lastDebit: Int?, fingerprint: String?): Deferred<RecordResult> = scope.async {
         val result = storeScan(balance, lastDebit, fingerprint)
         _last.value = ScanRecord(seq, result)
-        (result as? RecordResult.Recorded)?.let { scope.launch { matchPayments(it.newEvents) } }
         result
     }
 
     /** Stores the scan and matches its payments before returning. */
     suspend fun record(balance: Int, lastDebit: Int?, fingerprint: String?): RecordResult =
-        storeScan(balance, lastDebit, fingerprint).also { result -> (result as? RecordResult.Recorded)?.let { matchPayments(it.newEvents) } }
+        storeScan(balance, lastDebit, fingerprint).also { matchPending() }
 
     private suspend fun storeScan(balance: Int, lastDebit: Int?, fingerprint: String?): RecordResult = scanLock.withLock {
         val config = settings.first()
@@ -86,7 +84,7 @@ class StatsRecorder(
         store.update { data ->
             val (next, r) = StatsOps.recordScan(data, fingerprint, now, date, balance, lastDebit, config.known)
             result = r
-            next
+            if (config.detailedActive && r is RecordResult.Recorded) StatsOps.markForMatching(next, r.newEvents) else next
         }
         result
     }
@@ -119,7 +117,22 @@ class StatsRecorder(
         store.update { StatsOps.register(it, salt, fingerprint, clock()) }
     }
 
-    /** Payments that just got known (from a scan or an answered question): match them when detailed statistics are on. */
+    /**
+     * Matches the payments scans left for later (a meal saved, or a question), loading their days' menus if needed. Called
+     * when the main UI or the statistics screen opens, never from a card tap. A payment whose day has dropped off the
+     * site by then counts its Mensa as missing, and the question names it.
+     */
+    suspend fun matchPending(): Unit = pendingLock.withLock {
+        val config = settings.first()
+        if (!config.enabled || store.readOnly) return@withLock
+        val data = store.load()
+        val ids = data.pendingMatch.toSet()
+        if (ids.isEmpty()) return@withLock
+        if (config.detailedActive) matchPayments(data.events.filter { it.id in ids })
+        store.update { it.copy(pendingMatch = it.pendingMatch - ids) }
+    }
+
+    /** Payments that just got known (from a pending scan or an answered question): match them when detailed statistics are on. */
     suspend fun matchPayments(payments: List<CardEvent>) {
         if (!settings.first().detailedActive) return
         val dated = payments.filter { it.kind == EventKind.PAYMENT && it.dateKnown && it.meal == null }
