@@ -96,6 +96,11 @@ class MainActivity : ComponentActivity() {
     }
 
     // Reader mode while the app is in the foreground: a held card opens the card screen instead of the popup.
+    override fun onStart() {
+        super.onStart()
+        (application as MensaApp).mainUiStarted()
+    }
+
     override fun onResume() {
         super.onResume()
         cardScanner.start(this)

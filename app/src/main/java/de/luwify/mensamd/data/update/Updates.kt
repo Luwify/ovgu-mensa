@@ -67,7 +67,7 @@ sealed interface DownloadState {
 data class PermissionAsk(val release: Release, val explain: Boolean)
 
 /**
- * The in-app updater: checks the manifest (automatically when the app comes to the foreground, at most every
+ * The in-app updater: checks the manifest (automatically when the main UI comes to the foreground, at most every
  * [UpdatePolicy.CHECK_INTERVAL_MILLIS], or by hand), downloads,
  * verifies and installs an update. No background job: it lives as long as the process.
  */
@@ -120,9 +120,9 @@ class Updates(context: Context, private val settings: UpdateSettings, private va
     }
 
     /**
-     * Each time the app comes to the foreground (process ON_START: cold start, back from the background, restored
-     * after Android killed the process; not on rotation): checks if it's due, after the next frame so it never
-     * delays the UI.
+     * Each time the main UI comes to the foreground (MainActivity started: cold start, back from the background, restored
+     * after Android killed the process; not on rotation, never from the card popup): checks if it's due, after the next
+     * frame so it never delays the UI.
      */
     fun onForeground() {
         scope.launch {

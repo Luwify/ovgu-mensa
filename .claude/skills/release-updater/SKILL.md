@@ -52,9 +52,10 @@ update's dialogs in `MensaRoot`, so they show above the settings and card overla
   -> `release-assets.githubusercontent.com/...?<signed query>`. `UpdateHttp` follows redirects by hand, each hop through
   `UpdateSource.redirect` (https only, no user info, default port, no fragment; below the repo's `releases/download/` on
   github.com, or any path on `release-assets.githubusercontent.com`); at most 3. Anything else fails safe.
-- `data/update/`: `Updates` (process-wide in `AppContainer`: state, check whenever the app comes to the foreground
-  (`ProcessLifecycleOwner` ON_START registered in `MensaApp`, after the next frame; the card popup counts as foreground
-  too, the 6 h throttle applies), download to `cacheDir/updates` with progress/cancel, verify, PackageInstaller session,
+- `data/update/`: `Updates` (process-wide in `AppContainer`: state, check whenever the main UI comes to the foreground
+  (`MainActivity.onStart` -> `MensaApp.mainUiStarted`, once per visit via `update/MainUiGate`, reset by `ProcessLifecycleOwner`
+  ON_STOP; after the next frame; never from the card popup, a card tap starts no network; the 6 h throttle applies. Stundenplan MD,
+  without a popup, still uses ON_START), download to `cacheDir/updates` with progress/cancel, verify, PackageInstaller session,
   "install unknown apps" explanation once then `ACTION_MANAGE_UNKNOWN_APP_SOURCES`, continues in `MainActivity.onResume`;
   APKs deleted after the session write and once per process start), `UpdateHttp` (HttpURLConnection, checked redirects,
   User-Agent `MensaMD/<version>`, no identifiers), `ApkInspector`/`ApkInstaller`/`InstallResultReceiver`, `UpdateSettings`
