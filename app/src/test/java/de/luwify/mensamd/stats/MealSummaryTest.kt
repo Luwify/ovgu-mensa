@@ -70,4 +70,60 @@ class MealSummaryTest {
         val farfalle = EatenDish("farfalle", LocalizedText("Farfalle"), "oben", 2_350, 1, emptyList(), grams = 470)
         assertEquals(emptyList<KnownDish>(), MealSummary.knownDishes(listOf(pay(2_350, MealRecord(listOf(farfalle)))), emptyList()))
     }
+
+    private fun own(name: String, mensa: String?, vararg tags: Tag) =
+        EatenDish(name.lowercase(), LocalizedText(name), mensa, 3_200, 1, tags.toList(), own = true)
+
+    /** The Shawarma of 2026-11-09: saved by hand without tags, it must not count as "not vegan". */
+    @Test fun dishesWithoutTagInformationAreLeftOutOfTheShares() {
+        val s = MealSummary.summarize(
+            listOf(
+                pay(3_100, MealRecord(listOf(dish("Curry", "unten", 3_100, 1, vegan)))),
+                pay(4_400, MealRecord(listOf(dish("Burger", "oben", 4_400)))), // a menu dish: known to carry no tag
+                pay(3_200, MealRecord(listOf(own("Shawarma", null)))),
+            ),
+        )
+        assertEquals(3, s.servings)
+        assertEquals(1, s.unknownTags)
+        assertEquals(1.0 / 2, s.veganShare!!, 1e-9)
+        assertEquals(1.0 / 2, s.vegetarianShare!!, 1e-9)
+    }
+
+    @Test fun aVeganDishAlsoCountsAsVegetarian() {
+        val s = MealSummary.summarize(listOf(pay(3_200, MealRecord(listOf(own("Shawarma", "unten", vegan)))), pay(4_400, MealRecord(listOf(dish("Burger", "oben", 4_400))))))
+        assertEquals(1.0 / 2, s.veganShare!!, 1e-9)
+        assertEquals(1.0 / 2, s.vegetarianShare!!, 1e-9)
+        assertEquals(0, s.unknownTags)
+    }
+
+    @Test fun aHandNamedDishWithTagsCountsAndAMensaAloneIsNoInformation() {
+        val withMensaOnly = own("Wrap", "unten")
+        assertEquals(false, withMensaOnly.tagsKnown)
+        assertEquals(true, own("Wrap", "unten", veggie).tagsKnown)
+        val s = MealSummary.summarize(listOf(pay(3_200, MealRecord(listOf(withMensaOnly, own("Bowl", null, veggie))))))
+        assertEquals(1, s.unknownTags)
+        assertEquals(1.0, s.vegetarianShare!!, 1e-9)
+        assertEquals(0.0, s.veganShare!!, 1e-9)
+    }
+
+    @Test fun noSharesWhenNothingHasTagInformation() {
+        val s = MealSummary.summarize(listOf(pay(3_200, MealRecord(listOf(own("Shawarma", null)).let { it + own("Wrap", "unten") }))))
+        assertNull(s.veganShare)
+        assertNull(s.vegetarianShare)
+        assertEquals(2, s.unknownTags)
+        assertEquals(2, s.servings)
+    }
+
+    @Test fun servingsCountTimesTheDish() {
+        val twice = own("Shawarma", null).copy(count = 2)
+        assertEquals(2, MealSummary.summarize(listOf(pay(6_400, MealRecord(listOf(twice))))).unknownTags)
+    }
+
+    @Test fun dishesWithoutMensaAreListedNewestFirstWithTheirPlace() {
+        val a = pay(3_200, MealRecord(listOf(dish("Curry", "unten", 3_200), own("Shawarma", null))))
+        val b = pay(3_000, MealRecord(listOf(own("Wrap", null))))
+        val refs = MealSummary.withoutMensa(listOf(a, b, pay(900, null)))
+        assertEquals(listOf(b.id to 0, a.id to 1), refs.map { it.eventId to it.index })
+        assertEquals(listOf("Wrap", "Shawarma"), refs.map { it.dish.name.de })
+    }
 }

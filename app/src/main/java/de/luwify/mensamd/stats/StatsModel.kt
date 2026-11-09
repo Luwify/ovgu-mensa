@@ -100,7 +100,9 @@ data class MealRecord(
 
 /**
  * A dish eaten [count] times for [price] each (mills). [key] = `Favorites.normalize(name.de)`. [grams]: a dish paid by
- * weight, about that much; [price] is then what the portion cost, not the menu's price per 100 g.
+ * weight, about that much; [price] is then what the portion cost, not the menu's price per 100 g. [own]: named by the
+ * user, not read from a menu: its [tags] are only what the user said, so none at all means "no information" (see
+ * [tagsKnown]); a menu dish without tags is known to carry none.
  */
 @Serializable
 data class EatenDish(
@@ -111,11 +113,26 @@ data class EatenDish(
     val count: Int = 1,
     val tags: List<Tag> = emptyList(),
     val grams: Int? = null,
-)
+    val own: Boolean = false,
+) {
+    /** Whether [tags] say anything about the dish (the vegan/vegetarian shares only count these). */
+    val tagsKnown: Boolean get() = !own || tags.isNotEmpty()
+}
 
-/** A dish the user named by hand, with the price it was saved with (mills). */
+/**
+ * A dish the user named by hand, with the price it was saved with (mills), its [mensaId] (null = unknown) and its
+ * [tags] (none = no information). [own] is true for every stored one; the list of dishes known from earlier meals
+ * ([MealSummary.knownDishes]) also carries menu dishes, with false.
+ */
 @Serializable
-data class KnownDish(val key: String, val name: LocalizedText, val price: Int, val tags: List<Tag> = emptyList())
+data class KnownDish(
+    val key: String,
+    val name: LocalizedText,
+    val price: Int,
+    val tags: List<Tag> = emptyList(),
+    val mensaId: String? = null,
+    val own: Boolean = true,
+)
 
 /** A dish of that day's menu, kept with an open meal question until it is answered (menus are not kept otherwise). */
 @Serializable
@@ -128,6 +145,8 @@ data class SnapDish(
     val tags: List<Tag> = emptyList(),
     /** Paid by weight ([de.luwify.mensamd.model.WeightPricing]): [prices] are per 100 g, never the price of a portion. */
     val byWeight: Boolean = false,
+    /** A hand-named dish picked from the known list (never stored with a question): see [EatenDish.own]. */
+    val own: Boolean = false,
 )
 
 /** A day's menu as far as the app could load it: [dishes] of every Mensa, and the ids of the [missing] ones. */

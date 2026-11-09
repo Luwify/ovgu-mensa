@@ -110,6 +110,12 @@ git-ignored `CLAUDE.local.md` at the repo root, which Claude Code loads after th
   sum of the per-bottle amounts (default 0.08/0.15/0.25 €) is a Pfand return when the last payment did not change
   (changed: top-up + payment, asked), with "Anders zuordnen"; a top-up amount wins. A real top-up kept the last payment
   (docs/STATS.md).
+- **Hand-named dishes** ("Als neues Gericht speichern", `ui/stats/DishDialogs`): name + Mensa (catalog or unknown) + the menu's tag
+  chips (`DishTags`), saved as `KnownDish` and eaten as `EatenDish(own = true)`. For an `own` dish no tags = no information
+  (`EatenDish.tagsKnown`): `MealSummary` computes the vegan/vegetarian shares over dishes with known tags only (`unknownTags` is shown
+  as a hint); a menu dish without tags is known to carry none. A tap on a Verlauf entry lists its dishes to edit (`StatsOps.editDish`:
+  Mensa + tags; the name only for `own`, and an `own` change reaches every payment with that dish and the saved dish); "Unbekannte Mensa"
+  in "Nach Mensa" lists dishes without a Mensa (`MealSummary.withoutMensa`). Schema 4 marks old dishes without Mensa and tags as `own`.
 - **Dishes priced per 100 g:** the pages don't say so, so `model/WeightPricing` decides (the only place with these rules:
   badge "Pastabuffet", soup icon in UniCampus unten). Menu cards show "/100 g" at the price. Such dishes never match as a
   fixed price and are never saved automatically: the meal question lists them with the weight the amount buys

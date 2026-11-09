@@ -388,6 +388,20 @@
     <!-- Card statistics: meals (detailed statistics) -->
     <string name="meal_title">Payment %1$s</string>
     <string name="meal_unknown_mensa">Unknown Mensa</string>
+    <string name="meal_current">Saved for this payment</string>
+    <string name="dish_edit_title">Edit dish</string>
+    <string name="dish_mensa_label">Mensa</string>
+    <string name="dish_mensa_other">Other / unknown</string>
+    <string name="dish_tags_title">Tags</string>
+    <string name="dish_tags_hint">Optional. A dish without tags is left out of the vegan and vegetarian shares.</string>
+    <string name="dish_own_note">Your own dish: the change applies to every payment with it.</string>
+    <string name="dish_no_tags">no tags</string>
+    <plurals name="meals_unknown_tags">
+        <item quantity="one">%d dish without tag info (not in the shares)</item>
+        <item quantity="other">%d dishes without tag info (not in the shares)</item>
+    </plurals>
+    <string name="unassigned_hint">Tap a dish to assign its Mensa.</string>
+    <string name="unassigned_empty">Every dish has a Mensa.</string>
     <string name="meal_candidates">Matching dishes</string>
     <string name="meal_no_menu">No menu of that day is known. Pick a dish, name a new one or save it as other.</string>
     <string name="meal_no_match">No dish (or pair of dishes) of that day costs exactly %1$s.</string>

@@ -5,6 +5,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -97,5 +98,45 @@ class StatsStoreTest {
         val data = decodeStats(statsJson.parseToJsonElement(v1) as JsonObject)
         assertEquals(StatsMigrations.CURRENT, encodeStats(data)["version"]!!.toString().toInt())
         assertEquals(null, data.events.single().meal!!.dishes.single().grams)
+    }
+
+    /** Version 3 -> 4: a dish without Mensa and tags is a hand-named one (no tag information), the others stay as they were. */
+    @Test fun aVersion3FileMarksDishesWithoutMensaAndTagsAsOwn() {
+        val v3 = """{"version":3,"nextId":9,"customDishes":[{"key":"shawarma","name":{"de":"Shawarma","en":"Shawarma"},"price":3200}],
+            "events":[
+              {"id":1,"scanId":1,"kind":"payment","amount":3200,"date":"2026-11-09","dateKnown":true,
+               "meal":{"dishes":[{"key":"shawarma","name":{"de":"Shawarma","en":"Shawarma"},"price":3200}]}},
+              {"id":2,"scanId":2,"kind":"payment","amount":4400,"date":"2026-11-09","dateKnown":true,
+               "meal":{"dishes":[{"key":"burger","name":{"de":"Burger","en":"Burger"},"mensaId":"unicampus-oben","price":4400},
+                                 {"key":"curry","name":{"de":"Curry","en":"Curry"},"price":3100,"tags":[{"key":"vegan","label":"Vegan"}]}]}},
+              {"id":3,"scanId":3,"kind":"top_up","amount":20000,"date":"2026-11-09","dateKnown":true}]}"""
+        val data = decodeStats(statsJson.parseToJsonElement(v3) as JsonObject)
+        assertEquals(StatsMigrations.CURRENT, data.version)
+        val (shawarma) = data.events[0].meal!!.dishes
+        assertTrue(shawarma.own)
+        assertFalse(shawarma.tagsKnown)
+        val (burger, curry) = data.events[1].meal!!.dishes
+        assertFalse(burger.own) // a menu dish without tags is known to carry none
+        assertFalse(curry.own) // tags but no Mensa (old known-dish list): its tags stay information
+        assertTrue(curry.tagsKnown)
+        assertEquals(9L, data.nextId)
+        assertEquals(3, data.events.size)
+        assertTrue(data.customDishes.single().own)
+        assertEquals(null, data.customDishes.single().mensaId)
+    }
+
+    @Test fun aMealOfAnOlderFileWithoutDishesIsKept() {
+        val v3 = """{"version":3,"events":[{"id":1,"scanId":1,"kind":"payment","amount":900,"date":"2026-11-09","dateKnown":true,"meal":{"other":true}}]}"""
+        val data = decodeStats(statsJson.parseToJsonElement(v3) as JsonObject)
+        assertTrue(data.events.single().meal!!.other)
+    }
+
+    @Test fun theNewFieldsSurviveAWriteAndRead() {
+        val dish = EatenDish("wrap", de.luwify.mensamd.model.LocalizedText("Wrap"), "kellercafe", 3_000, 1, listOf(de.luwify.mensamd.model.Tag("vegan", "Vegan")), null, own = true)
+        val data = StatsData(
+            events = listOf(CardEvent(1, 1, EventKind.PAYMENT, 3_000, java.time.LocalDate.of(2026, 11, 9), true, MealRecord(listOf(dish)))),
+            customDishes = listOf(KnownDish("wrap", dish.name, 3_000, dish.tags, "kellercafe")),
+        )
+        assertEquals(data.copy(version = StatsMigrations.CURRENT), decodeStats(encodeStats(data)))
     }
 }

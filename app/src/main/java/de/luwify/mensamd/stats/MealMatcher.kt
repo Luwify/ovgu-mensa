@@ -151,5 +151,5 @@ object MealMatcher {
         return MealRecord(dishes = dishes, extras = extras.distinct(), extrasAmount = rest)
     }
 
-    private fun Pick.toEaten() = EatenDish(Favorites.normalize(dish.name.de), dish.name, dish.mensaId, price, count, dish.tags)
+    private fun Pick.toEaten() = EatenDish(Favorites.normalize(dish.name.de), dish.name, dish.mensaId, price, count, dish.tags, own = dish.own)
 }

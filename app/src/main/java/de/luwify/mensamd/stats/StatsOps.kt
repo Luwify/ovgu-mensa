@@ -2,6 +2,7 @@ package de.luwify.mensamd.stats
 
 import de.luwify.mensamd.favorites.Favorites
 import de.luwify.mensamd.model.LocalizedText
+import de.luwify.mensamd.model.Tag
 import java.time.LocalDate
 
 /** What a scan did to the statistics. */
@@ -177,13 +178,43 @@ object StatsOps {
 
     fun removeCustomExtra(data: StatsData, name: String): StatsData = data.copy(customExtras = data.customExtras - name)
 
-    /** Saves a hand-named dish (or updates its price); returns it as eaten once at [price]. */
-    fun addCustomDish(data: StatsData, name: String, price: Int): Pair<StatsData, EatenDish> {
+    /**
+     * Saves a hand-named dish with its [mensaId] (null = unknown) and [tags] (none = no information), or updates the
+     * saved one of the same name (price, Mensa, tags: its earlier meals follow, see [editDish]); returns it as eaten
+     * once at [price].
+     */
+    fun addCustomDish(data: StatsData, name: String, price: Int, mensaId: String? = null, tags: List<Tag> = emptyList()): Pair<StatsData, EatenDish> {
         val clean = name.trim()
         val key = Favorites.normalize(clean)
-        val dish = KnownDish(key, LocalizedText(clean), price)
+        val dish = KnownDish(key, LocalizedText(clean), price, tags, mensaId)
         val list = data.customDishes.filterNot { it.key == key } + dish
-        return data.copy(customDishes = list) to EatenDish(key, dish.name, null, price)
+        val earlier = data.events.map { e -> e.copy(meal = e.meal?.copy(dishes = e.meal.dishes.map { d -> if (d.own && d.key == key) d.copy(name = dish.name, mensaId = mensaId, tags = tags) else d })) }
+        return data.copy(customDishes = list, events = earlier) to EatenDish(key, dish.name, mensaId, price, tags = tags, own = true)
+    }
+
+    /**
+     * "Gericht bearbeiten": sets the Mensa ([mensaId], null = unknown) and [tags] of dish [index] of payment [eventId]'s
+     * meal; the name too for a hand-named dish. A menu dish changes in that meal only. A hand-named dish is one dish
+     * for the app, so every meal with it follows (and the saved dish used by the search); with no tag selected its tags
+     * are "no information". Nothing changes for an unknown payment or index.
+     */
+    fun editDish(data: StatsData, eventId: Long, index: Int, name: String, mensaId: String?, tags: List<Tag>): StatsData {
+        val event = data.events.firstOrNull { it.id == eventId && it.kind == EventKind.PAYMENT } ?: return data
+        val meal = event.meal ?: return data
+        val dish = meal.dishes.getOrNull(index) ?: return data
+        if (!dish.own) {
+            val dishes = meal.dishes.mapIndexed { i, d -> if (i == index) d.copy(mensaId = mensaId, tags = tags) else d }
+            return data.copy(events = data.events.map { if (it.id == eventId) it.copy(meal = meal.copy(dishes = dishes)) else it })
+        }
+        val clean = name.trim().ifEmpty { dish.name.de }
+        val key = Favorites.normalize(clean).ifEmpty { dish.key }
+        val newName = if (clean == dish.name.de) dish.name else LocalizedText(clean)
+        fun EatenDish.follow() = if (own && this.key == dish.key) copy(key = key, name = newName, mensaId = mensaId, tags = tags) else this
+        val price = data.customDishes.firstOrNull { it.key == dish.key }?.price ?: dish.price
+        return data.copy(
+            events = data.events.map { e -> e.meal?.let { m -> e.copy(meal = m.copy(dishes = m.dishes.map { it.follow() })) } ?: e },
+            customDishes = data.customDishes.filterNot { it.key == dish.key || it.key == key } + KnownDish(key, newName, price, tags, mensaId),
+        )
     }
 
     /** Whether the scan [scanId] and the previous scan of the same card were on the same day. */

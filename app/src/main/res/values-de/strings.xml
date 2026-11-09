@@ -380,6 +380,20 @@
     <!-- Kartenstatistik: Gerichte (detaillierte Statistik) -->
     <string name="meal_title">Zahlung %1$s</string>
     <string name="meal_unknown_mensa">Unbekannte Mensa</string>
+    <string name="meal_current">Für diese Zahlung gespeichert</string>
+    <string name="dish_edit_title">Gericht bearbeiten</string>
+    <string name="dish_mensa_label">Mensa</string>
+    <string name="dish_mensa_other">Andere / unbekannt</string>
+    <string name="dish_tags_title">Tags</string>
+    <string name="dish_tags_hint">Optional. Ein Gericht ohne Tags zählt nicht in den Anteilen für vegan und vegetarisch.</string>
+    <string name="dish_own_note">Dein eigenes Gericht: Die Änderung gilt für alle Zahlungen damit.</string>
+    <string name="dish_no_tags">keine Tags</string>
+    <plurals name="meals_unknown_tags">
+        <item quantity="one">%d Gericht ohne Angabe (nicht in den Anteilen)</item>
+        <item quantity="other">%d Gerichte ohne Angabe (nicht in den Anteilen)</item>
+    </plurals>
+    <string name="unassigned_hint">Tippe ein Gericht an, um die Mensa zuzuordnen.</string>
+    <string name="unassigned_empty">Jedes Gericht hat eine Mensa.</string>
     <string name="meal_candidates">Passende Gerichte</string>
     <string name="meal_no_menu">Vom Speiseplan dieses Tages ist nichts bekannt. Wähle ein Gericht, benenne ein neues oder speichere es als Sonstiges.</string>
     <string name="meal_no_match">Kein Gericht (und kein Paar von Gerichten) dieses Tages kostet genau %1$s.</string>

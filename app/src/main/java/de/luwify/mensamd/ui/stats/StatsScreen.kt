@@ -97,6 +97,7 @@ fun StatsScreen(vm: StatsViewModel, mainVm: MainViewModel, onBack: () -> Unit) {
     var openId by rememberSaveable { mutableStateOf<Long?>(null) }
     var editEventId by rememberSaveable { mutableStateOf<Long?>(null) }
     var showAll by rememberSaveable { mutableStateOf(false) }
+    var showUnassigned by rememberSaveable { mutableStateOf(false) }
     val snackbar = remember { SnackbarHostState() }
     val deletedText = stringResource(R.string.stats_deleted)
     val undoText = stringResource(R.string.stats_undo)
@@ -107,7 +108,7 @@ fun StatsScreen(vm: StatsViewModel, mainVm: MainViewModel, onBack: () -> Unit) {
     val s = settings
     val mealOverlay = d?.open?.firstOrNull { it.id == openId } as? OpenItem.MealQuestion
     val editEvent = d?.events?.firstOrNull { it.id == editEventId && it.kind == EventKind.PAYMENT }
-    BackHandler(enabled = mealOverlay == null && editEvent == null, onBack = onBack)
+    BackHandler(enabled = mealOverlay == null && editEvent == null && !showUnassigned, onBack = onBack)
     // "Anders zuordnen" (here or in the card screen's snackbar) opens the new question as soon as it exists.
     val focus by vm.focusQuestion.collectAsStateWithLifecycle()
     LaunchedEffect(Unit) { vm.matchPending() }
@@ -213,7 +214,7 @@ fun StatsScreen(vm: StatsViewModel, mainVm: MainViewModel, onBack: () -> Unit) {
                                 )
                             }
                         }
-                        if (s.detailedActive) mealsSection(d, vm, locale)
+                        if (s.detailedActive) mealsSection(d, vm, locale) { showUnassigned = true }
                         item(key = "history-title") { SheetHeading(stringResource(R.string.stats_history)) }
                         val history = d.events.asReversed().let { if (showAll) it else it.take(20) }
                         items(history, key = { "event-${it.id}" }) { e ->
@@ -274,8 +275,9 @@ fun StatsScreen(vm: StatsViewModel, mainVm: MainViewModel, onBack: () -> Unit) {
         null -> if (openId != null && d != null) openId = null
     }
     if (editEvent != null && d != null) {
-        MealQuestionScreen(vm, editEvent.asQuestion(), d.customDishes, d.customExtras, d.events, onClose = { editEventId = null })
+        MealQuestionScreen(vm, editEvent.asQuestion(), d.customDishes, d.customExtras, d.events, current = editEvent.meal, onClose = { editEventId = null })
     }
+    if (showUnassigned && d != null) UnassignedDishesScreen(vm, d.events, onClose = { showUnassigned = false })
 }
 
 /** A payment opened for editing: the meal flow; that day's menu comes from the cached pages (see [MealQuestionScreen]). */

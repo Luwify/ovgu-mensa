@@ -6,6 +6,7 @@ import de.luwify.mensamd.AppContainer
 import de.luwify.mensamd.data.settings.CardStatsSettings
 import de.luwify.mensamd.favorites.FavoriteInfo
 import de.luwify.mensamd.model.MenuPage
+import de.luwify.mensamd.model.Tag
 import de.luwify.mensamd.stats.CardEvent
 import de.luwify.mensamd.stats.EatenDish
 import de.luwify.mensamd.stats.EventKind
@@ -111,12 +112,17 @@ class StatsViewModel(private val container: AppContainer) : ViewModel() {
 
     fun markDateUnknown(eventId: Long) = edit { store.update { StatsOps.markDateUnknown(it, eventId) } }
 
-    /** "Als neues Gericht speichern": the dish is kept for later searches and set as the payment's meal. */
-    fun saveNewDish(eventId: Long, name: String, price: Int) = edit {
+    /** "Als neues Gericht speichern": the dish (with its Mensa and tags) is kept for later searches and set as the payment's meal. */
+    fun saveNewDish(eventId: Long, name: String, price: Int, mensaId: String?, tags: List<Tag>) = edit {
         store.update { d ->
-            val (next, eaten) = StatsOps.addCustomDish(d, name, price)
+            val (next, eaten) = StatsOps.addCustomDish(d, name, price, mensaId, tags)
             StatsOps.setMeal(next, eventId, MealRecord(dishes = listOf(eaten)))
         }
+    }
+
+    /** Changes the Mensa and tags (and the name of a hand-named dish) of dish [index] of a payment's meal. */
+    fun editDish(eventId: Long, index: Int, name: String, mensaId: String?, tags: List<Tag>) = edit {
+        store.update { StatsOps.editDish(it, eventId, index, name, mensaId, tags) }
     }
 
     fun deleteEvent(event: CardEvent) = edit { store.update { StatsOps.deleteEvent(it, event.id) } }

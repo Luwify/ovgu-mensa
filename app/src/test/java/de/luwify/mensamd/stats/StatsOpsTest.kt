@@ -1,6 +1,7 @@
 package de.luwify.mensamd.stats
 
 import de.luwify.mensamd.model.LocalizedText
+import de.luwify.mensamd.model.Tag
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -188,5 +189,83 @@ class StatsOpsTest {
         val (a, _) = scan(registered, 10_000, 0)
         val (b, _) = scan(a, 6_900, 3_100)
         assertEquals(b to null, StatsOps.reassignCredit(b, b.events.single().id))
+    }
+
+    private val vegan = Tag("vegan", "Vegan")
+    private val fish = Tag("fisch", "Fisch")
+
+    /** A payment of 3,20 € with a hand-named dish saved without Mensa and tags, as the app did before. */
+    private fun withShawarma(): Pair<StatsData, Long> {
+        val (first, _) = scan(registered, 10_000, 0)
+        val (paid, _) = scan(first, 6_800, 3_200)
+        val payment = paid.events.single()
+        val (named, eaten) = StatsOps.addCustomDish(paid, " Plantbased Chicken-Shawarma ", 3_200)
+        return StatsOps.setMeal(named, payment.id, MealRecord(dishes = listOf(eaten))) to payment.id
+    }
+
+    @Test fun aNewDishIsSavedWithMensaAndTagsAndOfferedNextTime() {
+        val (paid, id) = withShawarma()
+        val (named, eaten) = StatsOps.addCustomDish(paid, "Wrap", 3_000, "unicampus-unten", listOf(vegan))
+        assertEquals(EatenDish("wrap", LocalizedText("Wrap"), "unicampus-unten", 3_000, 1, listOf(vegan), null, own = true), eaten)
+        val saved = named.customDishes.single { it.key == "wrap" }
+        assertEquals("unicampus-unten", saved.mensaId)
+        assertEquals(listOf(vegan), saved.tags)
+        val hit = DishSearch.hits(emptyList(), emptyList(), named.events, named.customDishes, 0).single { it.key == "wrap" }
+        assertEquals("unicampus-unten" to listOf(vegan), hit.mensaId to hit.tags)
+        assertTrue(hit.own)
+        assertEquals(id, paid.events.single().id)
+    }
+
+    @Test fun editingAHandNamedDishFixesTheEntryAndTheSavedDish() {
+        val (data, id) = withShawarma()
+        assertFalse(data.events.single().meal!!.dishes.single().tagsKnown)
+        val fixed = StatsOps.editDish(data, id, 0, "Plantbased Chicken-Shawarma", "unicampus-oben", listOf(vegan))
+        val dish = fixed.events.single().meal!!.dishes.single()
+        assertEquals("unicampus-oben" to listOf(vegan), dish.mensaId to dish.tags)
+        assertTrue(dish.tagsKnown)
+        assertEquals(3_200, dish.price)
+        val saved = fixed.customDishes.single()
+        assertEquals("unicampus-oben" to listOf(vegan), saved.mensaId to saved.tags)
+        assertEquals(3_200, saved.price)
+        assertEquals(data.events.single().amount, fixed.events.single().amount)
+    }
+
+    @Test fun renamingAHandNamedDishRenamesItEverywhere() {
+        val (data, id) = withShawarma()
+        // The same dish eaten on another payment.
+        val other = data.events.single().copy(id = 99, meal = data.events.single().meal)
+        val twice = data.copy(events = data.events + other)
+        val fixed = StatsOps.editDish(twice, id, 0, "Shawarma Bowl", null, listOf(fish))
+        assertEquals(listOf("shawarma bowl", "shawarma bowl"), fixed.events.map { it.meal!!.dishes.single().key })
+        assertEquals(listOf("shawarma bowl"), fixed.customDishes.map { it.key })
+        assertEquals(listOf(listOf(fish), listOf(fish)), fixed.events.map { it.meal!!.dishes.single().tags })
+    }
+
+    @Test fun editingAMenuDishChangesThatPaymentOnlyAndKeepsItsName() {
+        val (first, _) = scan(registered, 10_000, 0)
+        val (paid, _) = scan(first, 6_800, 3_200)
+        val payment = paid.events.single()
+        val menu = EatenDish("curry", LocalizedText("Curry"), "unicampus-unten", 3_200, 1, emptyList())
+        val twoMeals = StatsOps.setMeal(paid, payment.id, MealRecord(listOf(menu)))
+            .let { it.copy(events = it.events + it.events.single().copy(id = 50)) }
+        val fixed = StatsOps.editDish(twoMeals, payment.id, 0, "Ignored", "herrenkrug", listOf(vegan))
+        val (changed, untouched) = fixed.events.map { it.meal!!.dishes.single() }
+        assertEquals(Triple("curry", "herrenkrug", listOf(vegan)), Triple(changed.key, changed.mensaId, changed.tags))
+        assertEquals(menu, untouched)
+        assertTrue(fixed.customDishes.isEmpty())
+        assertTrue(changed.tagsKnown)
+    }
+
+    @Test fun editingNothingChangesNothing() {
+        val (data, id) = withShawarma()
+        assertEquals(data, StatsOps.editDish(data, id, 3, "X", null, emptyList()))
+        assertEquals(data, StatsOps.editDish(data, 12345, 0, "X", null, emptyList()))
+    }
+
+    @Test fun clearingTheTagsOfAHandNamedDishMakesThemUnknownAgain() {
+        val (data, id) = withShawarma()
+        val tagged = StatsOps.editDish(data, id, 0, "Plantbased Chicken-Shawarma", null, listOf(vegan))
+        val cleared = StatsOps.editDish(tagged, id, 0, "Plantbased Chicken-Shawarma", null, emptyList())
+        assertFalse(cleared.events.single().meal!!.dishes.single().tagsKnown)
     }
 }

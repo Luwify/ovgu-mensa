@@ -23,6 +23,8 @@ object DishSearch {
         val mensaId: String?,
         val onDay: Boolean,
         val byWeight: Boolean = false,
+        /** A hand-named dish: see [EatenDish.own]. */
+        val own: Boolean = false,
     ) {
         private val plain = fold(Favorites.normalize(name.de) + " " + Favorites.normalize(name.en))
         private val collapsed = collapse(plain)
@@ -53,8 +55,8 @@ object DishSearch {
         fun SnapDish.hit(onDay: Boolean) =
             Hit(Favorites.normalize(name.de), name, tags, MealMatcher.prices(this, group).firstOrNull(), mensaId, onDay, byWeight)
         val eaten = events.mapNotNull { it.meal }.flatMap { it.dishes }.asReversed() // the latest price wins
-            .map { Hit(it.key, it.name, it.tags, it.price.takeIf { _ -> it.grams == null }, it.mensaId, false, it.grams != null) }
-        val named = custom.map { Hit(it.key, it.name, it.tags, it.price, null, false) }
+            .map { Hit(it.key, it.name, it.tags, it.price.takeIf { _ -> it.grams == null }, it.mensaId, false, it.grams != null, it.own) }
+        val named = custom.map { Hit(it.key, it.name, it.tags, it.price, it.mensaId, false, own = it.own) }
         val all = (day.map { it.hit(true) } + menus.map { it.hit(false) } + eaten + named).distinctBy { it.key to it.mensaId }
         val withMensa = all.filter { it.mensaId != null }.map { it.key }.toSet()
         val (today, rest) = all.filterNot { it.mensaId == null && it.key in withMensa }.partition { it.onDay }
