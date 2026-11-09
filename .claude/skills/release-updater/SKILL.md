@@ -30,6 +30,10 @@ Same scheme and tools as Stundenplan MD (`tools/` is a copy: keep the two in syn
   source tarball and new updates.json (read the script for the exact steps); a dry run stops before tagging (output in
   `build/release/<ver>/`). On failure it prints what was done and how to clean up (deletes nothing). **Only the
   maintainer runs the real release.** `--backfill <tag>` rebuilds an existing tag (not needed so far).
+  **Testing the exact APK:** a new build has the same file contents but another signature block, so another SHA-256 (seen 2026-11:
+  a clean rebuild changed the hash, a rerun without changes didn't). To publish what was tested: commit everything, dry run, install its
+  APK by file manager (Play Protect checks that route), then `tools/release.sh <ver> --tested-apk <file> --sha256 <hash>`; it refuses
+  another hash, certificate, version or commit. Any commit after the dry run means a new APK and a new test.
 - `tools/withdraw.sh <ver>` sets withdrawn=true in updates.json of the latest release (with confirmation).
 
 ## In-app updater

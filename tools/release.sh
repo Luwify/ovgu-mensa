@@ -3,6 +3,10 @@
 #
 #   tools/release.sh 1.1.0 --dry-run          # everything up to the new updates.json, nothing tagged or uploaded
 #   tools/release.sh 1.1.0                    # the real release: tag, GitHub release with APK, source, updates.json
+#   tools/release.sh 1.1.0 --tested-apk FILE --sha256 HEX [--dry-run]
+#       publishes exactly this APK instead of building a new one: a new build differs in its signature block and so in
+#       its SHA-256. FILE must have that hash, the pinned certificate, this version and the current commit (HEAD): commit
+#       everything first, then the dry run, then test its APK; any later commit makes it refuse.
 #   tools/release.sh --backfill v1.0.1 [--dry-run]
 #       an existing tag, rebuilt in a temporary worktree: release with --latest=false, the tag's date as release
 #       date and an "Archiv, neu gebaut" note. Only in version order and before any newer release on GitHub
@@ -18,10 +22,14 @@ source "$(dirname "${BASH_SOURCE[0]}")/release-common.sh"
 VERSION=""
 BACKFILL=""
 DRY_RUN=0
+TESTED_APK=""
+TESTED_SHA=""
 while (($#)); do
     case "$1" in
         --dry-run) DRY_RUN=1 ;;
         --backfill) shift; [[ -n "${1:-}" ]] || die "--backfill braucht einen Tag"; BACKFILL="$1" ;;
+        --tested-apk) shift; [[ -n "${1:-}" ]] || die "--tested-apk braucht eine Datei"; TESTED_APK="$1" ;;
+        --sha256) shift; [[ -n "${1:-}" ]] || die "--sha256 braucht eine Prüfsumme"; TESTED_SHA="$1" ;;
         -*) die "unbekannte Option $1" ;;
         *) [[ -z "$VERSION" ]] || die "nur eine Version angeben"; VERSION="$1" ;;
     esac
@@ -32,8 +40,16 @@ if [[ -n "$BACKFILL" ]]; then
     [[ "$BACKFILL" == v* ]] || die "Tag $BACKFILL beginnt nicht mit v"
     VERSION="${BACKFILL#v}"
 fi
-[[ -n "$VERSION" ]] || die "Aufruf: tools/release.sh <version> [--dry-run] | --backfill <tag> [--dry-run]"
+[[ -n "$VERSION" ]] || die "Aufruf: tools/release.sh <version> [--tested-apk <datei> --sha256 <prüfsumme>] [--dry-run] | --backfill <tag> [--dry-run]"
 parse_version "$VERSION"
+if [[ -n "$TESTED_APK$TESTED_SHA" ]]; then
+    [[ -n "$TESTED_APK" && -n "$TESTED_SHA" ]] || die "--tested-apk und --sha256 gehören zusammen"
+    [[ -z "$BACKFILL" ]] || die "--tested-apk geht nicht zusammen mit --backfill"
+    [[ -f "$TESTED_APK" ]] || die "Getestetes APK nicht gefunden: $TESTED_APK"
+    [[ "$(sha256sum "$TESTED_APK" | cut -d' ' -f1)" == "${TESTED_SHA,,}" ]] || die "$TESTED_APK hat nicht die Prüfsumme $TESTED_SHA: das ist nicht das getestete APK"
+    # Step 2 empties the output directory, where the APK of a dry run lies.
+    cp "$TESTED_APK" "$TMP/tested.apk"
+fi
 TAG="v$VERSION"
 APK_NAME="$APP_SLUG-$VERSION.apk"
 SRC_NAME="$APP_SLUG-$VERSION-src.tar.gz"
@@ -168,20 +184,33 @@ say "Tests und Lint ($GRADLE_CHECKS) ..."
 say "ok"
 
 # ---------------------------------------------------------------- 2. build
-step "2. Release-Build ($GRADLE_ASSEMBLE)"
-rm -f "$BUILD_DIR/$APK_PATH"
-# The manifest URL explicitly, so no Gradle property elsewhere can point the release at another place.
-(cd "$BUILD_DIR" && ./gradlew -q "$GRADLE_ASSEMBLE" -PupdateManifestUrl="$MANIFEST_URL") >"$TMP/build.log" 2>&1 \
-    || { grep -vE '^w:' "$TMP/build.log" | tail -40; die "Build fehlgeschlagen"; }
-[[ -f "$BUILD_DIR/$APK_PATH" ]] || die "kein APK unter $APK_PATH"
-rm -rf "$OUT"; mkdir -p "$OUT"
-cp "$BUILD_DIR/$APK_PATH" "$OUT/$APK_NAME"
+if [[ -n "$TESTED_APK" ]]; then
+    step "2. Getestetes APK (kein neuer Build)"
+    rm -rf "$OUT"; mkdir -p "$OUT"
+    cp "$TMP/tested.apk" "$OUT/$APK_NAME"
+    say "$TESTED_APK"
+else
+    step "2. Release-Build ($GRADLE_ASSEMBLE)"
+    rm -f "$BUILD_DIR/$APK_PATH"
+    # The manifest URL explicitly, so no Gradle property elsewhere can point the release at another place.
+    (cd "$BUILD_DIR" && ./gradlew -q "$GRADLE_ASSEMBLE" -PupdateManifestUrl="$MANIFEST_URL") >"$TMP/build.log" 2>&1 \
+        || { grep -vE '^w:' "$TMP/build.log" | tail -40; die "Build fehlgeschlagen"; }
+    [[ -f "$BUILD_DIR/$APK_PATH" ]] || die "kein APK unter $APK_PATH"
+    rm -rf "$OUT"; mkdir -p "$OUT"
+    cp "$BUILD_DIR/$APK_PATH" "$OUT/$APK_NAME"
+fi
 APK="$OUT/$APK_NAME"
 say "ok"
 
 # ---------------------------------------------------------------- 3. verify
 step "3. Signatur und Version prüfen"
 verify_apk "$APK" "$VERSION" "$VERSION_CODE"
+if [[ -n "$TESTED_APK" ]]; then
+    # The tag and the GPL source archive come from HEAD: the APK must have been built from it.
+    apk_revision="$(unzip -p "$APK" META-INF/version-control-info.textproto 2>/dev/null | sed -n 's/.*revision: "\([0-9a-f]*\)".*/\1/p' | head -1)"
+    [[ "$apk_revision" == "$COMMIT" ]] || die "Getestetes APK stammt von Commit ${apk_revision:-unbekannt}, HEAD ist $COMMIT: nach dem Commit neu bauen und testen"
+    say "Getestetes APK: Commit passt zu HEAD"
+fi
 if [[ -z "$BACKFILL" ]]; then
     grep -qF "$MANIFEST_URL" <(unzip -p "$APK" 'classes*.dex' 2>/dev/null | strings -n 20) \
         || die "Manifest-URL $MANIFEST_URL steht nicht im APK"
