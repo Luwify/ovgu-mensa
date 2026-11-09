@@ -108,7 +108,7 @@ class MainActivity : ComponentActivity() {
         cardScanner.start(this)
         // Back from the "install unknown apps" setting: the updater goes on if it was granted.
         (application as MensaApp).container.updates.onResume()
-        // The Stundenplan MD banner: installed or removed meanwhile, or back from "install unknown apps".
+        // The Stundenplan MD banner: installed or removed meanwhile.
         (application as MensaApp).container.companion.onResume()
     }
 

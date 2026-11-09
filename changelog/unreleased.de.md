@@ -3,3 +3,4 @@ Geändert:
 - Das Halten einer Karte ans Handy löst keine Update-Suche mehr aus. Die Suche läuft nur noch, wenn die App selbst geöffnet ist.
 - Zahlungen werden nicht mehr beim Scan mit den Speiseplänen abgeglichen, sondern beim nächsten Öffnen der App oder der Statistik.
 - Die Karten-ID wird nur noch bei eingeschalteter Kartenstatistik und nach erfolgreichem Lesen verwendet.
+- Die Schaltfläche „Herunterladen“ im Hinweis auf Stundenplan MD öffnet die Release-Seite auf GitHub im Browser.

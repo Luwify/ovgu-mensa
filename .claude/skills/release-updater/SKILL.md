@@ -74,18 +74,14 @@ update's dialogs in `MensaRoot`, so they show above the settings and card overla
   libraries or icons go into NOTICE and this screen.
 
 ## Stundenplan MD banner (settings, top)
-Ported from Stundenplan MD's Mensa MD banner; **keep both copies in sync** (same mapping as the updater). Pure:
-`update/Companion.kt` = Stundenplan's `:core` `update/Companion.kt` with `CompanionApp.STUNDENPLAN` (package
-`de.luwify.stundenplanmd`, manifest of `Luwify/ovgu-stundenplan`, release page, pinned certificate =
-`release/signing-cert.sha256`, the same key), `CompanionPolicy` (`banner` state, `release`, `problems`: signer must be
-exactly the pin, not this app's own, so the .preview build installs it the same way); tests `update/CompanionTest`.
-App: `data/update/Companion.kt` (`CompanionInstaller`: installed check via `<queries>`, re-checked in
-`MainActivity.onResume`; download with the updater's `UpdateHttp`; `ApkInstaller.install(packageName, companion = true)`
-so `InstallResultReceiver` routes the result; "unknown apps" via the shared `UnknownSourcesDialog`; `Failure.Unavailable`
-when the manifest offers nothing for this device), `ui/StundenplanBanner` (+ `StundenplanDialogs`). Icon
-`ic_stundenplan.xml` = Stundenplan's adaptive launcher icon in one vector. Hide flag: settings key
-`stundenplan_banner_hidden` (X on the card, switch "Hinweis auf Stundenplan MD anzeigen" after the "Version" section;
+Ported from Stundenplan MD's Mensa MD banner; **keep both copies in sync** (same mapping as the updater). **Never download or install
+the other app in-app:** that install was what made Play Protect block every Mensa MD version as harmful (found 2026-11 with test builds:
+the same code without it passed), although Stundenplan MD with the same banner wasn't flagged. Self-update of the app itself is fine.
+Pure: `update/Companion.kt` = Stundenplan's `:core` `update/Companion.kt` with `CompanionApp.STUNDENPLAN` (package
+`de.luwify.stundenplanmd`, release page), `CompanionPolicy` (`wanted`, `banner`); tests `update/CompanionTest`.
+App: `data/update/Companion.kt` (`CompanionLauncher`: installed check via `<queries>`, re-checked in `MainActivity.onResume`; `open`;
+`openReleasePage` in the browser), `ui/StundenplanBanner`. Icon `ic_stundenplan.xml` = Stundenplan's adaptive launcher icon in one vector.
+Hide flag: settings key `stundenplan_banner_hidden` (X on the card, switch "Hinweis auf Stundenplan MD anzeigen" after the "Version" section;
 setter takes null = back to "never chosen"); unset: `CompanionPolicy.wanted` shows the card (first item of the
 settings) only while Stundenplan MD isn't installed. Same as Stundenplan MD's banner; a backup keeps the choice in both apps
-(here as an ordinary settings key). Mensa-only differences: card
-colors from `LocalMensaColors`, `toUri()` for the release page (lint `UseKtx`), and `CompanionTest` also checks that the banner stays during an install.
+(here as an ordinary settings key). Mensa-only difference: card colors from `LocalMensaColors`.

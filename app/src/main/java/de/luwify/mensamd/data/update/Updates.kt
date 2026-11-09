@@ -47,8 +47,6 @@ data class UpdateState(
 )
 
 sealed interface Failure {
-    /** Companion install only: the release repo offers nothing this device can install. */
-    data object Unavailable : Failure
     data object Network : Failure
     data class Check(val problems: List<ApkProblem>) : Failure
     data class Install(val message: String?) : Failure
@@ -269,5 +267,6 @@ class Updates(context: Context, private val settings: UpdateSettings, private va
 
     private fun cleanUp() {
         dir.listFiles()?.forEach { it.delete() }
+        File(app.cacheDir, "companion").deleteRecursively() // left by versions that installed the other app themselves
     }
 }

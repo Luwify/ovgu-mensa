@@ -306,7 +306,6 @@ fun SettingsScreen(vm: MainViewModel, mensas: List<Mensa>, defaultId: String, pr
         if (showLicenses) LicensesScreen(update.installed.name, onBack = { showLicenses = false })
         // A tap on a favorite opens the menu: requestOpen closes the settings too (MensaRoot).
         if (showFavorites) FavoritesScreen(vm, mensas, onBack = { showFavorites = false })
-        StundenplanDialogs(vm.companion)
         pendingBackup?.let { BackupConfirmDialog(it, onConfirm = vm::confirmBackup, onCancel = vm::cancelBackup) }
         SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).navigationBarsPadding())
     }

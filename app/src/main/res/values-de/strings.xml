@@ -238,14 +238,8 @@
     <string name="stundenplan_open">Öffnen</string>
     <string name="stundenplan_download">Herunterladen</string>
     <string name="stundenplan_hide">Ausblenden</string>
-    <string name="stundenplan_downloading">Wird heruntergeladen</string>
-    <string name="stundenplan_verifying">Download wird geprüft …</string>
-    <string name="stundenplan_installing">Stundenplan MD wird installiert …</string>
-    <string name="stundenplan_github">Auf GitHub öffnen</string>
-    <string name="stundenplan_retry">Erneut versuchen</string>
     <string name="stundenplan_setting">Hinweis auf Stundenplan MD anzeigen</string>
-    <string name="stundenplan_setting_hint">Eine Karte am Anfang der Einstellungen, die Stundenplan MD öffnet oder installiert. Ohne eigene Wahl erscheint sie nur, solange Stundenplan MD nicht installiert ist</string>
-    <string name="companion_unavailable">Für dieses Gerät gibt es keine Version der App.</string>
+    <string name="stundenplan_setting_hint">Eine Karte am Anfang der Einstellungen, die Stundenplan MD oder dessen Download-Seite öffnet. Ohne eigene Wahl erscheint sie nur, solange Stundenplan MD fehlt</string>
     <string name="favorites_manage">Favoriten verwalten</string>
     <!-- Kartenstatistik: Karteneinstellungen (Zahnrad im Kartenbildschirm) -->
     <string name="cancel_action">Abbrechen</string>

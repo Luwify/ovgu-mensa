@@ -246,14 +246,8 @@
     <string name="stundenplan_open">Open</string>
     <string name="stundenplan_download">Download</string>
     <string name="stundenplan_hide">Hide</string>
-    <string name="stundenplan_downloading">Downloading</string>
-    <string name="stundenplan_verifying">Checking the download…</string>
-    <string name="stundenplan_installing">Installing Stundenplan MD…</string>
-    <string name="stundenplan_github">Open on GitHub</string>
-    <string name="stundenplan_retry">Try again</string>
     <string name="stundenplan_setting">Show note about Stundenplan MD</string>
-    <string name="stundenplan_setting_hint">A card at the top of the settings that opens or installs Stundenplan MD. Without a choice here it shows only while Stundenplan MD is not installed</string>
-    <string name="companion_unavailable">There is no version of the app available for this device.</string>
+    <string name="stundenplan_setting_hint">A card at the top of the settings that opens Stundenplan MD or its download page. Without a choice here it shows only while Stundenplan MD is missing</string>
     <string name="favorites_manage">Manage favorites</string>
     <!-- Card statistics: card settings (gear on the card screen) -->
     <string name="cancel_action">Cancel</string>

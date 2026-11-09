@@ -224,7 +224,7 @@ together, not on their own.
 ## Releases, updater, Stundenplan MD banner
 Details in the skill `release-updater` (`.claude/skills/release-updater/SKILL.md`): version and changelog rules,
 signing, updates.json, `tools/release.sh`, updater and banner internals. `tools/`, the updater (`update/`, `data/update/`,
-`ui/UpdateScreens.kt`) and the banner are copies of Stundenplan MD: **keep both copies in sync**. **Only the maintainer
+`ui/UpdateScreens.kt`) and the banner are copies of Stundenplan MD: **keep both copies in sync**. The banner only opens the other app or its release page in the browser: **never install another app in-app** (Play Protect blocked every version for that, 2026-11). **Only the maintainer
 runs the real release** (`tools/release.sh <ver> --dry-run` is allowed). New third-party code, libraries or icons go into
 NOTICE and `LicensesScreen`.
 
