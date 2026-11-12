@@ -157,15 +157,18 @@ class CardPopupActivity : ComponentActivity() {
         popup = content
     }
 
-    /** Opens the app; with a question waiting (or a dish to choose) straight in the card statistics. */
+    /** Opens the app; with a question waiting (or a dish to choose) straight in the card statistics, without a registered card in the card settings. */
     private fun openApp() {
-        val answer = (popup as? Popup.Success)?.note.let { it == R.string.popup_stats_question || it == R.string.popup_stats_meal }
+        val note = (popup as? Popup.Success)?.note
+        val answer = note == R.string.popup_stats_question || note == R.string.popup_stats_meal
         startActivity(
             Intent(this, MainActivity::class.java)
                 .setAction(Intent.ACTION_MAIN)
                 .addCategory(Intent.CATEGORY_LAUNCHER)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                .putExtra(MainActivity.EXTRA_OPEN_STATS, answer),
+                .putExtra(MainActivity.EXTRA_OPEN_STATS, answer)
+                // No card registered: straight to "Karte registrieren" in the settings' card tab.
+                .putExtra(MainActivity.EXTRA_OPEN_CARD_SETTINGS, note == R.string.popup_stats_no_card),
         )
         finish()
     }

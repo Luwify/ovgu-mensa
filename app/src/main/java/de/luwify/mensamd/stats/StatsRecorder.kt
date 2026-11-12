@@ -57,7 +57,7 @@ class StatsRecorder(
 
     private val _registering = MutableStateFlow(false)
 
-    /** "Karte registrieren" in the card settings: the next scan registers its card. */
+    /** "Karte registrieren" in the settings' card tab: the next scan registers its card. */
     val registering: StateFlow<Boolean> = _registering.asStateFlow()
 
     fun setRegistering(on: Boolean) {

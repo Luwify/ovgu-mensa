@@ -27,7 +27,7 @@ import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.LocalTime
 
-/** The card statistics screens (card settings, overview, questions). Everything goes through the store's lock. */
+/** The card statistics screens (the settings' card tab, overview, questions). Everything goes through the store's lock. */
 class StatsViewModel(private val container: AppContainer) : ViewModel() {
     private val store = container.statsStore
     private val recorder = container.statsRecorder

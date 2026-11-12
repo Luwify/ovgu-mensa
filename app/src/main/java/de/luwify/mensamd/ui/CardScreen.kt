@@ -46,7 +46,6 @@ import de.luwify.mensamd.card.CardBalance
 import de.luwify.mensamd.card.CardScanState
 import de.luwify.mensamd.card.NfcCardScanner
 import de.luwify.mensamd.card.formatCardAmount
-import de.luwify.mensamd.MensaApp
 import de.luwify.mensamd.stats.EventKind
 import de.luwify.mensamd.stats.RecordResult
 import androidx.compose.material3.SnackbarDuration
@@ -56,10 +55,9 @@ import androidx.compose.material3.SnackbarResult
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableLongStateOf
-import de.luwify.mensamd.ui.stats.CardSettingsScreen
+import de.luwify.mensamd.ui.stats.rememberStatsViewModel
 import de.luwify.mensamd.ui.stats.ScanStatsNote
 import de.luwify.mensamd.ui.stats.StatsScreen
-import de.luwify.mensamd.ui.stats.StatsViewModel
 import de.luwify.mensamd.ui.stats.TopBar
 import de.luwify.mensamd.ui.theme.StatsIcon
 import androidx.compose.foundation.rememberScrollState
@@ -68,29 +66,22 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.res.painterResource
-import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.lifecycle.viewmodel.initializer
-import androidx.lifecycle.viewmodel.viewModelFactory
 import de.luwify.mensamd.ui.theme.CardIcon
 import java.util.Locale
 
 /**
  * The "Karte" screen. The scanner runs while the activity is resumed (see `MainActivity`); it opens this screen on a
- * scan. The gear opens the card settings, the chart button (statistics on) the statistics; both are overlays here.
+ * scan. The gear opens the settings on their card tab ([onOpenSettings], an overlay in `MensaRoot` above this screen),
+ * the chart button (statistics on) the statistics, an overlay here.
  */
 @Composable
-fun CardScreen(scanner: NfcCardScanner, mainVm: MainViewModel, onBack: () -> Unit) {
-    val context = LocalContext.current
-    val statsVm: StatsViewModel = viewModel(factory = viewModelFactory {
-        initializer { StatsViewModel((context.applicationContext as MensaApp).container) }
-    })
-    var showSettings by rememberSaveable { mutableStateOf(false) }
+fun CardScreen(scanner: NfcCardScanner, mainVm: MainViewModel, onOpenSettings: () -> Unit, onBack: () -> Unit) {
+    val statsVm = rememberStatsViewModel()
     var showStats by rememberSaveable { mutableStateOf(false) }
-    BackHandler(enabled = !showSettings && !showStats, onBack = onBack)
+    BackHandler(enabled = !showStats, onBack = onBack)
     val openStats by mainVm.openStats.collectAsStateWithLifecycle()
     LaunchedEffect(openStats) {
         if (openStats) {
-            showSettings = false
             showStats = true
             mainVm.consumeOpenStats()
         }
@@ -98,7 +89,6 @@ fun CardScreen(scanner: NfcCardScanner, mainVm: MainViewModel, onBack: () -> Uni
     val state by scanner.state.collectAsStateWithLifecycle()
     val settings by statsVm.settings.collectAsStateWithLifecycle()
     val statsOn = settings?.enabled == true
-    val access = rememberNotificationAccess(mainVm)
     val snackbar = remember { SnackbarHostState() }
     val record by statsVm.lastRecord.collectAsStateWithLifecycle()
     val stats by statsVm.data.collectAsStateWithLifecycle()
@@ -126,7 +116,7 @@ fun CardScreen(scanner: NfcCardScanner, mainVm: MainViewModel, onBack: () -> Uni
                 if (statsOn) {
                     IconButton(onClick = { showStats = true }) { Icon(StatsIcon, stringResource(R.string.stats_title)) }
                 }
-                IconButton(onClick = { showSettings = true }) {
+                IconButton(onClick = onOpenSettings) {
                     Icon(painterResource(R.drawable.ic_settings), stringResource(R.string.card_settings_title))
                 }
             }
@@ -156,8 +146,7 @@ fun CardScreen(scanner: NfcCardScanner, mainVm: MainViewModel, onBack: () -> Uni
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.BottomCenter) {
         SnackbarHost(snackbar, Modifier.navigationBarsPadding().padding(bottom = 48.dp))
     }
-    if (showSettings) CardSettingsScreen(statsVm, access, onBack = { showSettings = false })
-    if (showStats && statsOn) StatsScreen(statsVm, mainVm, onBack = { showStats = false })
+    if (showStats && statsOn) StatsScreen(statsVm, mainVm, onRegister = onOpenSettings, onBack = { showStats = false })
 }
 
 @Composable

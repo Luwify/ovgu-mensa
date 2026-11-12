@@ -38,7 +38,10 @@ import de.luwify.mensamd.ui.AppScreen
 import de.luwify.mensamd.ui.MainViewModel
 import de.luwify.mensamd.ui.MainScreen
 import de.luwify.mensamd.ui.MensaPickerScreen
+import de.luwify.mensamd.ui.SettingsNav
 import de.luwify.mensamd.ui.SettingsScreen
+import de.luwify.mensamd.ui.SettingsTab
+import de.luwify.mensamd.stats.StatsRecorder
 import de.luwify.mensamd.ui.UpdatePrompts
 import de.luwify.mensamd.ui.theme.MensaTheme
 import kotlinx.coroutines.runBlocking
@@ -93,7 +96,7 @@ class MainActivity : ComponentActivity() {
                 onDispose { }
             }
             // Nothing until the stored theme is known (a few ms), so the wrong theme never flashes.
-            theme?.let { MensaTheme(it.mode, it.custom, it.glow) { MensaRoot(viewModel, cardScanner) } }
+            theme?.let { MensaTheme(it.mode, it.custom, it.glow) { MensaRoot(viewModel, cardScanner, (application as MensaApp).container.statsRecorder) } }
         }
     }
 
@@ -127,27 +130,37 @@ class MainActivity : ComponentActivity() {
         intent?.getStringExtra(FavoriteNotifier.EXTRA_MENSA_ID)?.let { viewModel.requestOpen(it) }
         if (intent?.getBooleanExtra(CardReminderNotifier.EXTRA_OPEN_CARD, false) == true) viewModel.requestOpenCard()
         if (intent?.getBooleanExtra(EXTRA_OPEN_STATS, false) == true) viewModel.requestOpenCard(stats = true)
+        if (intent?.getBooleanExtra(EXTRA_OPEN_CARD_SETTINGS, false) == true) viewModel.requestOpenSettings(SettingsTab.CARD)
     }
 
     companion object {
         /** From the card popup with a question waiting: the card statistics open (on top of the card screen). */
         const val EXTRA_OPEN_STATS = "de.luwify.mensamd.extra.OPEN_STATS"
+
+        /** From the card popup with no card registered: the settings open on their card tab ("Karte registrieren"). */
+        const val EXTRA_OPEN_CARD_SETTINGS = "de.luwify.mensamd.extra.OPEN_CARD_SETTINGS"
     }
 }
 
 @Composable
-private fun MensaRoot(viewModel: MainViewModel, cardScanner: NfcCardScanner) {
+private fun MensaRoot(viewModel: MainViewModel, cardScanner: NfcCardScanner, recorder: StatsRecorder) {
     val screen by viewModel.screen.collectAsStateWithLifecycle()
     when (val s = screen) {
         // A few ms while DataStore answers: an empty themed background, not a spinner.
         AppScreen.Loading -> Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background))
         AppScreen.Picker -> MensaPickerScreen(onPick = viewModel::pickDefault)
         is AppScreen.Main -> {
-            // Overlay, not a replacement: the pager keeps its tab while the card screen is open.
+            // Overlays, not replacements: the pager keeps its tab while the card screen or the settings are open.
+            // The settings lie above the card screen (its gear opens them on the card tab).
             var showCard by rememberSaveable { mutableStateOf(false) }
+            var showSettings by rememberSaveable { mutableStateOf(false) }
+            var settingsTab by rememberSaveable { mutableStateOf(SettingsTab.GENERAL) }
+            fun openSettings(tab: SettingsTab) {
+                settingsTab = tab
+                showSettings = true
+            }
             // A notification tap goes to the menu, also from the card screen.
             val openRequest by viewModel.openRequest.collectAsStateWithLifecycle()
-            var showSettings by rememberSaveable { mutableStateOf(false) }
             LaunchedEffect(openRequest) {
                 if (openRequest != null) {
                     showCard = false
@@ -162,20 +175,38 @@ private fun MensaRoot(viewModel: MainViewModel, cardScanner: NfcCardScanner) {
                     viewModel.consumeOpenCard()
                 }
             }
+            val openSettingsRequest by viewModel.openSettings.collectAsStateWithLifecycle()
+            LaunchedEffect(openSettingsRequest) {
+                openSettingsRequest?.let { tab ->
+                    openSettings(tab)
+                    viewModel.consumeOpenSettings()
+                }
+            }
             val scan by cardScanner.state.collectAsStateWithLifecycle()
+            val registering by recorder.registering.collectAsStateWithLifecycle()
             LaunchedEffect(scan) {
-                if (scan == CardScanState.Reading || scan == CardScanState.Unsupported) showCard = true
+                if (scan == CardScanState.Reading || scan == CardScanState.Unsupported) {
+                    val route = SettingsNav.onScan(showCard, showSettings, registering)
+                    showCard = route.showCard
+                    showSettings = route.showSettings
+                }
             }
             Box(Modifier.fillMaxSize()) {
                 MainScreen(
                     viewModel, s, showCardIcon = cardScanner.available,
-                    onOpenCard = { showCard = true }, onOpenSettings = { showSettings = true },
+                    onOpenCard = { showCard = true }, onOpenSettings = { openSettings(SettingsTab.GENERAL) },
                 )
-                if (showSettings) SettingsScreen(viewModel, s.mensas, s.defaultId, s.prefs, onBack = { showSettings = false })
-                if (showCard) CardScreen(cardScanner, viewModel, onBack = {
+                if (showCard) CardScreen(cardScanner, viewModel, onOpenSettings = { openSettings(SettingsTab.CARD) }, onBack = {
                     showCard = false
                     cardScanner.reset()
                 })
+                if (showSettings) {
+                    SettingsScreen(
+                        viewModel, s.mensas, s.defaultId, s.prefs,
+                        initialTab = settingsTab, cardAvailable = cardScanner.available,
+                        onBack = { showSettings = false },
+                    )
+                }
                 UpdatePrompts(viewModel.updates)
             }
         }

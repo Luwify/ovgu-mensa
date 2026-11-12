@@ -4,7 +4,7 @@ import de.luwify.mensamd.stats.KnownAmounts
 import java.time.LocalTime
 
 /**
- * The card statistics settings (gear on the card screen). [detailed] (matching payments to dishes) only works with
+ * The card statistics settings (the settings' card tab). [detailed] (matching payments to dishes) only works with
  * [enabled]; the reminder too. Amounts are thousandths of a euro, like the card.
  */
 data class CardStatsSettings(

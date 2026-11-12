@@ -1,7 +1,6 @@
 package de.luwify.mensamd.ui.stats
 
 import android.text.format.DateFormat
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -57,7 +56,11 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import de.luwify.mensamd.MensaApp
 import de.luwify.mensamd.R
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
 import de.luwify.mensamd.card.formatCardAmount
 import de.luwify.mensamd.stats.Amounts
 import de.luwify.mensamd.ui.NotificationAccess
@@ -73,14 +76,13 @@ import java.time.format.FormatStyle
 import java.util.Locale
 
 /**
- * Card settings (gear on the card screen): statistics on/off, detailed statistics, the reminder, "Meine Karte" and the
- * known top-up and Pfand amounts. An overlay over the card screen, closed with back.
+ * The "Karte" tab of the settings page (the card screen's gear opens the settings on it): statistics on/off, detailed
+ * statistics, the reminder, "Meine Karte", the known top-up and Pfand amounts and deleting the statistics.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun CardSettingsScreen(vm: StatsViewModel, access: NotificationAccess, onBack: () -> Unit) {
-    BackHandler(onBack = onBack)
-    // "Karte registrieren" only while this screen is open: a card held days later must never be registered by surprise.
+fun CardSettingsTab(vm: StatsViewModel, access: NotificationAccess, modifier: Modifier = Modifier) {
+    // "Karte registrieren" only while this tab is on screen: a card held days later must never be registered by surprise.
     DisposableEffect(Unit) { onDispose { vm.setRegistering(false) } }
     val settings by vm.settings.collectAsStateWithLifecycle()
     val data by vm.data.collectAsStateWithLifecycle()
@@ -93,96 +95,91 @@ fun CardSettingsScreen(vm: StatsViewModel, access: NotificationAccess, onBack: (
     var addingTo by rememberSaveable { mutableStateOf<String?>(null) } // "topup" / "pfand"
     val s = settings ?: return
 
-    Surface(Modifier.fillMaxSize()) {
-        Column(Modifier.fillMaxSize()) {
-            TopBar(stringResource(R.string.card_settings_title), onBack)
-            LazyColumn(
-                Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal)),
-                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = bottom + 24.dp),
-            ) {
-                problem?.let { p -> item(key = "problem") { ProblemNote(p) } }
-                item(key = "stats-title") { SheetHeading(stringResource(R.string.stats_section)) }
-                item(key = "stats") {
-                    SwitchRow(stringResource(R.string.stats_toggle), stringResource(R.string.stats_toggle_hint), s.enabled, onChange = vm::setEnabled)
-                }
-                item(key = "detailed") {
-                    SwitchRow(
-                        stringResource(R.string.stats_detailed), stringResource(R.string.stats_detailed_hint),
-                        s.detailed, enabled = s.enabled, onChange = vm::setDetailed,
-                    )
-                }
+    LazyColumn(
+        modifier.fillMaxSize().windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal)),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = bottom + 24.dp),
+    ) {
+        problem?.let { p -> item(key = "problem") { ProblemNote(p) } }
+        item(key = "stats-title") { SheetHeading(stringResource(R.string.stats_section)) }
+        item(key = "stats") {
+            SwitchRow(stringResource(R.string.stats_toggle), stringResource(R.string.stats_toggle_hint), s.enabled, onChange = vm::setEnabled)
+        }
+        item(key = "detailed") {
+            SwitchRow(
+                stringResource(R.string.stats_detailed), stringResource(R.string.stats_detailed_hint),
+                s.detailed, enabled = s.enabled, onChange = vm::setDetailed,
+            )
+        }
 
-                item(key = "card-title") { SheetHeading(stringResource(R.string.my_card_title)) }
-                item(key = "card") {
-                    val card = data?.card
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(
-                            when {
-                                registering -> stringResource(R.string.my_card_hold)
-                                card == null -> stringResource(R.string.my_card_none)
-                                else -> stringResource(R.string.my_card_since, formatDate(card.since, locale))
-                            },
-                            style = MaterialTheme.typography.bodyLarge,
-                        )
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            when {
-                                registering -> OutlinedButton(onClick = { vm.setRegistering(false) }) { Text(stringResource(R.string.cancel_action)) }
-                                card == null -> Button(onClick = { vm.setRegistering(true) }, enabled = s.enabled) {
-                                    Text(stringResource(R.string.my_card_register))
-                                }
-                                else -> {
-                                    OutlinedButton(onClick = { vm.setRegistering(true) }, enabled = s.enabled) { Text(stringResource(R.string.my_card_replace)) }
-                                    OutlinedButton(onClick = { confirmRemove = true }) { Text(stringResource(R.string.my_card_remove)) }
-                                }
-                            }
+        item(key = "card-title") { SheetHeading(stringResource(R.string.my_card_title)) }
+        item(key = "card") {
+            val card = data?.card
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    when {
+                        registering -> stringResource(R.string.my_card_hold)
+                        card == null -> stringResource(R.string.my_card_none)
+                        else -> stringResource(R.string.my_card_since, formatDate(card.since, locale))
+                    },
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    when {
+                        registering -> OutlinedButton(onClick = { vm.setRegistering(false) }) { Text(stringResource(R.string.cancel_action)) }
+                        card == null -> Button(onClick = { vm.setRegistering(true) }, enabled = s.enabled) {
+                            Text(stringResource(R.string.my_card_register))
                         }
-                        Hint(stringResource(if (s.enabled) R.string.my_card_hint else R.string.my_card_needs_stats))
-                    }
-                }
-
-                item(key = "reminder-title") { SheetHeading(stringResource(R.string.card_reminder_title)) }
-                item(key = "reminder") {
-                    SwitchRow(
-                        stringResource(R.string.card_reminder_toggle), stringResource(R.string.card_reminder_hint),
-                        s.reminder, enabled = s.enabled,
-                    ) { on ->
-                        vm.setReminder(on)
-                        if (on && !access.allowed) access.request()
-                    }
-                }
-                if (s.reminder && s.enabled) {
-                    item(key = "reminder-time") { TimeRow(stringResource(R.string.card_reminder_time), s.reminderTime, vm::setReminderTime) }
-                    if (!access.allowed) {
-                        item(key = "reminder-blocked") {
-                            Row(Modifier.fillMaxWidth().padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Hint(stringResource(R.string.notify_blocked), Modifier.weight(1f))
-                                TextButton(onClick = access.request) { Text(stringResource(R.string.notify_open_settings)) }
-                            }
+                        else -> {
+                            OutlinedButton(onClick = { vm.setRegistering(true) }, enabled = s.enabled) { Text(stringResource(R.string.my_card_replace)) }
+                            OutlinedButton(onClick = { confirmRemove = true }) { Text(stringResource(R.string.my_card_remove)) }
                         }
                     }
                 }
+                Hint(stringResource(if (s.enabled) R.string.my_card_hint else R.string.my_card_needs_stats))
+            }
+        }
 
-                item(key = "topups-title") { SheetHeading(stringResource(R.string.top_up_amounts)) }
-                item(key = "topups") {
-                    AmountChips(s.topUps, locale, onRemove = { vm.setTopUps(s.topUps - it) }, onAdd = { addingTo = "topup" })
-                }
-                item(key = "pfand-title") { SheetHeading(stringResource(R.string.pfand_amounts)) }
-                item(key = "pfand") {
-                    Column {
-                        AmountChips(s.pfand, locale, onRemove = { vm.setPfand(s.pfand - it) }, onAdd = { addingTo = "pfand" })
-                        Hint(stringResource(R.string.pfand_amounts_hint))
+        item(key = "reminder-title") { SheetHeading(stringResource(R.string.card_reminder_title)) }
+        item(key = "reminder") {
+            SwitchRow(
+                stringResource(R.string.card_reminder_toggle), stringResource(R.string.card_reminder_hint),
+                s.reminder, enabled = s.enabled,
+            ) { on ->
+                vm.setReminder(on)
+                if (on && !access.allowed) access.request()
+            }
+        }
+        if (s.reminder && s.enabled) {
+            item(key = "reminder-time") { TimeRow(stringResource(R.string.card_reminder_time), s.reminderTime, vm::setReminderTime) }
+            if (!access.allowed) {
+                item(key = "reminder-blocked") {
+                    Row(Modifier.fillMaxWidth().padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Hint(stringResource(R.string.notify_blocked), Modifier.weight(1f))
+                        TextButton(onClick = access.request) { Text(stringResource(R.string.notify_open_settings)) }
                     }
                 }
+            }
+        }
 
-                item(key = "data-title") { SheetHeading(stringResource(R.string.stats_data_title)) }
-                item(key = "clear") {
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        OutlinedButton(onClick = { confirmClear = true }, enabled = data?.scans?.isNotEmpty() == true || data?.events?.isNotEmpty() == true) {
-                            Text(stringResource(R.string.stats_clear))
-                        }
-                        Hint(stringResource(R.string.stats_backup_hint))
-                    }
+        item(key = "topups-title") { SheetHeading(stringResource(R.string.top_up_amounts)) }
+        item(key = "topups") {
+            AmountChips(s.topUps, locale, onRemove = { vm.setTopUps(s.topUps - it) }, onAdd = { addingTo = "topup" })
+        }
+        item(key = "pfand-title") { SheetHeading(stringResource(R.string.pfand_amounts)) }
+        item(key = "pfand") {
+            Column {
+                AmountChips(s.pfand, locale, onRemove = { vm.setPfand(s.pfand - it) }, onAdd = { addingTo = "pfand" })
+                Hint(stringResource(R.string.pfand_amounts_hint))
+            }
+        }
+
+        item(key = "data-title") { SheetHeading(stringResource(R.string.stats_data_title)) }
+        item(key = "clear") {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                OutlinedButton(onClick = { confirmClear = true }, enabled = data?.scans?.isNotEmpty() == true || data?.events?.isNotEmpty() == true) {
+                    Text(stringResource(R.string.stats_clear))
                 }
+                Hint(stringResource(R.string.stats_backup_hint))
             }
         }
     }
@@ -222,6 +219,15 @@ fun CardSettingsScreen(vm: StatsViewModel, access: NotificationAccess, onBack: (
             onDismiss = { addingTo = null },
         )
     }
+}
+
+/** The activity's [StatsViewModel]: the card screen and the settings' card tab share one instance. */
+@Composable
+fun rememberStatsViewModel(): StatsViewModel {
+    val context = LocalContext.current
+    return viewModel(factory = viewModelFactory {
+        initializer { StatsViewModel((context.applicationContext as MensaApp).container) }
+    })
 }
 
 @Composable

@@ -124,6 +124,8 @@
     <string name="notify_permission_allow">Allow</string>
     <string name="notify_permission_later">Not now</string>
     <string name="settings_title">Settings</string>
+    <string name="settings_tab_general">General</string>
+    <string name="settings_tab_card">Card</string>
     <string name="theme_custom">Custom</string>
     <string name="custom_base">Background</string>
     <string name="custom_base_system">Follow system</string>
@@ -250,7 +252,7 @@
     <string name="stundenplan_setting">Show note about Stundenplan MD</string>
     <string name="stundenplan_setting_hint">A card at the top of the settings that opens Stundenplan MD or its download page. Without a choice here it shows only while Stundenplan MD is missing</string>
     <string name="favorites_manage">Manage favorites</string>
-    <!-- Card statistics: card settings (gear on the card screen) -->
+    <!-- Card statistics: the settings' "Card" tab (gear on the card screen) -->
     <string name="cancel_action">Cancel</string>
     <string name="card_settings_title">Card settings</string>
     <string name="card_privacy_stats">Statistics are on: balance and debits of your card are stored on this device only. Nothing is sent.</string>
@@ -287,7 +289,7 @@
     <string name="stats_clear_title">Delete statistics?</string>
     <string name="stats_clear_text">All recorded scans, payments, top-ups, meals and open questions are deleted. The registered card, your own extras and dishes stay. This can\'t be undone (unless you have a backup).</string>
     <string name="stats_clear_confirm">Delete</string>
-    <string name="stats_backup_hint">The statistics are part of the backup (settings page).</string>
+    <string name="stats_backup_hint">The statistics are part of the backup (“General” tab).</string>
     <string name="stats_too_new">The statistics were saved by a newer version of the app. They are kept untouched and nothing new is recorded until the app is updated.</string>
     <string name="stats_broken">The statistics file couldn\'t be read. It was kept as %1$s and the statistics start empty.</string>
 
@@ -318,7 +320,7 @@
         <item quantity="one">%d open question</item>
         <item quantity="other">%d open questions</item>
     </plurals>
-    <string name="stats_empty_no_card">No data yet. Register your card in the card settings (gear) or scan it: the statistics start with the second scan.</string>
+    <string name="stats_empty_no_card">No data yet. Register your card in the settings (“Card” tab) or scan it: the statistics start with the second scan.</string>
     <string name="stats_empty">No payments yet. Scan your card after every visit to the Mensa: each scan is compared with the previous one.</string>
     <string name="stats_spent_in">Spent in %1$s</string>
     <string name="stats_average_visit">Average per visit</string>

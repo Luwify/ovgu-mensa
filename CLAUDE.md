@@ -57,7 +57,12 @@ git-ignored `CLAUDE.local.md` at the repo root, which Claude Code loads after th
   Watched Mensen default to the default Mensa; PIER 16 (no dates) is not offered. POST_NOTIFICATIONS is explained
   once on the first favorite; "Einschalten" uses the system dialog while it can still appear, else the app's notification
   settings. No exact alarms: Doze/App standby can delay the run (maintenance windows). Favorites are never logged.
-- **Settings page** (gear icon in the top bar, overlay `SettingsScreen` in `MensaRoot` like the card screen): price group,
+- **Settings page** (overlay `SettingsScreen` in `MensaRoot`, above the card screen): two tabs (`SettingsTab`, M3
+  `PrimaryTabRow` + `HorizontalPager`, tap or swipe; back leaves the page). The home screen's gear opens "Allgemein", the card
+  screen's gear, the statistics' "Karte registrieren" and the popup's "App öffnen" without a registered card
+  (`EXTRA_OPEN_CARD_SETTINGS`) open "Karte" (`CardSettingsTab`, card statistics). Without NFC only "Allgemein". A card scan
+  while the settings are open closes them and shows the card screen, except while "Karte registrieren" waits
+  (`SettingsNav.onScan`); registering ends when the card tab leaves the screen. "Allgemein": price group,
   card layout (normal/compact chips), design (color scheme drop-down + custom theme editor), favorites ("Favoriten
   verwalten" -> overview), favorites notifications, version (in-app updater, see below) + the switch for the Stundenplan MD
   banner (the card itself is the first item, see its section), backup (export/import, see card statistics), about
@@ -90,7 +95,7 @@ git-ignored `CLAUDE.local.md` at the repo root, which Claude Code loads after th
   check on the current value; own Check/Chevron vectors in `CardIcons.kt`). Glow = the AMOLED `cardGlow` in the accent. Fixed bases set matching system bar icons (`MainActivity`).
 - **Card balance** (NFC): popup when a card is held to the phone (`CardPopupActivity`) and the "Karte" screen from the
   top bar icon; see the architecture section. **Intercard verified on a real card, MagnaCarta not verified.**
-- **Card statistics** (opt-in; gear on the card screen -> `ui/stats/CardSettingsScreen`; checklist and phase-0 card
+- **Card statistics** (opt-in; gear on the card screen -> the settings' "Karte" tab, `ui/stats/CardSettingsTab`; checklist and phase-0 card
   findings in `docs/STATS.md`): the card exposes only balance + last debit (DESFire EV1, logs need a key, no counter),
   so everything comes from differences between scans. Pure logic in `stats/`: `StatsStore` (one JSON file
   `filesDir/stats/stats.json`, versioned via `StatsMigrations` (raise CURRENT + add a step + test for any shape change;

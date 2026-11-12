@@ -201,6 +201,19 @@ class MainViewModel(private val container: AppContainer) : ViewModel() {
         _openCard.value = false
     }
 
+    private val _openSettings = MutableStateFlow<SettingsTab?>(null)
+
+    /** The card popup's "App öffnen" with no card registered: the settings open on that tab (consumed by `MensaRoot`). */
+    val openSettings: StateFlow<SettingsTab?> = _openSettings.asStateFlow()
+
+    fun requestOpenSettings(tab: SettingsTab) {
+        _openSettings.value = tab
+    }
+
+    fun consumeOpenSettings() {
+        _openSettings.value = null
+    }
+
     private val menus = ConcurrentHashMap<String, StateFlow<MenuUiState?>>()
 
     /**

@@ -32,6 +32,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -88,7 +89,7 @@ import java.util.Locale
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun StatsScreen(vm: StatsViewModel, mainVm: MainViewModel, onBack: () -> Unit) {
+fun StatsScreen(vm: StatsViewModel, mainVm: MainViewModel, onRegister: () -> Unit, onBack: () -> Unit) {
     val data by vm.data.collectAsStateWithLifecycle()
     val settings by vm.settings.collectAsStateWithLifecycle()
     val problem by vm.problem.collectAsStateWithLifecycle()
@@ -149,11 +150,14 @@ fun StatsScreen(vm: StatsViewModel, mainVm: MainViewModel, onBack: () -> Unit) {
                     }
                     if (d.events.isEmpty()) {
                         item(key = "empty") {
-                            Text(
-                                stringResource(if (d.card == null) R.string.stats_empty_no_card else R.string.stats_empty),
-                                style = MaterialTheme.typography.bodyLarge,
-                                modifier = Modifier.padding(top = 24.dp),
-                            )
+                            Column(Modifier.padding(top = 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                Text(
+                                    stringResource(if (d.card == null) R.string.stats_empty_no_card else R.string.stats_empty),
+                                    style = MaterialTheme.typography.bodyLarge,
+                                )
+                                // To the settings' card tab, where "Karte registrieren" is.
+                                if (d.card == null) OutlinedButton(onClick = onRegister) { Text(stringResource(R.string.my_card_register)) }
+                            }
                         }
                     } else {
                         item(key = "tiles") {

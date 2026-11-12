@@ -48,6 +48,14 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.material3.PrimaryTabRow
+import androidx.compose.material3.Tab
+import androidx.compose.runtime.rememberCoroutineScope
+import de.luwify.mensamd.ui.stats.CardSettingsTab
+import de.luwify.mensamd.ui.stats.rememberStatsViewModel
+import kotlinx.coroutines.launch
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import android.text.format.DateFormat
 import androidx.compose.foundation.clickable
@@ -97,13 +105,27 @@ class NotifySheet(
 )
 
 /**
- * The settings page (gear icon in the top bar): preferences that are not filters. Price group, layout, theme,
- * favorites notifications, version (updater) and about; all global. An overlay in `MensaRoot` like the card screen, closed with back.
+ * The settings page, an overlay in `MensaRoot` above the card screen, closed with back (from either tab). Two tabs
+ * ([SettingsTab]), switched by tapping or swiping: "Allgemein" (preferences that are not filters: price group, layout,
+ * theme, favorites, notifications, version (updater), backup, about; the home screen's gear) and "Karte" (the card
+ * statistics, [CardSettingsTab]; the card screen's gear and every "register your card" link). Without NFC only "Allgemein".
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun SettingsScreen(vm: MainViewModel, mensas: List<Mensa>, defaultId: String, prefs: ViewPrefs, onBack: () -> Unit) {
+fun SettingsScreen(
+    vm: MainViewModel,
+    mensas: List<Mensa>,
+    defaultId: String,
+    prefs: ViewPrefs,
+    initialTab: SettingsTab,
+    cardAvailable: Boolean,
+    onBack: () -> Unit,
+) {
     BackHandler(onBack = onBack)
+    val tabs = remember(cardAvailable) { SettingsTab.shown(cardAvailable) }
+    val pager = rememberPagerState(initialPage = SettingsTab.pageOf(initialTab, tabs)) { tabs.size }
+    val scope = rememberCoroutineScope()
+    val statsVm = rememberStatsViewModel()
     val language = LocalConfiguration.current.locales[0].language
     val access = rememberNotificationAccess(vm)
     val notifySettings by vm.notifySettings.collectAsStateWithLifecycle()
@@ -166,132 +188,151 @@ fun SettingsScreen(vm: MainViewModel, mensas: List<Mensa>, defaultId: String, pr
                     }
                     Text(stringResource(R.string.settings_title), style = MaterialTheme.typography.titleLarge)
                 }
-                LazyColumn(
-                    Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal)),
-                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = bottom + 24.dp),
-                ) {
-                    // Stundenplan MD first, but only while it isn't installed (unless the user chose otherwise).
-                    item(key = "stundenplan-banner") {
-                        StundenplanBanner(vm.companion, bannerHidden, onHide = { vm.setStundenplanBannerHidden(true) }, modifier = Modifier.padding(top = 8.dp))
-                    }
-
-                    item(key = "price-title") { SheetHeading(stringResource(R.string.price_group_title)) }
-                    item(key = "price-picker") {
-                        // The legend's group names differ per page only in wording; our own labels keep this page page-independent.
-                        val groups = listOf(R.string.price_students, R.string.price_staff, R.string.price_guests)
-                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            groups.forEachIndexed { index, label ->
-                                MensaFilterChip(selected = prefs.priceGroup == index, onClick = { vm.setPriceGroup(index) }, label = { Text(stringResource(label)) })
-                            }
-                        }
-                    }
-
-                    item(key = "layout-title") { SheetHeading(stringResource(R.string.layout_title)) }
-                    item(key = "layout-picker") {
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            MensaFilterChip(selected = !prefs.compact, onClick = { vm.setCompactMode(false) }, label = { Text(stringResource(R.string.display_normal)) })
-                            MensaFilterChip(selected = prefs.compact, onClick = { vm.setCompactMode(true) }, label = { Text(stringResource(R.string.display_compact)) })
-                        }
-                    }
-                    item(key = "legendary") {
-                        SwitchRow(stringResource(R.string.legendary_title), stringResource(R.string.legendary_hint), prefs.legendary, vm::setLegendaryFavorites)
-                    }
-
-                    item(key = "language-title") { SheetHeading(stringResource(R.string.language_title)) }
-                    item(key = "language-picker") {
-                        val context = LocalContext.current
-                        var chosen by remember { mutableStateOf(AppLanguage.current(context)) }
-                        SettingsDropdown(
-                            label = stringResource(R.string.language_label),
-                            options = listOf(
-                                AppLanguage.SYSTEM to stringResource(R.string.language_system),
-                                AppLanguage.GERMAN to "Deutsch",
-                                AppLanguage.ENGLISH to "English",
-                            ),
-                            selected = chosen,
-                            onSelect = {
-                                chosen = it
-                                AppLanguage.set(context, it)
-                                // From API 33 the system recreates the activity itself.
-                                if (android.os.Build.VERSION.SDK_INT < 33) (context as? android.app.Activity)?.recreate()
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                    }
-
-                    item(key = "theme-title") { SheetHeading(stringResource(R.string.theme_title)) }
-                    item(key = "theme-picker") {
-                        val theme = LocalThemeMode.current
-                        Column {
-                            SettingsDropdown(
-                                label = stringResource(R.string.theme_label),
-                                options = listOf(
-                                    ThemeMode.SYSTEM to stringResource(R.string.theme_system),
-                                    ThemeMode.SOFT to stringResource(R.string.theme_soft),
-                                    ThemeMode.AMOLED to stringResource(R.string.theme_amoled),
-                                    ThemeMode.CUSTOM to stringResource(R.string.theme_custom),
-                                ),
-                                selected = theme,
-                                onSelect = vm::setThemeMode,
-                                modifier = Modifier.fillMaxWidth(),
+                if (tabs.size > 1) {
+                    PrimaryTabRow(
+                        selectedTabIndex = pager.currentPage,
+                        modifier = Modifier.windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal)),
+                    ) {
+                        tabs.forEachIndexed { index, tab ->
+                            Tab(
+                                selected = pager.currentPage == index,
+                                onClick = { scope.launch { pager.animateScrollToPage(index) } },
+                                text = { Text(stringResource(tab.label)) },
                             )
-                            val choice by vm.theme.collectAsStateWithLifecycle()
-                            if (theme == ThemeMode.CUSTOM) {
-                                choice?.let { CustomThemeEditor(it.custom, vm::setCustomTheme, onAdvanced = { showColors = true }) }
+                        }
+                    }
+                }
+                HorizontalPager(pager, Modifier.fillMaxSize(), verticalAlignment = Alignment.Top) { page ->
+                    when (tabs[page]) {
+                        SettingsTab.CARD -> CardSettingsTab(statsVm, access)
+                        SettingsTab.GENERAL -> LazyColumn(
+                            Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal)),
+                            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = bottom + 24.dp),
+                        ) {
+                            // Stundenplan MD first, but only while it isn't installed (unless the user chose otherwise).
+                            item(key = "stundenplan-banner") {
+                                StundenplanBanner(vm.companion, bannerHidden, onHide = { vm.setStundenplanBannerHidden(true) }, modifier = Modifier.padding(top = 8.dp))
                             }
-                            SwitchRow(stringResource(R.string.custom_glow), stringResource(R.string.custom_glow_hint), choice?.glow == true, vm::setCardGlow)
-                        }
-                    }
 
-                    item(key = "favorites-title") { SheetHeading(stringResource(R.string.favorites_title)) }
-                    item(key = "favorites-manage") { ChevronRow(stringResource(R.string.favorites_manage)) { showFavorites = true } }
-
-                    notifySettings?.let { settings ->
-                        notifySection(
-                            NotifySheet(
-                                settings = settings,
-                                mensas = notifyMensas,
-                                allowed = access.allowed,
-                                onEnabled = vm::setNotificationsEnabled,
-                                onTime = vm::setNotifyTime,
-                                onWatch = vm::setNotifyMensa,
-                                onAllow = access.request,
-                                onTest = { if (access.allowed) vm.postTestNotification(defaultId) else access.request() },
-                            ),
-                            language,
-                        )
-                    }
-
-                    versionSection(
-                        update, download,
-                        onOverview = { showVersions = true },
-                        onOpen = { openVersion = it.versionCode },
-                        onCheck = updates::checkNow,
-                        onAutoCheck = updates::setAutoCheck,
-                    )
-
-                    // The switch for the Stundenplan MD banner at the top (on by default only while it isn't installed).
-                    item(key = "stundenplan-banner-setting") {
-                        SwitchRow(stringResource(R.string.stundenplan_setting), stringResource(R.string.stundenplan_setting_hint), !bannerHidden) {
-                            vm.setStundenplanBannerHidden(!it)
-                        }
-                    }
-
-                    item(key = "backup-title") { SheetHeading(stringResource(R.string.backup_title)) }
-                    item(key = "backup") {
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text(stringResource(R.string.backup_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                OutlinedButton(onClick = { exportLauncher.launch(BackupFormat.fileName(java.time.LocalDate.now())) }) { Text(stringResource(R.string.backup_export)) }
-                                OutlinedButton(onClick = { importLauncher.launch(arrayOf("application/json", "text/plain", "application/octet-stream")) }) {
-                                    Text(stringResource(R.string.backup_import))
+                            item(key = "price-title") { SheetHeading(stringResource(R.string.price_group_title)) }
+                            item(key = "price-picker") {
+                                // The legend's group names differ per page only in wording; our own labels keep this page page-independent.
+                                val groups = listOf(R.string.price_students, R.string.price_staff, R.string.price_guests)
+                                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    groups.forEachIndexed { index, label ->
+                                        MensaFilterChip(selected = prefs.priceGroup == index, onClick = { vm.setPriceGroup(index) }, label = { Text(stringResource(label)) })
+                                    }
                                 }
                             }
+
+                            item(key = "layout-title") { SheetHeading(stringResource(R.string.layout_title)) }
+                            item(key = "layout-picker") {
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    MensaFilterChip(selected = !prefs.compact, onClick = { vm.setCompactMode(false) }, label = { Text(stringResource(R.string.display_normal)) })
+                                    MensaFilterChip(selected = prefs.compact, onClick = { vm.setCompactMode(true) }, label = { Text(stringResource(R.string.display_compact)) })
+                                }
+                            }
+                            item(key = "legendary") {
+                                SwitchRow(stringResource(R.string.legendary_title), stringResource(R.string.legendary_hint), prefs.legendary, vm::setLegendaryFavorites)
+                            }
+
+                            item(key = "language-title") { SheetHeading(stringResource(R.string.language_title)) }
+                            item(key = "language-picker") {
+                                val context = LocalContext.current
+                                var chosen by remember { mutableStateOf(AppLanguage.current(context)) }
+                                SettingsDropdown(
+                                    label = stringResource(R.string.language_label),
+                                    options = listOf(
+                                        AppLanguage.SYSTEM to stringResource(R.string.language_system),
+                                        AppLanguage.GERMAN to "Deutsch",
+                                        AppLanguage.ENGLISH to "English",
+                                    ),
+                                    selected = chosen,
+                                    onSelect = {
+                                        chosen = it
+                                        AppLanguage.set(context, it)
+                                        // From API 33 the system recreates the activity itself.
+                                        if (android.os.Build.VERSION.SDK_INT < 33) (context as? android.app.Activity)?.recreate()
+                                    },
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
+                            }
+
+                            item(key = "theme-title") { SheetHeading(stringResource(R.string.theme_title)) }
+                            item(key = "theme-picker") {
+                                val theme = LocalThemeMode.current
+                                Column {
+                                    SettingsDropdown(
+                                        label = stringResource(R.string.theme_label),
+                                        options = listOf(
+                                            ThemeMode.SYSTEM to stringResource(R.string.theme_system),
+                                            ThemeMode.SOFT to stringResource(R.string.theme_soft),
+                                            ThemeMode.AMOLED to stringResource(R.string.theme_amoled),
+                                            ThemeMode.CUSTOM to stringResource(R.string.theme_custom),
+                                        ),
+                                        selected = theme,
+                                        onSelect = vm::setThemeMode,
+                                        modifier = Modifier.fillMaxWidth(),
+                                    )
+                                    val choice by vm.theme.collectAsStateWithLifecycle()
+                                    if (theme == ThemeMode.CUSTOM) {
+                                        choice?.let { CustomThemeEditor(it.custom, vm::setCustomTheme, onAdvanced = { showColors = true }) }
+                                    }
+                                    SwitchRow(stringResource(R.string.custom_glow), stringResource(R.string.custom_glow_hint), choice?.glow == true, vm::setCardGlow)
+                                }
+                            }
+
+                            item(key = "favorites-title") { SheetHeading(stringResource(R.string.favorites_title)) }
+                            item(key = "favorites-manage") { ChevronRow(stringResource(R.string.favorites_manage)) { showFavorites = true } }
+
+                            notifySettings?.let { settings ->
+                                notifySection(
+                                    NotifySheet(
+                                        settings = settings,
+                                        mensas = notifyMensas,
+                                        allowed = access.allowed,
+                                        onEnabled = vm::setNotificationsEnabled,
+                                        onTime = vm::setNotifyTime,
+                                        onWatch = vm::setNotifyMensa,
+                                        onAllow = access.request,
+                                        onTest = { if (access.allowed) vm.postTestNotification(defaultId) else access.request() },
+                                    ),
+                                    language,
+                                )
+                            }
+
+                            versionSection(
+                                update, download,
+                                onOverview = { showVersions = true },
+                                onOpen = { openVersion = it.versionCode },
+                                onCheck = updates::checkNow,
+                                onAutoCheck = updates::setAutoCheck,
+                            )
+
+                            // The switch for the Stundenplan MD banner at the top (on by default only while it isn't installed).
+                            item(key = "stundenplan-banner-setting") {
+                                SwitchRow(stringResource(R.string.stundenplan_setting), stringResource(R.string.stundenplan_setting_hint), !bannerHidden) {
+                                    vm.setStundenplanBannerHidden(!it)
+                                }
+                            }
+
+                            item(key = "backup-title") { SheetHeading(stringResource(R.string.backup_title)) }
+                            item(key = "backup") {
+                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Text(stringResource(R.string.backup_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        OutlinedButton(onClick = { exportLauncher.launch(BackupFormat.fileName(java.time.LocalDate.now())) }) { Text(stringResource(R.string.backup_export)) }
+                                        OutlinedButton(onClick = { importLauncher.launch(arrayOf("application/json", "text/plain", "application/octet-stream")) }) {
+                                            Text(stringResource(R.string.backup_import))
+                                        }
+                                    }
+                                }
+                            }
+
+                            item(key = "about-title") { SheetHeading(stringResource(R.string.about_title)) }
+                            item(key = "about-licenses") { ChevronRow(stringResource(R.string.about_licenses)) { showLicenses = true } }
                         }
                     }
-
-                    item(key = "about-title") { SheetHeading(stringResource(R.string.about_title)) }
-                    item(key = "about-licenses") { ChevronRow(stringResource(R.string.about_licenses)) { showLicenses = true } }
                 }
             }
         }

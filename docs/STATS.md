@@ -21,6 +21,7 @@ Resume point for the card statistics feature (started 2026-11-05). Tick items as
       no readable log. Recording works from balance differences as planned.
 
 ## Phase 1: card settings in the card screen
+(Since the settings split, 2026-11-12: these settings are the settings page's "Karte" tab; the card screen's gear opens it.)
 - [x] Gear in the card screen's top bar -> card settings (Statistik, Detaillierte Statistik, Erinnerung + time,
       Meine Karte register/remove, top-up and Pfand amount lists)
 - [x] Statistics button next to the gear (only with Statistik on)

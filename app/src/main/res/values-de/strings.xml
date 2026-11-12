@@ -120,6 +120,8 @@
     <string name="notify_permission_allow">Erlauben</string>
     <string name="notify_permission_later">Nicht jetzt</string>
     <string name="settings_title">Einstellungen</string>
+    <string name="settings_tab_general">Allgemein</string>
+    <string name="settings_tab_card">Karte</string>
     <string name="theme_custom">Eigenes</string>
     <string name="custom_base">Hintergrund</string>
     <string name="custom_base_system">Wie System</string>
@@ -242,7 +244,7 @@
     <string name="stundenplan_setting">Hinweis auf Stundenplan MD anzeigen</string>
     <string name="stundenplan_setting_hint">Eine Karte am Anfang der Einstellungen, die Stundenplan MD oder dessen Download-Seite öffnet. Ohne eigene Wahl erscheint sie nur, solange Stundenplan MD fehlt</string>
     <string name="favorites_manage">Favoriten verwalten</string>
-    <!-- Kartenstatistik: Karteneinstellungen (Zahnrad im Kartenbildschirm) -->
+    <!-- Kartenstatistik: Tab „Karte“ der Einstellungen (Zahnrad im Kartenbildschirm) -->
     <string name="cancel_action">Abbrechen</string>
     <string name="card_settings_title">Karteneinstellungen</string>
     <string name="card_privacy_stats">Statistik ist an: Guthaben und Abbuchungen deiner Karte werden nur auf diesem Gerät gespeichert. Nichts wird gesendet.</string>
@@ -279,7 +281,7 @@
     <string name="stats_clear_title">Statistik löschen?</string>
     <string name="stats_clear_text">Alle gespeicherten Scans, Zahlungen, Aufladungen, Gerichte und offenen Fragen werden gelöscht. Die registrierte Karte, eigene Extras und Gerichte bleiben. Das lässt sich nicht rückgängig machen (außer mit einer Sicherung).</string>
     <string name="stats_clear_confirm">Löschen</string>
-    <string name="stats_backup_hint">Die Statistik ist Teil der Sicherung (Einstellungen).</string>
+    <string name="stats_backup_hint">Die Statistik ist Teil der Sicherung (Tab „Allgemein“).</string>
     <string name="stats_too_new">Die Statistik wurde von einer neueren Version der App gespeichert. Sie bleibt unverändert, und bis zum Update wird nichts Neues gespeichert.</string>
     <string name="stats_broken">Die Statistikdatei konnte nicht gelesen werden. Sie wurde als %1$s aufbewahrt, die Statistik beginnt leer.</string>
 
@@ -310,7 +312,7 @@
         <item quantity="one">%d offene Frage</item>
         <item quantity="other">%d offene Fragen</item>
     </plurals>
-    <string name="stats_empty_no_card">Noch keine Daten. Registriere deine Karte in den Karteneinstellungen (Zahnrad) oder scanne sie: Die Statistik beginnt mit dem zweiten Scan.</string>
+    <string name="stats_empty_no_card">Noch keine Daten. Registriere deine Karte in den Einstellungen (Tab „Karte“) oder scanne sie: Die Statistik beginnt mit dem zweiten Scan.</string>
     <string name="stats_empty">Noch keine Zahlungen. Scanne deine Karte nach jedem Mensabesuch: Jeder Scan wird mit dem vorigen verglichen.</string>
     <string name="stats_spent_in">Ausgaben im %1$s</string>
     <string name="stats_average_visit">Ø pro Besuch</string>
