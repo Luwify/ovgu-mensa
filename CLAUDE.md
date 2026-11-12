@@ -98,8 +98,8 @@ git-ignored `CLAUDE.local.md` at the repo root, which Claude Code loads after th
   `BalanceDiff` (rules in its KDoc; unclear changes become `OpenItem`s answered in `StatsScreen`), `MealMatcher`
   (detailed statistics: one dish / same dish twice / two dishes of one Mensa at the user's price group, all Mensen, default
   Mensa first, >5 candidates -> "where did you eat?", one candidate overall saved directly only when both scans were on the same day
-  and every Mensa's menu of that day is known: `MenuRepository.loadDay` loads the unknown ones first, those that still fail
-  are named in the question (`missingMensen`); the day's dishes are kept with an open question; past days stay in the menu
+  and every Mensa's menu of that day is known: the question is asked with the cached menus at once, `MenuRepository.loadDay`
+  loads the unknown ones in the background, those that still fail are named in the question (`missingMensen`); the day's dishes are kept with an open question; past days stay in the menu
   cache for 14 days), `StatsSummary`/`MealSummary`, `CardReminderRules`. `StatsRecorder` (app scope) records scans from reader mode
   and the popup; the result is out as soon as the scan is stored. A card tap from the popup touches no network (update check included): payments wait in `StatsData.pendingMatch` until `matchPending` (main UI start, statistics screen, or a scan in the open app). Matching never waits for the network: it asks with the cached menus (`MenuRepository.knowsDay`), missing Mensen load in the background (`StatsRecorder.loading`) and update the open questions. First scan: the card's last debit is offered as a payment of a picked day (`OpenItem.FirstDebit`). "Mehrere Gerichte" (`MealParts`) splits one payment into parts; hand-named dishes with Mensa and price are candidates of that Mensa (`MenuDishes.own`). The card hash is memoized for the process (`CardIdentity`). "Meine Karte": only scans of the registered card are stored; the UID becomes a fingerprint in memory
   (`CardIdentity`), only a salted PBKDF2 hash of it is stored. Amounts are mills (card unit); menu prices are cents x 10.
