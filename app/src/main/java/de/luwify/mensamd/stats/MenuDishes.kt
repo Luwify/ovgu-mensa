@@ -33,6 +33,14 @@ object MenuDishes {
         return all.distinctBy { it.id() }.map { if (it.id() in weighed) it.copy(byWeight = true) else it }
     }
 
+    /**
+     * The hand-named dishes saved with a Mensa and a price, as dishes of that Mensa on every day: a payment can match them
+     * alone or together with menu dishes, like a fixed list. Their one price holds for every price group.
+     */
+    fun own(custom: List<KnownDish>): List<SnapDish> = custom
+        .filter { it.mensaId != null && it.price > 0 && it.price % 10 == 0 }
+        .map { SnapDish(it.mensaId!!, it.name, listOf(it.price / 10), priceGroupsKnown = false, tags = it.tags, own = true) }
+
     private fun Dish.snap(mensaId: String) =
         SnapDish(mensaId, name, prices, priceGroupsKnown, tags, byWeight = WeightPricing.isPer100g(mensaId, this))
 }

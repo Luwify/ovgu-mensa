@@ -11,6 +11,8 @@ import de.luwify.mensamd.stats.CardEvent
 import de.luwify.mensamd.stats.EatenDish
 import de.luwify.mensamd.stats.EventKind
 import de.luwify.mensamd.stats.MealContext
+import de.luwify.mensamd.stats.MealPart
+import de.luwify.mensamd.stats.MealParts
 import de.luwify.mensamd.stats.MealRecord
 import de.luwify.mensamd.stats.OpenItem
 import de.luwify.mensamd.stats.StatsData
@@ -146,6 +148,9 @@ class StatsViewModel(private val container: AppContainer) : ViewModel() {
             StatsOps.setMeal(next, eventId, MealRecord(dishes = listOf(eaten)))
         }
     }
+
+    /** "Mehrere Gerichte": the parts become the payment's meal; new dishes are saved with their Mensa, tags and price. */
+    fun saveParts(eventId: Long, parts: List<MealPart>) = edit { store.update { MealParts.apply(it, eventId, parts) } }
 
     /** Changes the Mensa and tags (and the name of a hand-named dish) of dish [index] of a payment's meal. */
     fun editDish(eventId: Long, index: Int, name: String, mensaId: String?, tags: List<Tag>) = edit {

@@ -104,3 +104,6 @@ Resume point for the card statistics feature (started 2026-11-05). Tick items as
       missing Mensen load in the background (`StatsRecorder.loading`, "lädt weitere Mensen …"), then the open questions of that day get
       the dishes (a single candidate is then saved, unless that question is on screen). A scan in the open app matches right away; the
       popup still loads nothing and its button opens the statistics. Questions left with missing menus are retried at the next visit (7 days).
+- [x] Several dishes (2026-11-12): "Mehrere Gerichte" splits a payment into parts (menu dish, known dish, new dish with price, extra;
+      `MealParts`), which must add up. Hand-named dishes saved with a Mensa and a price are candidates of that Mensa on every day
+      (`MenuDishes.own`), alone or in pairs, like PIER 16's fixed list. No schema change.

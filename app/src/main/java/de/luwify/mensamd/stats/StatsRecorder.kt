@@ -199,7 +199,7 @@ class StatsRecorder(
      */
     private fun singleMatch(data: StatsData, scanId: Long, amount: Int, menu: DayMenu, context: MealContext): MealMatcher.Candidate? {
         if (menu.missing.isNotEmpty() || !StatsOps.sameDayAsPrevious(data, scanId)) return null
-        val plan = MealMatcher.plan(amount, menu.dishes, context.defaultMensaId, context.priceGroup)
+        val plan = MealMatcher.plan(amount, menu.dishes + MenuDishes.own(data.customDishes), context.defaultMensaId, context.priceGroup)
         return (plan as? MealMatcher.Plan.Choose)?.candidates?.singleOrNull()
     }
 

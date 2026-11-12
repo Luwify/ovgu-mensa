@@ -392,4 +392,21 @@ class StatsRecorderTest {
             scope.cancel()
         }
     }
+
+    /** A hand-named dish saved with its Mensa and price is matched next time like a menu dish (saved: the only candidate). */
+    @Test fun anOwnDishIsMatchedNextTime() = runBlocking {
+        val scope = CoroutineScope(SupervisorJob())
+        try {
+            val r = recorder(scope)
+            r.store.update { StatsOps.addCustomDish(it, "Bagel", 2_700, "pier16").first }
+            r.register(fp, 10_000, 0, null)
+            now = now.plusHours(1)
+            r.record(7_300, 2_700, fp)
+            val dish = r.store.load().events.single().meal!!.dishes.single()
+            assertEquals("Bagel" to "pier16", dish.name.de to dish.mensaId)
+            assertTrue(dish.own)
+        } finally {
+            scope.cancel()
+        }
+    }
 }

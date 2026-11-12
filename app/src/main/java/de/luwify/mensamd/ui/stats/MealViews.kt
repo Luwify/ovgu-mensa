@@ -91,7 +91,7 @@ import de.luwify.mensamd.ui.theme.PlusIcon
 import java.text.NumberFormat
 import java.util.Locale
 
-private enum class MealStep { MAIN, WHERE, EXTRAS, SEARCH }
+private enum class MealStep { MAIN, WHERE, EXTRAS, PARTS, SEARCH }
 
 internal fun mensaName(id: String?, language: String, unknown: String): String =
     id?.let { MensaCatalog.byId(it)?.name?.forLanguage(language) ?: it } ?: unknown
@@ -136,7 +136,10 @@ internal fun MealQuestionScreen(
             onDispose { vm.setViewing(null) }
         }
     }
-    val dishes = remember(question, pages) { MenuDishes.merge(question.dishes, MenuDishes.onDay(pages.orEmpty(), question.date)) }
+    // That day's menus, plus the hand-named dishes saved with a Mensa and a price (candidates like menu dishes).
+    val dishes = remember(question, pages, customDishes) {
+        MenuDishes.merge(question.dishes, MenuDishes.onDay(pages.orEmpty(), question.date)) + MenuDishes.own(customDishes)
+    }
     val plan = remember(question, dishes, context, where) {
         MealMatcher.plan(question.amount, dishes, context?.defaultMensaId, group, where?.toSet())
     }
@@ -177,6 +180,13 @@ internal fun MealQuestionScreen(
                     vm, question, dishes, events, customDishes, customExtras, group, language, locale,
                     focus = where?.toSet() ?: setOfNotNull(context?.defaultMensaId),
                 ) { answer(it) }
+                step == MealStep.PARTS -> MealPartsStep(
+                    question.amount, dishes.filterNot { it.own }, MealSummary.knownDishes(events, customDishes), customExtras, group,
+                    where?.firstOrNull { it == context?.defaultMensaId } ?: where?.firstOrNull() ?: context?.defaultMensaId, language, locale,
+                ) { parts ->
+                    vm.saveParts(question.eventId, parts)
+                    onClose()
+                }
                 step == MealStep.SEARCH -> SearchStep(pages.orEmpty(), events, customDishes, dishes, group, language, locale, unknownMensa) { dish ->
                     answer(MealRecord(dishes = listOf(EatenDish(dish.key, dish.name, dish.mensaId, question.amount, 1, dish.tags, dish.grams(question.amount), dish.own))))
                 }
@@ -227,6 +237,7 @@ internal fun MealQuestionScreen(
                     item(key = "options-title") { SheetHeading(stringResource(R.string.meal_other_options)) }
                     if (mensaIds.size > 1) item(key = "where") { OptionRow(stringResource(R.string.meal_where_option)) { step = MealStep.WHERE } }
                     item(key = "extras") { OptionRow(stringResource(R.string.meal_with_extras)) { step = MealStep.EXTRAS } }
+                    item(key = "parts") { OptionRow(stringResource(R.string.meal_parts)) { step = MealStep.PARTS } }
                     item(key = "search") { OptionRow(stringResource(R.string.meal_existing)) { step = MealStep.SEARCH } }
                     item(key = "new") { OptionRow(stringResource(R.string.meal_new)) { naming = true } }
                     item(key = "other") { OptionRow(stringResource(R.string.meal_save_other)) { answer(MealRecord(other = true)) } }

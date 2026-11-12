@@ -1,5 +1,7 @@
 New:
 - On the first scan of the registered card, the app asks whether the last debit the card already shows should be recorded as a payment (“Record last debit of …?”). The card stores no date: the day can be picked (today by default), then the usual dish question follows. “Don’t record” drops it.
+- “Several dishes” in the dish question and when correcting: a payment can be split into any number of parts, each a dish from the menu, an existing dish, a new dish (name, Mensa, tags, price) or an extra. The amount still open is shown as it changes.
+- Your own dishes with a Mensa and a price are suggested next time like menu dishes, alone or together with others, for example items at PIER 16 that aren’t on its list.
 
 Changed:
 - A top-up plus several payments between two scans: after the top-up amount is chosen, the app asks whether the rest was one payment or should be split, as for several payments without a top-up.
