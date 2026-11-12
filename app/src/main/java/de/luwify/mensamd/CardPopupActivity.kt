@@ -165,7 +165,9 @@ class CardPopupActivity : ComponentActivity() {
             Intent(this, MainActivity::class.java)
                 .setAction(Intent.ACTION_MAIN)
                 .addCategory(Intent.CATEGORY_LAUNCHER)
-                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                // SINGLE_TOP: with the app already running, bringing its task to front alone drops the extras;
+                // this delivers them to the running activity's onNewIntent.
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
                 .putExtra(MainActivity.EXTRA_OPEN_STATS, answer)
                 // No card registered: straight to "Karte registrieren" in the settings' card tab.
                 .putExtra(MainActivity.EXTRA_OPEN_CARD_SETTINGS, note == R.string.popup_stats_no_card),
