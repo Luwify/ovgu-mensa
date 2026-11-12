@@ -107,3 +107,9 @@ Resume point for the card statistics feature (started 2026-11-05). Tick items as
 - [x] Several dishes (2026-11-12): "Mehrere Gerichte" splits a payment into parts (menu dish, known dish, new dish with price, extra;
       `MealParts`), which must add up. Hand-named dishes saved with a Mensa and a price are candidates of that Mensa on every day
       (`MenuDishes.own`), alone or in pairs, like PIER 16's fixed list. No schema change.
+- [x] Scan-to-question times (2026-11-12, phone, .preview, fake scans through a throwaway probe; the card read itself not included):
+      app open, only the default Mensa cached: question after 1.9 s before (with the statistics opened right away; before, the question
+      only came on opening them), now 0.06 s (0.55-0.65 s for the first scan in a process: PBKDF2, then memoized), full list 1.5 s later
+      in the background. All cached: 0.6 s -> 0.09 s. From the popup, app opened with no menu cached: 2.6 s -> 0.3 s after the app start
+      (full list after about 3-4 s); all cached: about 0.5 s both (activity start). A popup scan in a cold process takes about 3.4 s to
+      store (PBKDF2 in a cold process); the balance is drawn before that.
