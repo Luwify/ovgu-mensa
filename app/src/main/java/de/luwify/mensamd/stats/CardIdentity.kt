@@ -21,12 +21,20 @@ object CardIdentity {
     /**
      * What is stored: PBKDF2-HMAC-SHA256 of the fingerprint with the salt, hex. Deliberately slow: a 7-byte NXP UID has
      * only about 2^48 values, so a fast hash next to its salt (both are in the backup) could be brute-forced back to the
-     * UID; [ITERATIONS] rounds make that impractical. About 0.1 s per scan on a phone.
+     * UID; [ITERATIONS] rounds make that impractical. About 0.5 s on a phone (measured 2026-11), once per card and process (see [memo]).
      */
     fun hash(salt: String, fingerprint: String): String {
+        memo?.let { (s, f, h) -> if (s == salt && f == fingerprint) return h }
         val spec = PBEKeySpec(fingerprint.toCharArray(), salt.hexToBytes(), ITERATIONS, 256)
         return SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256").generateSecret(spec).encoded.toHex()
+            .also { memo = Triple(salt, fingerprint, it) }
     }
+
+    /**
+     * The last hash computed (salt, fingerprint, hash), in memory only: the next scan of the same card in this process
+     * needs no new PBKDF2 run, so its question comes without that delay. Gone with the process; never stored or logged.
+     */
+    @Volatile private var memo: Triple<String, String, String>? = null
 
     const val ITERATIONS = 120_000
 
