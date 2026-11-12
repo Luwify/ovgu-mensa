@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -41,6 +42,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -112,6 +114,15 @@ fun StatsScreen(vm: StatsViewModel, mainVm: MainViewModel, onBack: () -> Unit) {
     // "Anders zuordnen" (here or in the card screen's snackbar) opens the new question as soon as it exists.
     val focus by vm.focusQuestion.collectAsStateWithLifecycle()
     LaunchedEffect(Unit) { vm.matchPending() }
+    // A new question (a scan while this screen is open, or one that follows an answer) goes on top: show it, the list
+    // would otherwise keep its place and leave it above the visible part.
+    val listState = rememberLazyListState()
+    var openCount by rememberSaveable { mutableIntStateOf(-1) }
+    LaunchedEffect(d?.open?.size) {
+        val n = d?.open?.size ?: return@LaunchedEffect
+        if (openCount in 0 until n) listState.animateScrollToItem(0)
+        openCount = n
+    }
     LaunchedEffect(focus, d?.open) {
         val id = focus ?: return@LaunchedEffect
         if (d?.open?.any { it.id == id } == true) {
@@ -128,6 +139,7 @@ fun StatsScreen(vm: StatsViewModel, mainVm: MainViewModel, onBack: () -> Unit) {
                 val totals = remember(d, today) { StatsSummary.totals(d, today) }
                 LazyColumn(
                     Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal)),
+                    state = listState,
                     contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = bottom + 72.dp),
                 ) {
                     problem?.let { item(key = "problem") { Hint(stringResource(R.string.stats_too_new)) } }

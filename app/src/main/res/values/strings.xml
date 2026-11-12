@@ -370,7 +370,7 @@
     <string name="q_first_record">Record</string>
     <string name="q_first_skip">Don’t record</string>
     <string name="q_several_title">Several payments</string>
-    <string name="q_several_text">Your balance went down by %1$s, but the last debit was only %2$s. So there were several payments since the last scan.</string>
+    <string name="q_several_text">Since the last scan, %1$s were paid, but the last debit was only %2$s. So there were several payments.</string>
     <string name="q_several_text_no_debit">Your balance went down by %1$s since the last scan.</string>
     <string name="q_part">Part %1$d</string>
     <string name="q_split_ok">The parts add up.</string>

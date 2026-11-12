@@ -362,7 +362,7 @@
     <string name="q_first_record">Erfassen</string>
     <string name="q_first_skip">Nicht erfassen</string>
     <string name="q_several_title">Mehrere Zahlungen</string>
-    <string name="q_several_text">Dein Guthaben ist um %1$s gesunken, die letzte Abbuchung war aber nur %2$s. Seit deinem letzten Scan gab es also mehrere Zahlungen.</string>
+    <string name="q_several_text">Seit deinem letzten Scan wurden %1$s bezahlt, die letzte Abbuchung war aber nur %2$s. Es gab also mehrere Zahlungen.</string>
     <string name="q_several_text_no_debit">Dein Guthaben ist seit deinem letzten Scan um %1$s gesunken.</string>
     <string name="q_part">Teil %1$d</string>
     <string name="q_split_ok">Die Teile gehen auf.</string>
