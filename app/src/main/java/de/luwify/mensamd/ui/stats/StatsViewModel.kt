@@ -36,6 +36,14 @@ class StatsViewModel(private val container: AppContainer) : ViewModel() {
     val problem = store.problem
     val lastRecord = recorder.last
     val registering = recorder.registering
+
+    /** Days whose missing menus are loading in the background (meal questions show "lädt weitere Mensen …"). */
+    val loadingDays = recorder.loading
+
+    /** The meal question on screen (null: none); a background load won't answer it while it is shown. */
+    fun setViewing(questionId: Long?) {
+        recorder.viewing.value = questionId
+    }
     val favorites: StateFlow<Set<String>> = settingsRepo.favorites.stateIn(viewModelScope, SharingStarted.Eagerly, emptySet())
 
     /** Default Mensa (listed first when matching) and price group, for the meal questions. */

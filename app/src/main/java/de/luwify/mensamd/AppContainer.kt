@@ -69,7 +69,8 @@ class AppContainer(context: Context) {
             store = statsStore,
             settings = settings.cardStats,
             mealContext = { MealContext(settings.defaultMensaId.first(), settings.priceGroup.first()) },
-            snapshot = ::menuSnapshot,
+            cachedMenu = ::cachedMenu,
+            loadMenu = ::menuSnapshot,
             scope = appScope,
         )
     }
@@ -81,6 +82,12 @@ class AppContainer(context: Context) {
     /** The menu page of every Mensa the app has one of, with its kept past days, default Mensa first; never fetches. */
     suspend fun cachedPages(): List<Pair<String, MenuPage>> =
         orderedMensaIds().mapNotNull { id -> menuRepository.current(id).pageWithPast?.let { id to it } }
+
+    /** Every dish on [date] the app has now, without fetching; Mensen whose day isn't known yet are named as missing. */
+    private suspend fun cachedMenu(date: LocalDate): DayMenu {
+        val missing = orderedMensaIds().filterNot { menuRepository.knowsDay(it, date) }
+        return DayMenu(MenuDishes.onDay(cachedPages(), date), missing)
+    }
 
     /**
      * Every dish on [date] of every Mensa. Mensen the app can't answer for yet are loaded first, in parallel (usual

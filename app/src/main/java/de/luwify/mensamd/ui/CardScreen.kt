@@ -87,6 +87,14 @@ fun CardScreen(scanner: NfcCardScanner, mainVm: MainViewModel, onBack: () -> Uni
     var showSettings by rememberSaveable { mutableStateOf(false) }
     var showStats by rememberSaveable { mutableStateOf(false) }
     BackHandler(enabled = !showSettings && !showStats, onBack = onBack)
+    val openStats by mainVm.openStats.collectAsStateWithLifecycle()
+    LaunchedEffect(openStats) {
+        if (openStats) {
+            showSettings = false
+            showStats = true
+            mainVm.consumeOpenStats()
+        }
+    }
     val state by scanner.state.collectAsStateWithLifecycle()
     val settings by statsVm.settings.collectAsStateWithLifecycle()
     val statsOn = settings?.enabled == true

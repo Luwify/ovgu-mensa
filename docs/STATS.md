@@ -100,3 +100,7 @@ Resume point for the card statistics feature (started 2026-11-05). Tick items as
 - [x] Several payments (2026-11-12): a decrease of more than the last debit L asks "one payment or split" (split prefilled with
       the rest and L, each part matched on its own). A top-up plus payments: after picking the top-up, payments above L become the
       same "several payments?" question (before: always one payment).
+- [x] Instant question (2026-11-12): matching decides with the cached menus only (`MenuRepository.knowsDay`) and asks at once; the
+      missing Mensen load in the background (`StatsRecorder.loading`, "lädt weitere Mensen …"), then the open questions of that day get
+      the dishes (a single candidate is then saved, unless that question is on screen). A scan in the open app matches right away; the
+      popup still loads nothing and its button opens the statistics. Questions left with missing menus are retried at the next visit (7 days).

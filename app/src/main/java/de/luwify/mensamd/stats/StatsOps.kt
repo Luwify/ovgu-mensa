@@ -165,6 +165,11 @@ object StatsOps {
         return if (asked.isEmpty()) data else data.copy(open = data.open + asked, nextId = nextId)
     }
 
+    /** Gives meal question [itemId] a newer copy of its day's menu ([dishes], still [missing] Mensen); nothing else changes. */
+    fun updateMealQuestion(data: StatsData, itemId: Long, dishes: List<SnapDish>, missing: List<String>): StatsData = data.copy(
+        open = data.open.map { if (it is OpenItem.MealQuestion && it.id == itemId) it.copy(dishes = dishes, missingMensen = missing) else it },
+    )
+
     /** Remembers the dated, unmatched payments among [events] for the next visit to the app (see `StatsRecorder.matchPending`). */
     fun markForMatching(data: StatsData, events: List<CardEvent>): StatsData {
         val ids = events.filter { it.kind == EventKind.PAYMENT && it.dateKnown && it.meal == null }.map { it.id }

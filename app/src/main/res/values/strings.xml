@@ -81,6 +81,7 @@
     <string name="card_no_nfc">This device has no NFC.</string>
     <string name="card_privacy">Read on this device only. Nothing is stored or sent.</string>
     <string name="card_popup_open">Open app</string>
+    <string name="card_popup_answer">Answer in the app</string>
     <string name="card_popup_error">Lost the card while reading. Hold it still against the back of your phone and try again.</string>
 
     <string name="filter_favorites">Favorites</string>
@@ -310,6 +311,7 @@
     </plurals>
     <string name="popup_stats_saved">Saved in the statistics.</string>
     <string name="popup_stats_question">Saved in the statistics. A question is waiting in the app.</string>
+    <string name="popup_stats_meal">Saved in the statistics. Choose the dish in the app.</string>
     <string name="popup_stats_no_card">Statistics are on, but no card is registered: open the app to register it.</string>
     <!-- Card statistics: overview -->
     <plurals name="open_questions_title">
@@ -442,6 +444,8 @@
     <string name="meal_weight_nothing_left">Nothing is left for the dish by weight.</string>
     <string name="price_per_100g" translatable="false">/100 g</string>
     <string name="meal_missing_mensen">Menus not loaded: %1$s. Dishes from there are missing, so nothing was saved automatically.</string>
+    <string name="meal_loading_mensen">Loading more Mensen …</string>
+    <string name="scan_choose_dish">Choose dish</string>
     <string name="meal_search">Search dishes</string>
     <string name="meal_search_none">No known dish found.</string>
     <string name="meals_title">Your dishes</string>

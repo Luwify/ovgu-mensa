@@ -2,11 +2,13 @@ package de.luwify.mensamd.stats
 
 import de.luwify.mensamd.data.settings.CardStatsSettings
 import de.luwify.mensamd.model.LocalizedText
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
@@ -30,7 +32,8 @@ class StatsRecorderTest {
         store = StatsStore(File(tmp.root, "stats.json"), Dispatchers.Unconfined),
         settings = MutableStateFlow(CardStatsSettings(enabled = true, detailed = true)),
         mealContext = { MealContext("unten", 0) },
-        snapshot = { DayMenu(dishes, missing) },
+        cachedMenu = { DayMenu(dishes, missing) },
+        loadMenu = { DayMenu(dishes, missing) },
         scope = scope,
         clock = { now.atZone(zone).toInstant().toEpochMilli() },
         zone = { zone },
@@ -98,10 +101,11 @@ class StatsRecorderTest {
                     store = StatsStore(File(tmp.root, "stats.json"), Dispatchers.Unconfined),
                     settings = MutableStateFlow(CardStatsSettings(enabled = true, detailed = true)),
                     mealContext = { MealContext("unten", 0) },
-                    snapshot = {
+                    cachedMenu = {
                         loads++
                         DayMenu(menu)
                     },
+                    loadMenu = { error("not needed") },
                     scope = scope,
                     clock = { now.atZone(zone).toInstant().toEpochMilli() },
                     zone = { zone },
@@ -143,7 +147,8 @@ class StatsRecorderTest {
                 store = StatsStore(File(tmp.root, "stats.json"), Dispatchers.Unconfined),
                 settings = settings,
                 mealContext = { MealContext("unten", 0) },
-                snapshot = { DayMenu(menu) },
+                cachedMenu = { DayMenu(menu) },
+                loadMenu = { DayMenu(menu) },
                 scope = scope,
             )
             assertEquals(false, r.wantsCardId())
@@ -164,10 +169,11 @@ class StatsRecorderTest {
                 store = StatsStore(File(tmp.root, "stats.json"), Dispatchers.Unconfined),
                 settings = settings,
                 mealContext = { MealContext("unten", 0) },
-                snapshot = {
+                cachedMenu = {
                     loads++
                     DayMenu(menu)
                 },
+                loadMenu = { error("not needed") },
                 scope = scope,
                 clock = { now.atZone(zone).toInstant().toEpochMilli() },
                 zone = { zone },
@@ -230,7 +236,8 @@ class StatsRecorderTest {
                 store = StatsStore(File(tmp.root, "stats.json"), Dispatchers.Unconfined),
                 settings = MutableStateFlow(CardStatsSettings(enabled = true, detailed = true)),
                 mealContext = { MealContext("unten", 0) },
-                snapshot = { error("no menus") },
+                cachedMenu = { error("no menus") },
+                loadMenu = { error("no menus") },
                 scope = scope,
                 clock = { now.atZone(zone).toInstant().toEpochMilli() },
                 zone = { zone },
@@ -268,6 +275,119 @@ class StatsRecorderTest {
             assertNull(first.meal) // 3,10: no dish costs that
             assertEquals("Linseneintopf", second.meal?.dishes?.single()?.name?.de)
             assertEquals(first.id, (data.open.single() as OpenItem.MealQuestion).eventId)
+        } finally {
+            scope.cancel()
+        }
+    }
+
+    /**
+     * The question never waits for the network: it is asked with the cached menu at once, the missing Mensa loads in the
+     * background ([StatsRecorder.loading]) and then the question gets its dishes.
+     */
+    @Test fun theQuestionComesFromTheCacheAndTheMissingMenuFollows() = runBlocking {
+        val scope = CoroutineScope(SupervisorJob())
+        try {
+            val chili = SnapDish("oben", LocalizedText("Chili sin carne"), listOf(310, 520, 620))
+            val network = CompletableDeferred<DayMenu>()
+            val r = StatsRecorder(
+                store = StatsStore(File(tmp.root, "stats.json"), Dispatchers.Unconfined),
+                settings = MutableStateFlow(CardStatsSettings(enabled = true, detailed = true)),
+                mealContext = { MealContext("unten", 0) },
+                cachedMenu = { DayMenu(menu, listOf("oben")) },
+                loadMenu = { network.await() },
+                scope = scope,
+                clock = { now.atZone(zone).toInstant().toEpochMilli() },
+                zone = { zone },
+            )
+            r.register(fp, 10_000, 0, null)
+            now = now.plusHours(1)
+            withTimeout(5_000) { r.record(6_900, 3_100, fp) } // returns although the network doesn't answer
+            val asked = r.store.load().open.single() as OpenItem.MealQuestion
+            assertEquals(menu, asked.dishes)
+            assertEquals(listOf("oben"), asked.missingMensen)
+            assertEquals(setOf(asked.date), r.loading.value)
+
+            network.complete(DayMenu(menu + chili))
+            withTimeout(5_000) { r.loading.first { it.isEmpty() } }
+            val updated = r.store.load().open.single() as OpenItem.MealQuestion
+            assertEquals(menu + chili, updated.dishes)
+            assertEquals(emptyList<String>(), updated.missingMensen)
+            assertNull(r.store.load().events.single().meal) // two candidates now: still asked
+        } finally {
+            scope.cancel()
+        }
+    }
+
+    /** With the missing menu loaded, a single candidate is saved, but not while that question is on screen. */
+    @Test fun aSingleCandidateAfterLoadingIsSavedUnlessTheQuestionIsShown() = runBlocking {
+        for (shown in listOf(false, true)) {
+            val scope = CoroutineScope(SupervisorJob())
+            File(tmp.root, "stats.json").delete()
+            try {
+                val network = CompletableDeferred<DayMenu>()
+                val r = StatsRecorder(
+                    store = StatsStore(File(tmp.root, "stats.json"), Dispatchers.Unconfined),
+                    settings = MutableStateFlow(CardStatsSettings(enabled = true, detailed = true)),
+                    mealContext = { MealContext("unten", 0) },
+                    cachedMenu = { DayMenu(menu, listOf("oben")) },
+                    loadMenu = { network.await() },
+                    scope = scope,
+                    clock = { now.atZone(zone).toInstant().toEpochMilli() },
+                    zone = { zone },
+                )
+                r.register(fp, 10_000, 0, null)
+                now = now.plusHours(1)
+                r.record(6_900, 3_100, fp)
+                val q = r.store.load().open.single() as OpenItem.MealQuestion
+                if (shown) r.viewing.value = q.id
+                network.complete(DayMenu(menu)) // "oben" has nothing at that price
+                withTimeout(5_000) { r.loading.first { it.isEmpty() } }
+                val data = r.store.load()
+                if (shown) {
+                    assertNull(data.events.single().meal)
+                    assertEquals(emptyList<String>(), (data.open.single() as OpenItem.MealQuestion).missingMensen)
+                } else {
+                    assertEquals("Seelachs", data.events.single().meal?.dishes?.single()?.name?.de)
+                    assertTrue(data.open.isEmpty())
+                }
+            } finally {
+                scope.cancel()
+            }
+        }
+    }
+
+    /** A question left with a missing menu (the app closed while loading) loads it again at the next visit. */
+    @Test fun aQuestionWithMissingMenusIsRetriedAtTheNextVisit() = runBlocking {
+        val scope = CoroutineScope(SupervisorJob())
+        try {
+            var loads = 0
+            val make = { result: suspend () -> DayMenu ->
+                StatsRecorder(
+                    store = StatsStore(File(tmp.root, "stats.json"), Dispatchers.Unconfined),
+                    settings = MutableStateFlow(CardStatsSettings(enabled = true, detailed = true)),
+                    mealContext = { MealContext("unten", 0) },
+                    cachedMenu = { DayMenu(menu, listOf("oben")) },
+                    loadMenu = {
+                        loads++
+                        result()
+                    },
+                    scope = scope,
+                    clock = { now.atZone(zone).toInstant().toEpochMilli() },
+                    zone = { zone },
+                )
+            }
+            val first = make { error("offline") }
+            first.register(fp, 10_000, 0, null)
+            now = now.plusDays(1) // previous scan yesterday: never saved automatically
+            first.record(6_900, 3_100, fp)
+            withTimeout(5_000) { first.loading.first { it.isEmpty() } }
+            assertEquals(listOf("oben"), (first.store.load().open.single() as OpenItem.MealQuestion).missingMensen)
+
+            val later = make { DayMenu(menu) }
+            later.matchPending()
+            withTimeout(5_000) { later.loading.first { it.isEmpty() } }
+            assertEquals(emptyList<String>(), (later.store.load().open.single() as OpenItem.MealQuestion).missingMensen)
+            assertEquals(2, loads)
         } finally {
             scope.cancel()
         }

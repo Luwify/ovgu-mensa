@@ -78,6 +78,7 @@
     <string name="card_no_nfc">Dieses Gerät hat kein NFC.</string>
     <string name="card_privacy">Wird nur auf diesem Gerät gelesen. Nichts wird gespeichert oder gesendet.</string>
     <string name="card_popup_open">App öffnen</string>
+    <string name="card_popup_answer">In der App beantworten</string>
     <string name="card_popup_error">Karte beim Lesen verloren. Halte sie ruhig an die Rückseite des Handys und versuche es erneut.</string>
 
     <string name="filter_favorites">Favoriten</string>
@@ -302,6 +303,7 @@
     </plurals>
     <string name="popup_stats_saved">In der Statistik gespeichert.</string>
     <string name="popup_stats_question">In der Statistik gespeichert. In der App wartet eine Frage.</string>
+    <string name="popup_stats_meal">In der Statistik gespeichert. Das Gericht wählst du in der App.</string>
     <string name="popup_stats_no_card">Die Statistik ist an, aber keine Karte ist registriert: öffne die App, um sie zu registrieren.</string>
     <!-- Kartenstatistik: Übersicht -->
     <plurals name="open_questions_title">
@@ -433,6 +435,8 @@
     <string name="meal_weight_one_open">Trage bei allen Gerichten nach Gewicht außer einem das Gewicht ein.</string>
     <string name="meal_weight_nothing_left">Für das Gericht nach Gewicht bleibt nichts übrig.</string>
     <string name="meal_missing_mensen">Nicht geladen: %1$s. Gerichte von dort fehlen, deshalb wurde nichts automatisch gespeichert.</string>
+    <string name="meal_loading_mensen">Lädt weitere Mensen …</string>
+    <string name="scan_choose_dish">Gericht wählen</string>
     <string name="meal_search">Gerichte suchen</string>
     <string name="meal_search_none">Kein bekanntes Gericht gefunden.</string>
     <string name="meals_title">Deine Gerichte</string>

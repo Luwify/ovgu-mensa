@@ -35,6 +35,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -45,6 +46,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
@@ -123,8 +125,17 @@ internal fun MealQuestionScreen(
     // Index of the saved dish being edited.
     var editingDish by rememberSaveable { mutableStateOf<Int?>(null) }
     BackHandler { if (step != MealStep.MAIN) step = MealStep.MAIN else onClose() }
-    // Null until the cached pages are read (one file per Mensa at most, usually already in memory).
-    val pages by produceState<List<Pair<String, MenuPage>>?>(null) { value = vm.cachedPages() }
+    // Null until the cached pages are read (one file per Mensa at most, usually already in memory); read again when a
+    // background load brought more of that day's menus.
+    val pages by produceState<List<Pair<String, MenuPage>>?>(null, question.missingMensen) { value = vm.cachedPages() }
+    val loadingDays by vm.loadingDays.collectAsStateWithLifecycle()
+    val loading = question.date in loadingDays
+    if (!editing) {
+        DisposableEffect(question.id) {
+            vm.setViewing(question.id)
+            onDispose { vm.setViewing(null) }
+        }
+    }
     val dishes = remember(question, pages) { MenuDishes.merge(question.dishes, MenuDishes.onDay(pages.orEmpty(), question.date)) }
     val plan = remember(question, dishes, context, where) {
         MealMatcher.plan(question.amount, dishes, context?.defaultMensaId, group, where?.toSet())
@@ -180,7 +191,14 @@ internal fun MealQuestionScreen(
                             CurrentDishRow(current.dishes[i], language, unknownMensa) { editingDish = i }
                         }
                     }
-                    if (missing.isNotEmpty()) item(key = "missing") {
+                    if (loading) item(key = "loading") {
+                        Row(Modifier.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                            CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
+                            Spacer(Modifier.width(12.dp))
+                            Hint(stringResource(R.string.meal_loading_mensen))
+                        }
+                    }
+                    if (missing.isNotEmpty() && !loading) item(key = "missing") {
                         val names = missing.map { mensaName(it, language, unknownMensa) }.joinToString(", ")
                         NoteCard { Text(stringResource(R.string.meal_missing_mensen, names), style = MaterialTheme.typography.bodyMedium) }
                     }

@@ -53,6 +53,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import de.luwify.mensamd.stats.EventKind
 import de.luwify.mensamd.stats.RecordResult
 
 /**
@@ -131,7 +132,12 @@ class CardPopupActivity : ComponentActivity() {
                         .recordAsync(-1, result.balance.value, result.balance.lastTransaction, fingerprint)
                     show(Popup.Success(result.balance, null), mode.await())
                     val note = when (val r = recording.await()) {
-                        is RecordResult.Recorded -> if (r.newQuestions.isNotEmpty()) R.string.popup_stats_question else R.string.popup_stats_saved
+                        is RecordResult.Recorded -> when {
+                            r.newQuestions.isNotEmpty() -> R.string.popup_stats_question
+                            // A dated payment waits for its dish: matched (or asked) as soon as the app opens.
+                            r.newEvents.any { it.kind == EventKind.PAYMENT && it.dateKnown } && recorder.detailedActive() -> R.string.popup_stats_meal
+                            else -> R.string.popup_stats_saved
+                        }
                         RecordResult.Unchanged -> R.string.popup_stats_saved
                         RecordResult.OtherCard -> R.string.scan_other_card
                         RecordResult.NoCard -> R.string.popup_stats_no_card
@@ -151,12 +157,15 @@ class CardPopupActivity : ComponentActivity() {
         popup = content
     }
 
+    /** Opens the app; with a question waiting (or a dish to choose) straight in the card statistics. */
     private fun openApp() {
+        val answer = (popup as? Popup.Success)?.note.let { it == R.string.popup_stats_question || it == R.string.popup_stats_meal }
         startActivity(
             Intent(this, MainActivity::class.java)
                 .setAction(Intent.ACTION_MAIN)
                 .addCategory(Intent.CATEGORY_LAUNCHER)
-                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                .putExtra(MainActivity.EXTRA_OPEN_STATS, answer),
         )
         finish()
     }
@@ -214,8 +223,9 @@ class CardPopupActivity : ComponentActivity() {
                         }
                         Popup.Error -> Text(stringResource(R.string.card_popup_error), style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.Center)
                     }
+                    val answer = (content as? Popup.Success)?.note.let { it == R.string.popup_stats_question || it == R.string.popup_stats_meal }
                     Button(onClick = onOpenApp, modifier = Modifier.padding(top = 16.dp).fillMaxWidth()) {
-                        Text(stringResource(R.string.card_popup_open))
+                        Text(stringResource(if (answer) R.string.card_popup_answer else R.string.card_popup_open))
                     }
                 }
             }

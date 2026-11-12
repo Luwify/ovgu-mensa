@@ -203,6 +203,10 @@ class MenuRepository(
     /** The current state (cache loaded if needed), without fetching: for the background favorites check. */
     suspend fun current(id: String): MenuState = loadCache(id)
 
+    /** Whether the app already knows what Mensa [id] served on [date] (see [loadDay]), from the cache only: never fetches. */
+    suspend fun knowsDay(id: String, date: LocalDate): Boolean =
+        loadCache(id).knows(catalog.firstOrNull { it.id == id }, date)
+
     /**
      * Makes sure the app knows what Mensa [id] served on [date], loading the page if it can't tell yet (the usual
      * fallback rules and timeouts). Returns false when it still can't tell: the fetch failed, or the day is past and

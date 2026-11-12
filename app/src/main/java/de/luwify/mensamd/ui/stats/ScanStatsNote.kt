@@ -79,6 +79,13 @@ fun ScanStatsNote(vm: StatsViewModel, scan: CardScanState.Success?, onOpenStats:
                 } else {
                     val events = data?.events.orEmpty().filter { it.scanId == result.scanId }
                     if (events.isEmpty() && result.newQuestions.isEmpty()) Note(stringResource(R.string.scan_saved))
+                    // The dish question of this scan's payment: straight into it.
+                    open.filterIsInstance<OpenItem.MealQuestion>().firstOrNull { q -> events.any { it.id == q.eventId } }?.let { q ->
+                        Button(onClick = {
+                            vm.openQuestion(q.id)
+                            onOpenStats()
+                        }) { Text(stringResource(R.string.scan_choose_dish)) }
+                    }
                     events.forEach { e ->
                         val amount = formatCardAmount(e.amount, language)
                         val meal = e.meal?.dishes?.joinToString(", ") { it.name.forLanguage(language.language) }?.takeIf { it.isNotEmpty() }

@@ -52,7 +52,7 @@ class MainActivity : ComponentActivity() {
         val recorder = (application as MensaApp).container.statsRecorder
         // Runs on the NFC thread, which may block.
         NfcCardScanner(NfcAdapter.getDefaultAdapter(this), wantsCardId = { runBlocking { recorder.wantsCardId() } }).also { scanner ->
-            scanner.onRead = { s -> recorder.recordAsync(s.seq, s.balance.value, s.balance.lastTransaction, s.fingerprint) }
+            scanner.onRead = { s -> recorder.recordAsync(s.seq, s.balance.value, s.balance.lastTransaction, s.fingerprint, matchNow = true) }
         }
     }
 
@@ -126,6 +126,12 @@ class MainActivity : ComponentActivity() {
     private fun handleOpenIntent(intent: Intent?) {
         intent?.getStringExtra(FavoriteNotifier.EXTRA_MENSA_ID)?.let { viewModel.requestOpen(it) }
         if (intent?.getBooleanExtra(CardReminderNotifier.EXTRA_OPEN_CARD, false) == true) viewModel.requestOpenCard()
+        if (intent?.getBooleanExtra(EXTRA_OPEN_STATS, false) == true) viewModel.requestOpenCard(stats = true)
+    }
+
+    companion object {
+        /** From the card popup with a question waiting: the card statistics open (on top of the card screen). */
+        const val EXTRA_OPEN_STATS = "de.luwify.mensamd.extra.OPEN_STATS"
     }
 }
 

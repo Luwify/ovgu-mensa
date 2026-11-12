@@ -183,8 +183,18 @@ class MainViewModel(private val container: AppContainer) : ViewModel() {
     /** The card reminder was tapped: the card screen opens (consumed by `MensaRoot`). */
     val openCard: StateFlow<Boolean> = _openCard.asStateFlow()
 
-    fun requestOpenCard() {
+    private val _openStats = MutableStateFlow(false)
+
+    /** The card popup's "Frage beantworten": the card statistics open on the card screen (consumed by `CardScreen`). */
+    val openStats: StateFlow<Boolean> = _openStats.asStateFlow()
+
+    fun requestOpenCard(stats: Boolean = false) {
         _openCard.value = true
+        if (stats) _openStats.value = true
+    }
+
+    fun consumeOpenStats() {
+        _openStats.value = false
     }
 
     fun consumeOpenCard() {
