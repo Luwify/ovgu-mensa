@@ -192,6 +192,21 @@ sealed interface OpenItem {
     ) : OpenItem
 
     /**
+     * The first scan of a card already shows a last debit [amount] from before the statistics: record it as a payment?
+     * The card keeps no date, so the user picks the day ([date] = the scan's day, the default); "Nicht erfassen" drops
+     * it. Recorded, it is a payment on that day like any other (then the meal question, with detailed statistics).
+     */
+    @Serializable
+    @SerialName("first_debit")
+    data class FirstDebit(
+        override val id: Long,
+        override val scanId: Long,
+        @Serializable(with = LocalDateSerializer::class) override val date: LocalDate,
+        override val dateKnown: Boolean = false,
+        val amount: Int,
+    ) : OpenItem
+
+    /**
      * Which dish(es) did payment [eventId] buy? [dishes] is that day's menu of every Mensa with one; [missingMensen] are
      * the Mensen whose menu of that day could not be loaded, so [dishes] may be incomplete.
      */

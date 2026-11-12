@@ -10,6 +10,11 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.SelectableDates
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
@@ -18,6 +23,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -38,6 +44,9 @@ import de.luwify.mensamd.stats.EventKind
 import de.luwify.mensamd.stats.KnownAmounts
 import de.luwify.mensamd.stats.OpenItem
 import java.text.DecimalFormatSymbols
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneOffset
 import kotlin.math.abs
 
 /**
@@ -208,5 +217,58 @@ internal fun ChoiceRow(label: String, selected: Boolean, onClick: () -> Unit) {
     ) {
         RadioButton(selected = selected, onClick = null)
         Text(label, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(start = 12.dp))
+    }
+}
+
+/**
+ * The first scan of a card shows a last debit from before: "Letzte Abbuchung x € erfassen?" The card keeps no date, so
+ * the day is asked (default: the scan's day, any day up to it); "Erfassen" records the payment (then the meal question
+ * follows), "Nicht erfassen" drops the question. Closing the dialog keeps the question for later.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun FirstDebitDialog(item: OpenItem.FirstDebit, onSave: (LocalDate) -> Unit, onSkip: () -> Unit, onDismiss: () -> Unit) {
+    val locale = LocalConfiguration.current.locales[0]
+    var epochDay by rememberSaveable { mutableLongStateOf(item.date.toEpochDay()) }
+    var picking by rememberSaveable { mutableStateOf(false) }
+    val date = LocalDate.ofEpochDay(epochDay)
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.q_first_title, formatCardAmount(item.amount, locale))) },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(stringResource(R.string.q_first_text))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(stringResource(R.string.q_first_date, shortDate(date, locale)), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+                    TextButton(onClick = { picking = true }) { Text(stringResource(R.string.q_first_change_date)) }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = { onSave(date) }) { Text(stringResource(R.string.q_first_record)) } },
+        dismissButton = { TextButton(onClick = onSkip) { Text(stringResource(R.string.q_first_skip)) } },
+    )
+    if (picking) {
+        // The picker works in UTC midnight millis; days after the scan can't be picked.
+        val latest = item.date
+        val state = rememberDatePickerState(
+            initialSelectedDateMillis = date.atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli(),
+            yearRange = (latest.year - 1)..latest.year,
+            selectableDates = object : SelectableDates {
+                override fun isSelectableDate(utcTimeMillis: Long): Boolean =
+                    !Instant.ofEpochMilli(utcTimeMillis).atZone(ZoneOffset.UTC).toLocalDate().isAfter(latest)
+
+                override fun isSelectableYear(year: Int): Boolean = year <= latest.year
+            },
+        )
+        DatePickerDialog(
+            onDismissRequest = { picking = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    state.selectedDateMillis?.let { epochDay = Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate().toEpochDay() }
+                    picking = false
+                }) { Text(stringResource(android.R.string.ok)) }
+            },
+            dismissButton = { TextButton(onClick = { picking = false }) { Text(stringResource(R.string.cancel_action)) } },
+        ) { DatePicker(state) }
     }
 }

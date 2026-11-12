@@ -353,6 +353,12 @@
     <string name="q_row_credit_down">Guthaben um %1$s gesunken</string>
     <string name="q_row_credit_zero">Zahlung und Gutschrift in gleicher Höhe?</string>
     <string name="q_row_meal">Was hast du für %1$s gegessen?</string>
+    <string name="q_first_title">Letzte Abbuchung %1$s erfassen?</string>
+    <string name="q_first_text">Die Karte zeigte diese Abbuchung schon beim ersten Scan, also von vor der Statistik. Die Karte speichert kein Datum: An welchem Tag war sie?</string>
+    <string name="q_first_date">Tag: %1$s</string>
+    <string name="q_first_change_date">Ändern</string>
+    <string name="q_first_record">Erfassen</string>
+    <string name="q_first_skip">Nicht erfassen</string>
     <string name="q_several_title">Mehrere Zahlungen</string>
     <string name="q_several_text">Dein Guthaben ist um %1$s gesunken, die letzte Abbuchung war aber nur %2$s. Seit deinem letzten Scan gab es also mehrere Zahlungen.</string>
     <string name="q_several_text_no_debit">Dein Guthaben ist seit deinem letzten Scan um %1$s gesunken.</string>

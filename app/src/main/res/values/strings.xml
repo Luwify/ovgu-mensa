@@ -361,6 +361,12 @@
     <string name="q_row_credit_down">Balance down by %1$s</string>
     <string name="q_row_credit_zero">Payment and credit of the same amount?</string>
     <string name="q_row_meal">What did you eat for %1$s?</string>
+    <string name="q_first_title">Record last debit of %1$s?</string>
+    <string name="q_first_text">The card already showed this debit on its first scan, from before the statistics. The card doesn’t store a date: on which day was it?</string>
+    <string name="q_first_date">Day: %1$s</string>
+    <string name="q_first_change_date">Change</string>
+    <string name="q_first_record">Record</string>
+    <string name="q_first_skip">Don’t record</string>
     <string name="q_several_title">Several payments</string>
     <string name="q_several_text">Your balance went down by %1$s, but the last debit was only %2$s. So there were several payments since the last scan.</string>
     <string name="q_several_text_no_debit">Your balance went down by %1$s since the last scan.</string>

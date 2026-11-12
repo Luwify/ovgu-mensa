@@ -12,6 +12,7 @@ import de.luwify.mensamd.stats.EatenDish
 import de.luwify.mensamd.stats.EventKind
 import de.luwify.mensamd.stats.MealContext
 import de.luwify.mensamd.stats.MealRecord
+import de.luwify.mensamd.stats.OpenItem
 import de.luwify.mensamd.stats.StatsData
 import de.luwify.mensamd.stats.StatsOps
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -21,6 +22,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.time.LocalDate
 import java.time.LocalTime
 
 /** The card statistics screens (card settings, overview, questions). Everything goes through the store's lock. */
@@ -81,10 +83,27 @@ class StatsViewModel(private val container: AppContainer) : ViewModel() {
         recorder.matchPayments(payments)
     }
 
+    /** A top-up plus more than the last debit becomes a "several payments?" question, which then opens. */
     fun resolveCredit(itemId: Long, credit: Int?, kind: EventKind) = edit {
         var payments = emptyList<CardEvent>()
-        store.update { d -> StatsOps.resolveCredit(d, itemId, credit, kind).also { payments = it.second }.first }
+        val before = store.load().open.map { it.id }.toSet()
+        val after = store.update { d -> StatsOps.resolveCredit(d, itemId, credit, kind).also { payments = it.second }.first }
+        after.open.firstOrNull { it is OpenItem.SeveralPayments && it.id !in before }?.let { _focusQuestion.value = it.id }
         recorder.matchPayments(payments)
+    }
+
+    /** "Letzte Abbuchung erfassen?": [date] null = not recorded. Recorded, its meal question opens right away (detailed statistics). */
+    fun resolveFirstDebit(itemId: Long, date: LocalDate?) = edit {
+        var payments = emptyList<CardEvent>()
+        store.update { d -> StatsOps.resolveFirstDebit(d, itemId, date).also { payments = it.second }.first }
+        recorder.matchPayments(payments)
+        val ids = payments.map { it.id }.toSet()
+        store.load().open.firstOrNull { it is OpenItem.MealQuestion && it.eventId in ids }?.let { _focusQuestion.value = it.id }
+    }
+
+    /** Opens question [id] in the statistics screen (from the card screen's note). */
+    fun openQuestion(id: Long) {
+        _focusQuestion.value = id
     }
 
     /** The statistics screen opened: a scan made while the app was open has its payment matched now. */

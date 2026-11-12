@@ -18,13 +18,14 @@ class StatsTooNewException(val version: Int) : Exception("statistics version $ve
  * `EatenDish.grams`) and `MealQuestion.missingMensen`: all optional, nothing to convert. Version 3 = `StatsData.pendingMatch`:
  * optional, nothing to convert. Version 4 = `EatenDish.own`, `KnownDish.mensaId`/`own`: a stored dish
  * without a Mensa and without tags (named by hand, or a menu dish from the old known-dish list) becomes `own`, so its
- * missing tags count as "no information" and not as "not vegan".
+ * missing tags count as "no information" and not as "not vegan". Version 5 = the open item `first_debit`
+ * ([OpenItem.FirstDebit]): a new item type, nothing to convert (an older app can't read it, so the version guards it).
  */
 object StatsMigrations {
-    const val CURRENT = 4
+    const val CURRENT = 5
 
     /** n -> n + 1. */
-    private val STEPS: Map<Int, (JsonObject) -> JsonObject> = mapOf(1 to { it }, 2 to { it }, 3 to ::markUnknownDishesOwn)
+    private val STEPS: Map<Int, (JsonObject) -> JsonObject> = mapOf(1 to { it }, 2 to { it }, 3 to ::markUnknownDishesOwn, 4 to { it })
 
     /** 3 -> 4: see the class comment. Every other part of the document is kept as it is. */
     private fun markUnknownDishesOwn(obj: JsonObject): JsonObject {

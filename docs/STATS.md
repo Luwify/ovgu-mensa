@@ -95,3 +95,8 @@ Resume point for the card statistics feature (started 2026-11-05). Tick items as
       Measured with fake scans on the phone: about 0.55 s until stored in a warm process (the PBKDF2 card check), the meal step 0.1 s
       later with all menus cached, about 1.5 s more with 7 Mensen to load.
 - [x] No network from a card tap (2026-11-09): a scan only marks its payments (`pendingMatch`, schema 3); matching and any menu loading run when the main UI or the statistics screen opens.
+- [x] First scan (2026-11-12): a registered card's first scan offers its last debit as a payment (`OpenItem.FirstDebit`, schema 5):
+      the day is picked (default the scan's day), then the usual meal question; "Nicht erfassen" drops it.
+- [x] Several payments (2026-11-12): a decrease of more than the last debit L asks "one payment or split" (split prefilled with
+      the rest and L, each part matched on its own). A top-up plus payments: after picking the top-up, payments above L become the
+      same "several payments?" question (before: always one payment).

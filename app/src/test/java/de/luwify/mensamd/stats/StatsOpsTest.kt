@@ -16,6 +16,10 @@ class StatsOpsTest {
     private val day = LocalDate.of(2026, 11, 5)
     private val registered = StatsOps.register(StatsData(), "00112233445566778899aabbccddeeff", fp, 0)
 
+    /** A first scan with its "Letzte Abbuchung erfassen?" question dropped (most tests are about what follows). */
+    private fun baseline(scanned: Pair<StatsData, RecordResult>): StatsData =
+        scanned.first.copy(open = scanned.first.open.filterNot { it is OpenItem.FirstDebit })
+
     private fun scan(data: StatsData, balance: Int, debit: Int?, date: LocalDate = day, card: String = fp) =
         StatsOps.recordScan(data, card, 0, date, balance, debit, known)
 
@@ -60,14 +64,14 @@ class StatsOpsTest {
     }
 
     @Test fun repeatedIdenticalScanSameDayIsIgnored() {
-        val (a, _) = scan(registered, 10_000, 3_100)
+        val a = baseline(scan(registered, 10_000, 3_100))
         assertEquals(RecordResult.Unchanged, scan(a, 10_000, 3_100).second)
         // The next day it is stored (the reminder needs to know the card was scanned that day).
         assertTrue(scan(a, 10_000, 3_100, day.plusDays(1)).second is RecordResult.Recorded)
     }
 
     @Test fun severalPaymentsSplitOrOne() {
-        val (a, _) = scan(registered, 10_000, 1_000)
+        val a = baseline(scan(registered, 10_000, 1_000))
         val (b, r) = scan(a, 4_400, 2_500)
         val q = (r as RecordResult.Recorded).newQuestions.single() as OpenItem.SeveralPayments
         assertEquals(5_600, q.amount)
@@ -81,13 +85,13 @@ class StatsOpsTest {
 
     @Test(expected = IllegalArgumentException::class)
     fun splitThatDoesNotAddUpIsRejected() {
-        val (a, _) = scan(registered, 10_000, 1_000)
+        val a = baseline(scan(registered, 10_000, 1_000))
         val (b, r) = scan(a, 4_400, 2_500)
         StatsOps.resolveSeveral(b, (r as RecordResult.Recorded).newQuestions.single().id, listOf(3_000, 2_500))
     }
 
     @Test fun unknownIncreaseResolvedAsTopUpPlusPayment() {
-        val (a, _) = scan(registered, 5_370, 5_600)
+        val a = baseline(scan(registered, 5_370, 5_600))
         val (b, r) = scan(a, 19_770, 5_600)
         val q = (r as RecordResult.Recorded).newQuestions.single() as OpenItem.CreditAndPayment
         val (c, payments) = StatsOps.resolveCredit(b, q.id, 20_000)
@@ -153,7 +157,7 @@ class StatsOpsTest {
 
     @Test fun reassignPfandBecomesATopUpQuestion() {
         val k = KnownAmounts(KnownAmounts.DEFAULT_TOP_UPS, KnownAmounts.DEFAULT_PFAND)
-        val (a, _) = StatsOps.recordScan(registered, fp, 0, day, 5_000, 3_100, k)
+        val a = baseline(StatsOps.recordScan(registered, fp, 0, day, 5_000, 3_100, k))
         val (b, r) = StatsOps.recordScan(a, fp, 0, day, 5_330, 3_100, k)
         val pfand = (r as RecordResult.Recorded).newEvents.single()
         assertEquals(EventKind.PFAND, pfand.kind)
@@ -163,10 +167,11 @@ class StatsOpsTest {
         assertEquals(id, q.id)
         assertEquals(330, q.delta)
         assertEquals(3_100, q.lastDebit)
-        // Answered as a 10 € top-up and a 9.67 € payment.
+        // Answered as a 10 € top-up: 9.67 € paid, more than the last debit of 3.10 €, so several payments are asked.
         val (d, payments) = StatsOps.resolveCredit(c, q.id, 10_000)
-        assertEquals(listOf(EventKind.TOP_UP to 10_000, EventKind.PAYMENT to 9_670), d.events.map { it.kind to it.amount })
-        assertEquals(9_670, payments.single().amount)
+        assertEquals(listOf(EventKind.TOP_UP to 10_000), d.events.map { it.kind to it.amount })
+        assertTrue(payments.isEmpty())
+        assertEquals(9_670 to 3_100, (d.open.single() as OpenItem.SeveralPayments).let { it.amount to it.lastDebit })
         // Or back to a Pfand return after all.
         val (e, none) = StatsOps.resolveCredit(c, q.id, null, EventKind.PFAND)
         assertEquals(listOf(EventKind.PFAND to 330), e.events.map { it.kind to it.amount })
@@ -175,7 +180,7 @@ class StatsOpsTest {
 
     @Test fun reassignPfandWithItsPaymentKeepsTheNetChange() {
         val k = KnownAmounts(KnownAmounts.DEFAULT_TOP_UPS, KnownAmounts.DEFAULT_PFAND)
-        val (a, _) = StatsOps.recordScan(registered, fp, 0, day, 10_000, 3_100, k)
+        val a = baseline(StatsOps.recordScan(registered, fp, 0, day, 10_000, 3_100, k))
         // 0.50 € bottles back, 5.60 € lunch: -5.10 €
         val (b, _) = StatsOps.recordScan(a, fp, 0, day, 4_900, 5_600, k)
         assertEquals(listOf(EventKind.PFAND to 500, EventKind.PAYMENT to 5_600), b.events.map { it.kind to it.amount })
@@ -267,5 +272,83 @@ class StatsOpsTest {
         val tagged = StatsOps.editDish(data, id, 0, "Plantbased Chicken-Shawarma", null, listOf(vegan))
         val cleared = StatsOps.editDish(tagged, id, 0, "Plantbased Chicken-Shawarma", null, emptyList())
         assertFalse(cleared.events.single().meal!!.dishes.single().tagsKnown)
+    }
+
+    /** The first scan offers the card's last debit as a payment of a day the user picks; "Nicht erfassen" drops it. */
+    @Test fun firstScanOffersTheLastDebit() {
+        val (a, r) = scan(registered, 10_000, 3_100)
+        val q = (r as RecordResult.Recorded).newQuestions.single() as OpenItem.FirstDebit
+        assertEquals(3_100, q.amount)
+        assertEquals(day, q.date)
+        assertFalse(q.dateKnown)
+        assertEquals(listOf(q), a.open)
+        val monday = day.minusDays(3)
+        val (b, payments) = StatsOps.resolveFirstDebit(a, q.id, monday)
+        val p = payments.single()
+        assertEquals(Triple(EventKind.PAYMENT, 3_100, monday), Triple(p.kind, p.amount, p.date))
+        assertTrue(p.dateKnown)
+        assertEquals(a.scans.single().id, p.scanId)
+        assertTrue(b.open.isEmpty())
+        // The next scan compares with the first one as before: unchanged debit, lower balance = one new payment.
+        val (_, r2) = scan(b, 7_500, 2_500)
+        assertEquals(listOf(EventKind.PAYMENT to 2_500), (r2 as RecordResult.Recorded).newEvents.map { it.kind to it.amount })
+
+        val (skipped, none) = StatsOps.resolveFirstDebit(a, q.id, null)
+        assertTrue(none.isEmpty())
+        assertTrue(skipped.open.isEmpty())
+        assertTrue(skipped.events.isEmpty())
+    }
+
+    @Test fun firstScanWithoutALastDebitAsksNothing() {
+        assertTrue(scan(registered, 10_000, 0).first.open.isEmpty())
+        assertTrue(scan(registered, 10_000, null).first.open.isEmpty())
+    }
+
+    /** Two payments between scans: the balance fell by more than the last debit, so one or a split is asked. */
+    @Test fun twoPaymentsBetweenScansAreAskedAndSplit() {
+        val a = baseline(scan(registered, 20_000, 1_000))
+        val (b, r) = scan(a, 14_400, 2_500) // paid 3,10 then 2,50
+        val q = (r as RecordResult.Recorded).newQuestions.single() as OpenItem.SeveralPayments
+        assertEquals(5_600 to 2_500, q.amount to q.lastDebit)
+        assertTrue(r.newEvents.isEmpty())
+        val (split, payments) = StatsOps.resolveSeveral(b, q.id, listOf(3_100, 2_500))
+        assertEquals(listOf(3_100, 2_500), payments.map { it.amount })
+        assertTrue(payments.all { it.kind == EventKind.PAYMENT && it.dateKnown })
+        assertTrue(split.open.isEmpty())
+        val (one, single) = StatsOps.resolveSeveral(b, q.id, listOf(5_600))
+        assertEquals(listOf(5_600), single.map { it.amount })
+        assertEquals(1, one.events.size)
+    }
+
+    /**
+     * A top-up plus two payments: the balance rose and the last debit changed, so "top-up + payment?" is asked. With the
+     * top-up picked, the payments are more than the last debit: a "several payments?" question follows for them.
+     */
+    @Test fun topUpPlusTwoPaymentsAsksTheSplitAfterTheTopUp() {
+        val a = baseline(scan(registered, 5_000, 1_000))
+        val (b, r) = scan(a, 9_400, 2_500) // +10,00, -3,10, -2,50
+        val credit = (r as RecordResult.Recorded).newQuestions.single() as OpenItem.CreditAndPayment
+        assertEquals(4_400, credit.delta)
+        assertNull(credit.suggested) // 4,40 + 2,50 is no top-up amount
+        val (c, payments) = StatsOps.resolveCredit(b, credit.id, 10_000, EventKind.TOP_UP)
+        assertTrue(payments.isEmpty())
+        assertEquals(listOf(EventKind.TOP_UP to 10_000), c.events.map { it.kind to it.amount })
+        val several = c.open.single() as OpenItem.SeveralPayments
+        assertEquals(5_600 to 2_500, several.amount to several.lastDebit)
+        val (d, split) = StatsOps.resolveSeveral(c, several.id, listOf(3_100, 2_500))
+        assertEquals(listOf(3_100, 2_500), split.map { it.amount })
+        assertEquals(listOf(EventKind.TOP_UP, EventKind.PAYMENT, EventKind.PAYMENT), d.events.map { it.kind })
+        assertTrue(d.open.isEmpty())
+    }
+
+    /** A top-up plus exactly the last debit stays one payment, no follow-up question. */
+    @Test fun topUpPlusOnePaymentNeedsNoSplit() {
+        val a = baseline(scan(registered, 5_000, 1_000))
+        val (b, r) = scan(a, 11_900, 3_100) // +10,00, -3,10
+        val credit = (r as RecordResult.Recorded).newQuestions.single() as OpenItem.CreditAndPayment
+        assertEquals(10_000, credit.suggested)
+        val (c, payments) = StatsOps.resolveCredit(b, credit.id, 10_000, EventKind.TOP_UP)
+        assertEquals(listOf(3_100), payments.map { it.amount })
+        assertTrue(c.open.isEmpty())
     }
 }

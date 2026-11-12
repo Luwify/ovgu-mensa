@@ -58,7 +58,10 @@ object StatsOps {
         var nextId = data.nextId
         val scan = Scan(nextId++, at, date, card.hash, balance, lastDebit)
         if (previous == null) {
-            return data.copy(scans = data.scans + scan, nextId = nextId) to RecordResult.Recorded(scan.id, true, emptyList(), emptyList())
+            // The card's last debit happened before the statistics knew the card: offered as a payment of a day to pick.
+            val first = lastDebit?.takeIf { it > 0 }?.let { listOf(OpenItem.FirstDebit(nextId++, scan.id, date, amount = it)) }.orEmpty()
+            return data.copy(scans = data.scans + scan, open = data.open + first, nextId = nextId) to
+                RecordResult.Recorded(scan.id, true, emptyList(), first)
         }
         val dateKnown = BalanceDiff.dateKnown(previous.date, date)
         val events = mutableListOf<CardEvent>()
@@ -87,19 +90,39 @@ object StatsOps {
     }
 
     /**
-     * A change no known amount explained. [credit] (with [kind]) chosen: that credit plus a payment of credit - delta.
-     * [credit] null: only the change itself, as a credit of [kind] (top-up or Pfand; delta > 0) or a payment
-     * (delta < 0); a zero change stores nothing. Returns the new payments.
+     * "Letzte Abbuchung erfassen?" on a card's first scan: [date] null = "Nicht erfassen" (the question goes away),
+     * otherwise a payment of the last debit on [date] (the user's choice, so known). Returns the new payments.
+     */
+    fun resolveFirstDebit(data: StatsData, itemId: Long, date: LocalDate?): Pair<StatsData, List<CardEvent>> {
+        val item = data.open.firstOrNull { it.id == itemId } as? OpenItem.FirstDebit ?: return data to emptyList()
+        if (date == null) return data.copy(open = data.open - item) to emptyList()
+        val payment = CardEvent(data.nextId, item.scanId, EventKind.PAYMENT, item.amount, date, dateKnown = true)
+        return data.copy(events = data.events + payment, open = data.open - item, nextId = data.nextId + 1) to listOf(payment)
+    }
+
+    /**
+     * A change no known amount explained. [credit] (with [kind]) chosen: that credit plus the payments of credit - delta.
+     * Those are one payment when they don't exceed the card's last debit; more than it means several payments (the last
+     * one was the last debit), which becomes a "several payments?" question like a plain decrease. [credit] null: only
+     * the change itself, as a credit of [kind] (top-up or Pfand; delta > 0) or a payment (delta < 0); a zero change
+     * stores nothing. Returns the new payments.
      */
     fun resolveCredit(data: StatsData, itemId: Long, credit: Int?, kind: EventKind = EventKind.TOP_UP): Pair<StatsData, List<CardEvent>> {
         val item = data.open.firstOrNull { it.id == itemId } as? OpenItem.CreditAndPayment ?: return data to emptyList()
         var nextId = data.nextId
         val events = when {
             credit != null -> {
-                require(kind != EventKind.PAYMENT && credit - item.delta > 0) { "the payment must be positive" }
+                val paid = credit - item.delta
+                require(kind != EventKind.PAYMENT && paid > 0) { "the payment must be positive" }
+                val last = item.lastDebit?.takeIf { it > 0 }
+                if (last != null && paid > last) {
+                    val creditEvent = CardEvent(nextId++, item.scanId, kind, credit, item.date, item.dateKnown)
+                    val several = OpenItem.SeveralPayments(nextId++, item.scanId, item.date, item.dateKnown, paid, last)
+                    return data.copy(events = data.events + creditEvent, open = data.open - item + several, nextId = nextId) to emptyList()
+                }
                 listOf(
                     CardEvent(nextId++, item.scanId, kind, credit, item.date, item.dateKnown),
-                    CardEvent(nextId++, item.scanId, EventKind.PAYMENT, credit - item.delta, item.date, item.dateKnown),
+                    CardEvent(nextId++, item.scanId, EventKind.PAYMENT, paid, item.date, item.dateKnown),
                 )
             }
             item.delta > 0 -> listOf(

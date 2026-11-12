@@ -139,4 +139,16 @@ class StatsStoreTest {
         )
         assertEquals(data.copy(version = StatsMigrations.CURRENT), decodeStats(encodeStats(data)))
     }
+
+    /** Version 4 -> 5: only a new open item type; a version 4 file loads unchanged, and the new item survives a write and read. */
+    @Test fun aVersion4FileLoadsAndTheFirstDebitQuestionRoundTrips() {
+        val v4 = """{"version":4,"nextId":3,"scans":[{"id":1,"at":0,"date":"2026-11-09","card":"h","balance":10000,"lastDebit":3100}],
+            "open":[{"type":"several","id":2,"scanId":1,"date":"2026-11-09","dateKnown":true,"amount":5600,"lastDebit":2500}]}"""
+        val data = decodeStats(statsJson.parseToJsonElement(v4) as JsonObject)
+        assertEquals(StatsMigrations.CURRENT, data.version)
+        assertEquals(OpenItem.SeveralPayments(2, 1, java.time.LocalDate.of(2026, 11, 9), true, 5_600, 2_500), data.open.single())
+        val withFirst = data.copy(open = data.open + OpenItem.FirstDebit(3, 1, java.time.LocalDate.of(2026, 11, 9), amount = 3_100), nextId = 4)
+        assertEquals(withFirst, decodeStats(encodeStats(withFirst)))
+        assertTrue(encodeStats(withFirst).toString().contains("\"first_debit\""))
+    }
 }

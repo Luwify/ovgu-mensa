@@ -243,4 +243,33 @@ class StatsRecorderTest {
             scope.cancel()
         }
     }
+
+    /**
+     * Two payments between scans, the last one the price of a dish: the split puts the last debit in its own part, which
+     * matches that dish alone (saved: one candidate, same day); the other part is asked.
+     */
+    @Test fun twoPaymentsWhereTheLastIsADishPrice() = runBlocking {
+        val scope = CoroutineScope(SupervisorJob())
+        try {
+            val dishes = listOf(
+                SnapDish("unten", LocalizedText("Linseneintopf"), listOf(250, 400, 500)),
+                SnapDish("unten", LocalizedText("Seelachs"), listOf(330, 520, 620)),
+            )
+            val r = recorder(scope, dishes)
+            r.register(fp, 20_000, 0, null)
+            now = now.plusHours(1)
+            val result = r.record(14_400, 2_500, fp) as RecordResult.Recorded // 3,10 + 2,50
+            val q = result.newQuestions.single() as OpenItem.SeveralPayments
+            var payments = emptyList<CardEvent>()
+            r.store.update { d -> StatsOps.resolveSeveral(d, q.id, listOf(3_100, 2_500)).also { payments = it.second }.first }
+            r.matchPayments(payments)
+            val data = r.store.load()
+            val (first, second) = data.events
+            assertNull(first.meal) // 3,10: no dish costs that
+            assertEquals("Linseneintopf", second.meal?.dishes?.single()?.name?.de)
+            assertEquals(first.id, (data.open.single() as OpenItem.MealQuestion).eventId)
+        } finally {
+            scope.cancel()
+        }
+    }
 }

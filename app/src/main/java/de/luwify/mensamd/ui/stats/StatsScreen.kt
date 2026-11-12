@@ -271,6 +271,18 @@ fun StatsScreen(vm: StatsViewModel, mainVm: MainViewModel, onBack: () -> Unit) {
                 vm.dismiss(open.id)
             },
         )
+        is OpenItem.FirstDebit -> FirstDebitDialog(
+            open,
+            onSave = { date ->
+                openId = null
+                vm.resolveFirstDebit(open.id, date)
+            },
+            onSkip = {
+                openId = null
+                vm.resolveFirstDebit(open.id, null)
+            },
+            onDismiss = { openId = null },
+        )
         is OpenItem.MealQuestion -> MealQuestionScreen(vm, open, d.customDishes, d.customExtras, d.events, onClose = { openId = null })
         null -> if (openId != null && d != null) openId = null
     }
@@ -294,6 +306,7 @@ private fun QuestionRow(item: OpenItem, locale: Locale, onClick: () -> Unit) {
             else -> stringResource(R.string.q_row_credit_zero)
         }
         is OpenItem.MealQuestion -> stringResource(R.string.q_row_meal, fmt(item.amount))
+        is OpenItem.FirstDebit -> stringResource(R.string.q_first_title, fmt(item.amount))
     }
     Surface(
         color = MaterialTheme.colorScheme.secondaryContainer,
