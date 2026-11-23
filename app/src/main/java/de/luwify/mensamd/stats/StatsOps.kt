@@ -99,9 +99,28 @@ object StatsOps {
      */
     fun resolveFirstDebit(data: StatsData, itemId: Long, date: LocalDate?): Pair<StatsData, List<CardEvent>> {
         val item = data.open.firstOrNull { it.id == itemId } as? OpenItem.FirstDebit ?: return data to emptyList()
-        if (date == null) return data.copy(open = data.open - item) to emptyList()
+        val card = data.scans.firstOrNull { it.id == item.scanId }?.card
+        val done = if (card == null || card in data.firstDebitDone) data.firstDebitDone else data.firstDebitDone + card
+        if (date == null) return data.copy(open = data.open - item, firstDebitDone = done) to emptyList()
         val payment = CardEvent(data.nextId, item.scanId, EventKind.PAYMENT, item.amount, date, dateKnown = true)
-        return data.copy(events = data.events + payment, open = data.open - item, nextId = data.nextId + 1) to listOf(payment)
+        return data.copy(events = data.events + payment, open = data.open - item, nextId = data.nextId + 1, firstDebitDone = done) to listOf(payment)
+    }
+
+    /**
+     * Offers the registered card's last debit from before the statistics ("Letzte Abbuchung erfassen?") whenever it isn't
+     * recorded yet, not only on the very first scan: a card registered before the offer existed never had one. The debit
+     * is the one the card showed on its first recorded scan; it counts as recorded when a payment came from that scan
+     * (only the answer creates one), and as answered when the card is in [StatsData.firstDebitDone] or the question is open.
+     */
+    fun offerFirstDebit(data: StatsData): StatsData {
+        val card = data.card?.hash ?: return data
+        if (card in data.firstDebitDone) return data
+        val first = data.scans.firstOrNull { it.card == card } ?: return data
+        val debit = first.lastDebit?.takeIf { it > 0 } ?: return data
+        if (data.open.any { it is OpenItem.FirstDebit && it.scanId == first.id }) return data
+        if (data.events.any { it.scanId == first.id && it.kind == EventKind.PAYMENT }) return data
+        val item = OpenItem.FirstDebit(data.nextId, first.id, first.date, amount = debit)
+        return data.copy(open = data.open + item, nextId = data.nextId + 1)
     }
 
     /**

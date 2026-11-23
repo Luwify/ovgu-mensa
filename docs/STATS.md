@@ -119,3 +119,8 @@ Resume point for the card statistics feature (started 2026-11-05). Tick items as
       became one screen (`MealQuestionScreen`, `MealDraft`): suggestions, one search, items with "Noch x € offen", "Später" /
       "Nicht erfassen". Undated payments are asked too; "Auf mehrere Tage verteilen" splits a payment by day. Schema 6: extras with
       their own amount (`ExtraItem`; the old shared total is split evenly). Tested on the phone with a throwaway package and fake data.
+- [x] First debit, reliably (2026-11-23): the offer was made only on a card's very first scan (since 1.2.3), so cards registered
+      earlier never saw it. `StatsOps.offerFirstDebit` now offers the first recorded scan's debit whenever it is unanswered (no
+      payment from that scan, not declined: `firstDebitDone`), at every `matchPending`; the card screen shows it as a note.
+- [x] Phase 2 (2026-11-23): several payments folded into the question screen with detailed statistics (`CardEvent.payments`),
+      desserts as dishes by weight (`dessert` flag, Desserts section, old dessert extras migrated), schema 7.

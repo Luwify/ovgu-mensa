@@ -11,3 +11,6 @@ Changed:
 - With detailed statistics there is no separate “Several payments” question any more: when the balance dropped by more than the last debit, the total appears in the same question with the note “At least 2 payments since the last scan”; spreading over several days works as usual. Without detailed statistics the simple question stays.
 - Tapping a saved payment in the history opens the same screen with its items, to correct them.
 - Extras are now stored one by one with their amount. Older entries with several extras split their shared amount evenly.
+
+Fixed:
+- “Record last debit?” only appeared on a card’s very first scan, so never for cards registered before version 1.2.3. The app now offers the unrecorded last debit until it is recorded or declined, also as a note on the card screen.

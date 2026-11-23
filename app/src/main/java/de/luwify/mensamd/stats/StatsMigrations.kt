@@ -28,7 +28,7 @@ class StatsTooNewException(val version: Int) : Exception("statistics version $ve
  * Version 7 = `CardEvent.payments` (a payment standing for at least two), `EatenDish.dessert`, `KnownDish.dessert`:
  * desserts are dishes now. The dessert extras of a meal (`@dessert`, `@pudding`, `@rote_gruetze`) become hand-named dessert
  * dishes with the same amount (and weight); "Pudding" and "Rote Grütze" are also saved as dessert dishes by weight, so
- * the search offers them (the generic "Dessert" is built in).
+ * the search offers them (the generic "Dessert" is built in). Also new in 7, optional: `StatsData.firstDebitDone`.
  */
 object StatsMigrations {
     const val CURRENT = 7

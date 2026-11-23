@@ -376,4 +376,26 @@ class StatsOpsTest {
         val one = StatsOps.splitPayment(data.copy(events = listOf(event.copy(payments = 2))), 1, listOf(Triple(day.minusDays(1), 3_100, meal), Triple(day, 2_500, meal)))
         assertEquals(listOf(1, 1), one.events.map { it.payments })
     }
+
+    /** A card registered before the offer existed: its first scan's debit is offered later, once, until answered. */
+    @Test fun theFirstDebitIsOfferedUntilAnswered() {
+        val (a, _) = scan(registered, 10_000, 3_100)
+        val old = a.copy(open = emptyList()) // as before 1.2.3: no question was made
+        val (b, _) = scan(old, 6_900, 3_100, day.plusDays(1))
+        val offered = StatsOps.offerFirstDebit(b)
+        val q = offered.open.single() as OpenItem.FirstDebit
+        assertEquals(3_100 to day, q.amount to q.date)
+        assertEquals(offered, StatsOps.offerFirstDebit(offered)) // never twice
+        // Recorded: a payment from the first scan; not offered again.
+        val (recorded, _) = StatsOps.resolveFirstDebit(offered, q.id, day)
+        val forgotten = recorded.copy(firstDebitDone = emptyList())
+        assertEquals(forgotten, StatsOps.offerFirstDebit(forgotten))
+        // Declined: remembered.
+        val (declined, _) = StatsOps.resolveFirstDebit(offered, q.id, null)
+        assertEquals(listOf(registered.card!!.hash), declined.firstDebitDone)
+        assertEquals(declined, StatsOps.offerFirstDebit(declined))
+        // Nothing to offer without a debit or a registered card.
+        assertEquals(b.copy(scans = b.scans.map { it.copy(lastDebit = 0) }), StatsOps.offerFirstDebit(b.copy(scans = b.scans.map { it.copy(lastDebit = 0) })))
+        assertEquals(StatsOps.unregister(b), StatsOps.offerFirstDebit(StatsOps.unregister(b)))
+    }
 }

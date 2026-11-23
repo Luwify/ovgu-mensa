@@ -11,3 +11,6 @@ Geändert:
 - Mit detaillierter Statistik gibt es keine eigene Frage „Mehrere Zahlungen“ mehr: Sank das Guthaben um mehr als die letzte Abbuchung, erscheint der Gesamtbetrag mit dem Hinweis „Mindestens 2 Zahlungen nach dem letzten Scan“ in derselben Frage; Verteilen auf mehrere Tage geht wie gewohnt. Ohne detaillierte Statistik bleibt die einfache Frage.
 - Eine gespeicherte Zahlung in der Liste öffnet zum Korrigieren denselben Bildschirm mit ihren Einträgen.
 - Extras werden jetzt einzeln mit ihrem Betrag gespeichert. Ältere Einträge mit mehreren Extras teilen ihren gemeinsamen Betrag gleichmäßig auf.
+
+Behoben:
+- „Letzte Abbuchung erfassen?“ erschien nur beim allerersten Scan einer Karte, also nie für Karten, die schon vor Version 1.2.3 registriert waren. Jetzt bietet die App die noch nicht erfasste letzte Abbuchung an, bis sie erfasst oder abgelehnt ist, auch als Hinweis in der Karten-Ansicht.

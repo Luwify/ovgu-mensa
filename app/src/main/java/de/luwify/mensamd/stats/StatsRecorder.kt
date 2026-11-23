@@ -154,7 +154,8 @@ class StatsRecorder(
     suspend fun matchPending(): Unit = pendingLock.withLock {
         val config = settings.first()
         if (!config.enabled || store.readOnly) return@withLock
-        val data = store.load()
+        // The card's last debit from before the statistics, if it was never offered (cards registered before 1.2.3).
+        val data = store.update(StatsOps::offerFirstDebit)
         // Questions left with missing menus (the app closed while loading, or the site was down): tried again below.
         val today = Instant.ofEpochMilli(clock()).atZone(zone()).toLocalDate()
         val retry = data.open.filterIsInstance<OpenItem.MealQuestion>()

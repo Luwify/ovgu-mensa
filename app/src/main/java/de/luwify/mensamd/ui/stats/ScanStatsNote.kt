@@ -63,19 +63,6 @@ fun ScanStatsNote(vm: StatsViewModel, scan: CardScanState.Success?, onOpenStats:
             is RecordResult.Recorded -> {
                 if (result.baseline) {
                     Note(stringResource(R.string.scan_baseline))
-                    // The card's last debit from before: record it? Opens the question (day, then the meal).
-                    open.filterIsInstance<OpenItem.FirstDebit>().firstOrNull { it.scanId == result.scanId }?.let { q ->
-                        NoteCard {
-                            Text(stringResource(R.string.q_first_title, formatCardAmount(q.amount, language)), style = MaterialTheme.typography.titleSmall)
-                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                                TextButton(onClick = { vm.resolveFirstDebit(q.id, null) }) { Text(stringResource(R.string.q_first_skip)) }
-                                Button(onClick = {
-                                    vm.openQuestion(q.id)
-                                    onOpenStats()
-                                }) { Text(stringResource(R.string.q_first_record)) }
-                            }
-                        }
-                    }
                 } else {
                     val events = data?.events.orEmpty().filter { it.scanId == result.scanId }
                     if (events.isEmpty() && result.newQuestions.isEmpty()) Note(stringResource(R.string.scan_saved))
@@ -100,6 +87,21 @@ fun ScanStatsNote(vm: StatsViewModel, scan: CardScanState.Success?, onOpenStats:
                 }
             }
             RecordResult.Off, null -> Unit
+        }
+        // The card's last debit from before the statistics, as long as it is unanswered (any scan, or none on screen):
+        // record it? Opens the question (day, then the meal).
+        open.filterIsInstance<OpenItem.FirstDebit>().firstOrNull()?.let { q ->
+            NoteCard {
+                Text(stringResource(R.string.q_first_title, formatCardAmount(q.amount, language)), style = MaterialTheme.typography.titleSmall)
+                Text(stringResource(R.string.q_first_note), style = MaterialTheme.typography.bodyMedium)
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    TextButton(onClick = { vm.resolveFirstDebit(q.id, null) }) { Text(stringResource(R.string.q_first_skip)) }
+                    Button(onClick = {
+                        vm.openQuestion(q.id)
+                        onOpenStats()
+                    }) { Text(stringResource(R.string.q_first_record)) }
+                }
+            }
         }
         if (open.isNotEmpty()) {
             Button(onClick = onOpenStats) { Text(pluralStringResource(R.plurals.open_questions_button, open.size, open.size)) }

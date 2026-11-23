@@ -35,6 +35,11 @@ data class StatsData(
     val customDishes: List<KnownDish> = emptyList(),
     /** Payments (event ids) waiting to be matched to a menu: a scan doesn't load menus, the next visit to the app does. */
     val pendingMatch: List<Long> = emptyList(),
+    /**
+     * Cards (hashes) whose last debit from before the statistics was answered ("Letzte Abbuchung erfassen?": recorded or
+     * not), so it isn't offered again ([StatsOps.offerFirstDebit]).
+     */
+    val firstDebitDone: List<String> = emptyList(),
     /** The next free id for scans, events and open items (one sequence for all). */
     val nextId: Long = 1,
 )
