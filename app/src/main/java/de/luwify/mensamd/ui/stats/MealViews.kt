@@ -115,7 +115,7 @@ internal fun EditDishDialog(
 }
 
 /** The meals part of the statistics overview (detailed statistics). */
-internal fun LazyListScope.mealsSection(data: StatsData, vm: StatsViewModel, locale: Locale, onUnassigned: () -> Unit) {
+internal fun LazyListScope.mealsSection(data: StatsData, vm: StatsViewModel, locale: Locale, style: ChartStyle, onUnassigned: () -> Unit) {
     val summary = MealSummary.summarize(data.events)
     val language = locale.language
     item(key = "meals-title") { SheetHeading(stringResource(R.string.meals_title)) }
@@ -158,7 +158,7 @@ internal fun LazyListScope.mealsSection(data: StatsData, vm: StatsViewModel, loc
     item(key = "meals-mensa") {
         val unknown = stringResource(R.string.meal_unknown_mensa)
         val max = summary.byMensa.maxOf { it.second }.coerceAtLeast(1)
-        val barColor = MaterialTheme.colorScheme.primary
+        val barColor = style.spent
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             summary.byMensa.forEach { (id, n) ->
                 Column {

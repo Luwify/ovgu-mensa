@@ -109,7 +109,9 @@ git-ignored `CLAUDE.local.md` at the repo root, which Claude Code loads after th
   and the popup; the result is out as soon as the scan is stored. A card tap from the popup touches no network (update check included): payments wait in `StatsData.pendingMatch` until `matchPending` (main UI start, statistics screen, or a scan in the open app). Matching never waits for the network: it asks with the cached menus (`MenuRepository.knowsDay`), missing Mensen load in the background (`StatsRecorder.loading`) and update the open questions. First scan: the card's last debit is offered as a payment of a picked day (`OpenItem.FirstDebit`); `StatsOps.offerFirstDebit`
 (in `matchPending`) offers it later too until answered (`StatsData.firstDebitDone`), shown as a note on the card screen. Hand-named dishes with Mensa and price are candidates of that Mensa (`MenuDishes.own`). The card hash is memoized for the process (`CardIdentity`). "Meine Karte": only scans of the registered card are stored; the UID becomes a fingerprint in memory
   (`CardIdentity`), only a salted PBKDF2 hash of it is stored. Amounts are mills (card unit); menu prices are cents x 10.
-  Charts are own Canvas code (`ui/stats/Charts.kt`), no library. Reminder: `notify/CardReminder.kt` (one-time
+  Charts are own Canvas code (`ui/stats/Charts.kt`), no library; colors/widths from `ChartStyle` (theme primary/tertiary nudged
+  to 3:1 against page and selected band, 4.5:1 + thicker lines with "Hoher Kontrast" `stats_high_contrast`; top-ups outlined,
+  off by default; `ChartStyleTest` checks every fixed theme and custom hues). Periods start at the first one with data. Reminder: `notify/CardReminder.kt` (one-time
   WorkManager job re-enqueued like the favorites job; tap -> `EXTRA_OPEN_CARD`). Backup: `backup/BackupFormat`
   (`mensamd-backup` v1: every settings key except device state, language, statistics) + `BackupRepository`, settings page.
   Meal statistics website link: `StatsLinks.MEAL_STATS_URL` (hidden while empty). Pfand: a credit up to 5 € that is a

@@ -1,4 +1,5 @@
 New:
+- “High contrast” setting (Card tab): stronger colors and thicker lines in the statistics charts.
 - Desserts: a generic “Dessert” by weight and your own desserts (e.g. Pudding, Rote Grütze), created from the search. A dish by weight can be marked as “Dessert” when creating or editing it, optionally with a price per 100 g for the approximate amount. New “Desserts” section in the statistics: spending, estimated amount and a breakdown per dessert. Pudding, Rote Grütze and Dessert saved as extras so far become such desserts.
 - “Avg. per day” in the statistics: spending divided by the number of days with at least one payment. “Avg. per visit” counts an amount of at least 2 payments as 2 visits.
 
@@ -11,6 +12,8 @@ Changed:
 - With detailed statistics there is no separate “Several payments” question any more: when the balance dropped by more than the last debit, the total appears in the same question with the note “At least 2 payments since the last scan”; spreading over several days works as usual. Without detailed statistics the simple question stays.
 - Tapping a saved payment in the history opens the same screen with its items, to correct them.
 - Extras are now stored one by one with their amount. Older entries with several extras split their shared amount evenly.
+- The statistics charts have enough contrast in every color scheme, AMOLED included. Top-ups are drawn as outlined columns, so they differ from spending without relying on color.
+- The weekly and monthly chart shows only spending at first; top-ups can be switched on with “Top-ups”, so a large top-up doesn’t squash the spending columns. The axis starts at the first week (or month) with data.
 
 Fixed:
 - “Record last debit?” only appeared on a card’s very first scan, so never for cards registered before version 1.2.3. The app now offers the unrecorded last debit until it is recorded or declined, also as a note on the card screen.

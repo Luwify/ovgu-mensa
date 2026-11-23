@@ -360,6 +360,7 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
         else -> false
     }
     private val statsDetailedKey = booleanPreferencesKey("stats_detailed")
+    private val statsHighContrastKey = booleanPreferencesKey("stats_high_contrast")
     private val cardReminderKey = booleanPreferencesKey("card_reminder_enabled")
     private val cardReminderMinuteKey = intPreferencesKey("card_reminder_minute")
     private val topUpAmountsKey = stringPreferencesKey("stats_top_up_amounts")
@@ -370,6 +371,7 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
         CardStatsSettings(
             enabled = prefs[statsEnabledKey] ?: false,
             detailed = prefs[statsDetailedKey] ?: false,
+            highContrast = prefs[statsHighContrastKey] ?: false,
             reminder = prefs[cardReminderKey] ?: false,
             reminderTime = prefs[cardReminderMinuteKey]?.takeIf { it in 0 until 24 * 60 }?.let { LocalTime.of(it / 60, it % 60) }
                 ?: CardStatsSettings.DEFAULT_REMINDER_TIME,
@@ -384,6 +386,10 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
 
     suspend fun setStatsDetailed(on: Boolean) {
         store.edit { it[statsDetailedKey] = on }
+    }
+
+    suspend fun setStatsHighContrast(on: Boolean) {
+        store.edit { it[statsHighContrastKey] = on }
     }
 
     suspend fun setCardReminder(on: Boolean) {
@@ -440,6 +446,6 @@ internal val KEY_TYPES: Map<String, String> = mapOf(
     "filter_order" to "string", "legendary_favorites" to "bool", "mensa_order" to "string",
     "notified_favorites" to "strings", "notify_enabled" to "bool", "notify_mensen" to "strings",
     "notify_minute_of_day" to "int", "notify_permission_explained" to "bool", "notify_permission_requested" to "bool",
-    "price_group" to "int", "stats_detailed" to "bool", "stats_enabled" to "bool", "stats_pfand_amounts" to "string",
+    "price_group" to "int", "stats_detailed" to "bool", "stats_enabled" to "bool", "stats_high_contrast" to "bool", "stats_pfand_amounts" to "string",
     "stats_top_up_amounts" to "string", "stundenplan_banner_hidden" to "bool", "theme_mode" to "string",
 )

@@ -97,6 +97,10 @@ fun StatsScreen(vm: StatsViewModel, mainVm: MainViewModel, onRegister: () -> Uni
     val language = locale.language
     val context = LocalContext.current
     var unit by rememberSaveable { mutableStateOf(StatsSummary.Unit.WEEK) }
+    // Top-ups are off by default: a 50 € top-up would squash the spending columns.
+    var showTopUps by rememberSaveable { mutableStateOf(false) }
+    val scheme = MaterialTheme.colorScheme
+    val chartStyle = remember(scheme, settings?.highContrast) { ChartStyle.of(scheme, settings?.highContrast == true) }
     var openId by rememberSaveable { mutableStateOf<Long?>(null) }
     var editEventId by rememberSaveable { mutableStateOf<Long?>(null) }
     var showAll by rememberSaveable { mutableStateOf(false) }
@@ -182,23 +186,25 @@ fun StatsScreen(vm: StatsViewModel, mainVm: MainViewModel, onRegister: () -> Uni
                             }
                             val spentName = stringResource(R.string.stats_series_spent)
                             val topUpName = stringResource(R.string.stats_series_top_ups)
-                            val spentColor = MaterialTheme.colorScheme.primary
-                            val topUpColor = MaterialTheme.colorScheme.tertiary
                             val weekOf = stringResource(R.string.stats_week_of)
                             val groups = periods.map { p ->
                                 val label = periodLabel(p.start, unit, locale)
                                 val title = if (unit == StatsSummary.Unit.WEEK) "$weekOf $label" else p.start.month.getDisplayName(TextStyle.FULL_STANDALONE, locale) + " " + p.start.year
-                                BarGroup(label, listOf(p.spent, p.toppedUp), "$title: $spentName ${formatCardAmount(p.spent, locale)} · $topUpName ${formatCardAmount(p.toppedUp, locale)}")
+                                if (showTopUps) BarGroup(label, listOf(p.spent, p.toppedUp), "$title: $spentName ${formatCardAmount(p.spent, locale)} · $topUpName ${formatCardAmount(p.toppedUp, locale)}")
+                                else BarGroup(label, listOf(p.spent), "$title: $spentName ${formatCardAmount(p.spent, locale)}")
                             }
                             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                     MensaFilterChip(unit == StatsSummary.Unit.WEEK, { unit = StatsSummary.Unit.WEEK }, label = { Text(stringResource(R.string.stats_unit_week)) })
                                     MensaFilterChip(unit == StatsSummary.Unit.MONTH, { unit = StatsSummary.Unit.MONTH }, label = { Text(stringResource(R.string.stats_unit_month)) })
+                                    MensaFilterChip(showTopUps, { showTopUps = !showTopUps }, label = { Text(stringResource(R.string.stats_series_show_top_ups)) })
                                 }
                                 BarChart(
-                                    groups, listOf(spentColor, topUpColor), { euroAxis(it, locale) },
+                                    groups, listOf(chartStyle.spent, chartStyle.topUp), { euroAxis(it, locale) },
                                     description = groups.joinToString("; ") { it.detail },
-                                    legend = listOf(SeriesKey(spentName, spentColor), SeriesKey(topUpName, topUpColor)),
+                                    style = chartStyle,
+                                    legend = if (showTopUps) listOf(SeriesKey(spentName, chartStyle.spent), SeriesKey(topUpName, chartStyle.topUp, hollow = true)) else emptyList(),
+                                    hollow = setOf(1),
                                 )
                             }
                         }
@@ -214,7 +220,7 @@ fun StatsScreen(vm: StatsViewModel, mainVm: MainViewModel, onRegister: () -> Uni
                                 )
                             }
                             Column {
-                                BarChart(groups, listOf(MaterialTheme.colorScheme.primary), { euroAxis(it, locale) }, description = groups.joinToString("; ") { it.detail })
+                                BarChart(groups, listOf(chartStyle.spent), { euroAxis(it, locale) }, description = groups.joinToString("; ") { it.detail }, style = chartStyle)
                                 Hint(stringResource(R.string.stats_weekday_hint), Modifier.padding(top = 8.dp))
                             }
                         }
@@ -224,7 +230,7 @@ fun StatsScreen(vm: StatsViewModel, mainVm: MainViewModel, onRegister: () -> Uni
                             item(key = "balance") {
                                 val points = balance.map { it.at to it.balance }
                                 StepLineChart(
-                                    points, MaterialTheme.colorScheme.primary,
+                                    points, chartStyle,
                                     detail = { i -> formatDateTime(points[i].first, locale) + ": " + formatCardAmount(points[i].second, locale) },
                                     axisLabel = { euroAxis(it, locale) },
                                     description = stringResource(R.string.stats_balance_title) + ": " + formatCardAmount(points.last().second, locale),
@@ -232,7 +238,7 @@ fun StatsScreen(vm: StatsViewModel, mainVm: MainViewModel, onRegister: () -> Uni
                             }
                         }
                         if (s.detailedActive) {
-                            mealsSection(d, vm, locale) { showUnassigned = true }
+                            mealsSection(d, vm, locale, chartStyle) { showUnassigned = true }
                             dessertsSection(d, locale)
                         }
                         item(key = "history-title") { SheetHeading(stringResource(R.string.stats_history)) }

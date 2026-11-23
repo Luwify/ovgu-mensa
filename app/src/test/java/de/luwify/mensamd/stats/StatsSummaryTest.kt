@@ -22,11 +22,16 @@ class StatsSummaryTest {
         ev(EventKind.PAYMENT, 1_000, LocalDate.of(2026, 10, 31)), // Saturday, October
     )
 
-    @Test fun weeksIncludeEmptyOnesOldestFirst() {
+    @Test fun weeksStartAtTheFirstWeekWithDataOldestFirst() {
         val weeks = StatsSummary.periods(events, Unit.WEEK, thu, 3)
-        assertEquals(listOf(LocalDate.of(2026, 10, 19), LocalDate.of(2026, 10, 26), LocalDate.of(2026, 11, 2)), weeks.map { it.start })
-        assertEquals(listOf(0, 4_400 + 5_000 + 1_000, 3_100 + 2_500), weeks.map { it.spent })
-        assertEquals(listOf(0, 0, 20_000), weeks.map { it.toppedUp })
+        // The week of 19.10. had nothing: the axis starts with 26.10.
+        assertEquals(listOf(LocalDate.of(2026, 10, 26), LocalDate.of(2026, 11, 2)), weeks.map { it.start })
+        assertEquals(listOf(4_400 + 5_000 + 1_000, 3_100 + 2_500), weeks.map { it.spent })
+        assertEquals(listOf(0, 20_000), weeks.map { it.toppedUp })
+        // Empty weeks after the first one with data stay; nothing at all: only the current week.
+        val gap = listOf(CardEvent(1, 0, EventKind.PAYMENT, 1_000, thu.minusWeeks(2), true))
+        assertEquals(3, StatsSummary.periods(gap, Unit.WEEK, thu, 8).size)
+        assertEquals(listOf(LocalDate.of(2026, 11, 2)), StatsSummary.periods(emptyList(), Unit.WEEK, thu, 8).map { it.start })
     }
 
     @Test fun months() {

@@ -110,6 +110,12 @@ fun CardSettingsTab(vm: StatsViewModel, access: NotificationAccess, modifier: Mo
                 s.detailed, enabled = s.enabled, onChange = vm::setDetailed,
             )
         }
+        item(key = "high-contrast") {
+            SwitchRow(
+                stringResource(R.string.stats_high_contrast), stringResource(R.string.stats_high_contrast_hint),
+                s.highContrast, enabled = s.enabled, onChange = vm::setHighContrast,
+            )
+        }
 
         item(key = "card-title") { SheetHeading(stringResource(R.string.my_card_title)) }
         item(key = "card") {

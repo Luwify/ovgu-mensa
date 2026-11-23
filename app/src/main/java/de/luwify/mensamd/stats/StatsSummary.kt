@@ -35,10 +35,15 @@ object StatsSummary {
         Unit.MONTH -> date.withDayOfMonth(1)
     }
 
-    /** The last [count] periods up to the one containing [today], oldest first; empty periods included. */
+    /**
+     * The last [count] periods up to the one containing [today], oldest first; empty periods included, but none before the
+     * first period with any event (the axis starts where the data does; the current period is always there).
+     */
     fun periods(events: List<CardEvent>, unit: Unit, today: LocalDate, count: Int): List<Period> {
         val last = periodStart(today, unit)
+        val first = events.minOfOrNull { it.date }?.let { periodStart(it, unit) } ?: last
         val starts = (count - 1 downTo 0).map { i -> if (unit == Unit.WEEK) last.minusWeeks(i.toLong()) else last.minusMonths(i.toLong()) }
+            .filter { !it.isBefore(first) || it == last }
         val byStart = events.groupBy { periodStart(it.date, unit) }
         return starts.map { start ->
             val list = byStart[start].orEmpty()

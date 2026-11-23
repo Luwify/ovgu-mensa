@@ -14,6 +14,8 @@ data class CardStatsSettings(
     val reminderTime: LocalTime = DEFAULT_REMINDER_TIME,
     val topUps: List<Int> = DEFAULT_TOP_UPS,
     val pfand: List<Int> = DEFAULT_PFAND,
+    /** "Hoher Kontrast": stronger chart colors and thicker lines. */
+    val highContrast: Boolean = false,
 ) {
     val detailedActive: Boolean get() = enabled && detailed
     val reminderActive: Boolean get() = enabled && reminder

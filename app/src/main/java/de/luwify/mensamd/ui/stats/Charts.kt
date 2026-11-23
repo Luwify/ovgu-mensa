@@ -36,6 +36,7 @@ import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 
 /*
  * Small Canvas charts (no chart library): thin columns (<= 24 dp, 4 dp rounded top, square at the baseline, 2 dp gap
@@ -47,22 +48,25 @@ import androidx.compose.foundation.background
 /** One column group: [label] under it, one value per series. */
 data class BarGroup(val label: String, val values: List<Int>, val detail: String)
 
-/** A series key for the legend (two or more series). */
-data class SeriesKey(val name: String, val color: Color)
+/** A series key for the legend (two or more series); [hollow] series are drawn as outlined columns. */
+data class SeriesKey(val name: String, val color: Color, val hollow: Boolean = false)
 
 @Composable
-fun BarChart(
+internal fun BarChart(
     groups: List<BarGroup>,
     colors: List<Color>,
     axisLabel: (Int) -> String,
     description: String,
+    style: ChartStyle,
     modifier: Modifier = Modifier,
     legend: List<SeriesKey> = emptyList(),
+    /** Series (indices) drawn as outlined columns. */
+    hollow: Set<Int> = emptySet(),
 ) {
     if (groups.isEmpty()) return
     var selected by remember(groups.size) { mutableIntStateOf(groups.lastIndex) }
     val textColor = MaterialTheme.colorScheme.onSurfaceVariant
-    val grid = MaterialTheme.colorScheme.outlineVariant
+    val grid = style.grid
     val highlight = MaterialTheme.colorScheme.surfaceContainerHighest
     val measurer = rememberTextMeasurer()
     val small = MaterialTheme.typography.labelSmall.copy(color = textColor)
@@ -94,10 +98,11 @@ fun BarChart(
                 cornerRadius = CornerRadius(6.dp.toPx()),
             )
             // Recessive grid: the baseline and one line at the axis maximum, labeled.
-            drawLine(grid, Offset(0f, base), Offset(size.width, base), strokeWidth = 1.dp.toPx())
-            drawLine(grid, Offset(0f, top), Offset(size.width, top), strokeWidth = 1.dp.toPx())
+            drawLine(grid, Offset(0f, base), Offset(size.width, base), strokeWidth = style.gridWidth.toPx())
+            drawLine(grid, Offset(0f, top), Offset(size.width, top), strokeWidth = style.gridWidth.toPx())
             drawText(measurer, axisLabel(max), Offset(0f, 0f), style = small)
             val series = groups.first().values.size
+            val outline = style.outline.toPx()
             val gap = 2.dp.toPx()
             val barWidth = minOf(24.dp.toPx(), (slot * 0.7f - gap * (series - 1)) / series)
             val radius = 4.dp.toPx()
@@ -108,17 +113,20 @@ fun BarChart(
                     if (v > 0 && max > 0) {
                         val h = maxOf(2.dp.toPx(), plot * v / max)
                         val color = colors[s % colors.size]
+                        val open = s in hollow
+                        // An outlined column: the stroke inside its bounds, so it is as tall and wide as a filled one.
+                        val inset = if (open) outline / 2 else 0f
                         // Rounded at the data end only: a round rect whose bottom corners are square.
                         val path = Path().apply {
                             addRoundRect(
                                 RoundRect(
-                                    left = x, top = base - h, right = x + barWidth, bottom = base,
+                                    left = x + inset, top = base - h + inset, right = x + barWidth - inset, bottom = base,
                                     topLeftCornerRadius = CornerRadius(radius), topRightCornerRadius = CornerRadius(radius),
                                     bottomLeftCornerRadius = CornerRadius.Zero, bottomRightCornerRadius = CornerRadius.Zero,
                                 ),
                             )
                         }
-                        drawPath(path, color)
+                        if (open) drawPath(path, color, style = Stroke(width = outline)) else drawPath(path, color)
                     }
                     x += barWidth + gap
                 }
@@ -135,9 +143,9 @@ fun BarChart(
 
 /** A step line of [points] (x = time, y = value) with a ringed dot at the selected point. */
 @Composable
-fun StepLineChart(
+internal fun StepLineChart(
     points: List<Pair<Long, Int>>,
-    color: Color,
+    style: ChartStyle,
     detail: (Int) -> String,
     axisLabel: (Int) -> String,
     description: String,
@@ -145,7 +153,8 @@ fun StepLineChart(
 ) {
     if (points.size < 2) return
     var selected by remember(points.size) { mutableIntStateOf(points.lastIndex) }
-    val grid = MaterialTheme.colorScheme.outlineVariant
+    val color = style.spent
+    val grid = style.grid
     val surface = MaterialTheme.colorScheme.surface
     val measurer = rememberTextMeasurer()
     val small = MaterialTheme.typography.labelSmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -171,8 +180,8 @@ fun StepLineChart(
             val inset = 6.dp.toPx()
             fun x(t: Long) = inset + (size.width - 2 * inset) * (t - t0) / span
             fun y(v: Int) = base - (base - top) * v.coerceAtLeast(0) / max.coerceAtLeast(1)
-            drawLine(grid, Offset(0f, base), Offset(size.width, base), strokeWidth = 1.dp.toPx())
-            drawLine(grid, Offset(0f, top), Offset(size.width, top), strokeWidth = 1.dp.toPx())
+            drawLine(grid, Offset(0f, base), Offset(size.width, base), strokeWidth = style.gridWidth.toPx())
+            drawLine(grid, Offset(0f, top), Offset(size.width, top), strokeWidth = style.gridWidth.toPx())
             drawText(measurer, axisLabel(max), Offset(0f, 0f), style = small)
             val line = Path()
             points.forEachIndexed { i, (t, v) ->
@@ -187,8 +196,8 @@ fun StepLineChart(
                 lineTo(x(t0), base)
                 close()
             }
-            drawPath(area, color.copy(alpha = 0.10f))
-            drawPath(line, color, style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
+            drawPath(area, color.copy(alpha = style.wash))
+            drawPath(line, color, style = Stroke(width = style.line.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
             val (st, sv) = points[selected]
             drawCircle(surface, radius = 6.dp.toPx(), center = Offset(x(st), y(sv)))
             drawCircle(color, radius = 4.dp.toPx(), center = Offset(x(st), y(sv)))
@@ -201,7 +210,11 @@ fun Legend(keys: List<SeriesKey>) {
     Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
         keys.forEach { key ->
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Box(Modifier.size(10.dp).clip(RoundedCornerShape(2.dp)).background(key.color))
+                val shape = RoundedCornerShape(2.dp)
+                Box(
+                    Modifier.size(10.dp).clip(shape)
+                        .then(if (key.hollow) Modifier.border(1.5.dp, key.color, shape) else Modifier.background(key.color)),
+                )
                 Text(key.name, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }

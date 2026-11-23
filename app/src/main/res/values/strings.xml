@@ -396,6 +396,9 @@
     <!-- Card statistics: meals (detailed statistics) -->
     <string name="meal_title">Payment %1$s</string>
     <string name="meal_unknown_mensa">Unknown Mensa</string>
+    <string name="stats_high_contrast">High contrast</string>
+    <string name="stats_high_contrast_hint">Stronger chart colors and thicker lines.</string>
+    <string name="stats_series_show_top_ups">Top-ups</string>
     <string name="dish_dessert">Dessert</string>
     <string name="desserts_title">Desserts</string>
     <string name="desserts_spent">Spent</string>

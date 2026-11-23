@@ -388,6 +388,9 @@
     <!-- Kartenstatistik: Gerichte (detaillierte Statistik) -->
     <string name="meal_title">Zahlung %1$s</string>
     <string name="meal_unknown_mensa">Unbekannte Mensa</string>
+    <string name="stats_high_contrast">Hoher Kontrast</string>
+    <string name="stats_high_contrast_hint">Kräftigere Farben und dickere Linien in den Diagrammen.</string>
+    <string name="stats_series_show_top_ups">Aufladungen</string>
     <string name="dish_dessert">Dessert</string>
     <string name="desserts_title">Desserts</string>
     <string name="desserts_spent">Ausgegeben</string>

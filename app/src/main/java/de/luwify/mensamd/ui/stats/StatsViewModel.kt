@@ -71,6 +71,7 @@ class StatsViewModel(private val container: AppContainer) : ViewModel() {
     }
 
     fun setDetailed(on: Boolean) = edit { settingsRepo.setStatsDetailed(on) }
+    fun setHighContrast(on: Boolean) = edit { settingsRepo.setStatsHighContrast(on) }
     fun setReminder(on: Boolean) = edit { settingsRepo.setCardReminder(on) }
     fun setReminderTime(time: LocalTime) = edit { settingsRepo.setCardReminderTime(time) }
     fun setTopUps(amounts: List<Int>) = edit { settingsRepo.setTopUpAmounts(amounts) }
