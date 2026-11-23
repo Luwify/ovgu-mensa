@@ -396,6 +396,7 @@
     <!-- Card statistics: meals (detailed statistics) -->
     <string name="meal_title">Payment %1$s</string>
     <string name="meal_unknown_mensa">Unknown Mensa</string>
+    <string name="meal_extra_to_dish">Your own extra: saved as a dish, so it can be by weight or a dessert. Every payment with this extra follows.</string>
     <string name="stats_high_contrast">High contrast</string>
     <string name="stats_high_contrast_hint">Stronger chart colors and thicker lines.</string>
     <string name="stats_series_show_top_ups">Top-ups</string>

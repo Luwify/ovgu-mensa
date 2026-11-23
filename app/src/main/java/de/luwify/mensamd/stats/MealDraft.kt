@@ -28,6 +28,8 @@ data class MealItem(
     val newPer100: Int? = null,
     /** A dessert ([EatenDish.dessert]). */
     val dessert: Boolean = false,
+    /** The own extra (key) this dish was made from: every meal with that extra becomes this dish when saved. */
+    val fromExtra: String? = null,
 ) {
     val isExtra: Boolean get() = name == null
     val total: Int get() = price * count
@@ -195,6 +197,9 @@ object MealDraft {
         items.filter { it.isNew }.distinctBy { it.key }.forEach {
             next = StatsOps.addCustomDish(next, it.name!!.de, it.price, it.mensaId, it.tags, it.weighed, it.newPer100, it.dessert).first
         }
+        items.mapNotNull { i -> i.fromExtra?.let { it to i } }.distinctBy { it.first }.forEach { (extra, i) ->
+            next = StatsOps.extraToDish(next, extra, next.customDishes.first { it.key == i.key })
+        }
         // A hand-named dish is one dish for the app: a Mensa, tags, dessert mark or price per 100 g changed here reach its
         // other meals and the saved dish too.
         items.filter { it.own && !it.isNew }.forEach { next = StatsOps.followOwnDish(next, it.key, it.mensaId, it.tags, it.dessert, it.per100.takeIf { _ -> it.weighed }) }
@@ -277,7 +282,10 @@ object MealDraft {
         val dessert = listOfNotNull(DESSERT.takeIf { d -> custom.none { it.key == d.key } }?.let {
             MealOption(it.key, it.name, null, emptyList(), null, tier = 3, own = true, byWeight = true, dessert = true)
         })
-        val extraOptions = dessert + extras.map { (key, label) -> MealOption(key, LocalizedText(label), null, emptyList(), null, tier = 3, extra = true) }
+        // An own extra that became a dish (same name) is offered as that dish only.
+        val customKeys = custom.map { it.key }.toSet()
+        val extraOptions = dessert + extras.filterNot { (key, label) -> !Extras.isBuiltIn(key) && Favorites.normalize(label) in customKeys }
+            .map { (key, label) -> MealOption(key, LocalizedText(label), null, emptyList(), null, tier = 3, extra = true) }
         val shown = dayKeys + own.map { it.key to it.mensaId }
         val menuOthers = menus.filterNot { it.own }.map { d ->
             val price = MealMatcher.prices(d, group).firstOrNull()

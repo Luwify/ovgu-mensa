@@ -506,6 +506,25 @@ private fun OptionRow(label: String, detail: String?, primary: Boolean = false, 
  */
 @Composable
 private fun ItemDialog(item: MealItem, language: String, onConfirm: (MealItem) -> Unit, onDismiss: () -> Unit) {
+    // An own extra ("Eigenes Extra" from before 1.3.0, e.g. "Obstsalat") becomes a dish of its own when edited: by weight,
+    // a dessert, with Mensa and tags, saved for the search like "neu anlegen".
+    if (item.isExtra && !Extras.isBuiltIn(item.key)) {
+        DishDetailsDialog(
+            title = stringResource(R.string.dish_edit_title),
+            name = item.key,
+            nameEditable = true,
+            mensaId = null,
+            tags = emptyList(),
+            note = stringResource(R.string.meal_extra_to_dish),
+            price = item.price,
+            weight = WeightFields(switchable = true),
+            onConfirm = { d ->
+                onConfirm(MealDraft.newDish(d.name, d.mensaId, d.tags, d.price ?: item.price, item.day, d.byWeight, d.per100, d.dessert).copy(fromExtra = item.key))
+            },
+            onDismiss = onDismiss,
+        )
+        return
+    }
     if (!item.isExtra) {
         DishDetailsDialog(
             title = stringResource(R.string.dish_edit_title),

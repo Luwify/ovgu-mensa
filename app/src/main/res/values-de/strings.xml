@@ -388,6 +388,7 @@
     <!-- Kartenstatistik: Gerichte (detaillierte Statistik) -->
     <string name="meal_title">Zahlung %1$s</string>
     <string name="meal_unknown_mensa">Unbekannte Mensa</string>
+    <string name="meal_extra_to_dish">Dein eigenes Extra: wird als Gericht gespeichert und kann so nach Gewicht oder ein Dessert sein. Alle Zahlungen mit diesem Extra ziehen mit.</string>
     <string name="stats_high_contrast">Hoher Kontrast</string>
     <string name="stats_high_contrast_hint">Kräftigere Farben und dickere Linien in den Diagrammen.</string>
     <string name="stats_series_show_top_ups">Aufladungen</string>

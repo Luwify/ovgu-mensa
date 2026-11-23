@@ -278,4 +278,24 @@ class MealDraftTest {
         assertTrue(out.events.all { it.meal!!.dishes.single().dessert })
         assertEquals(true to 250, out.customDishes.single().let { it.dessert to it.per100 })
     }
+
+    /** An own extra from before 1.3.0 ("Obstsalat") edited into a dessert dish: saved, and the search offers only the dish. */
+    @Test fun anOwnExtraBecomesADessertDish() {
+        val older = CardEvent(7, 1, EventKind.PAYMENT, 3_300, monday, true, MealRecord(
+            listOf(EatenDish("chili", LocalizedText("Chili"), unten, 2_500)), listOf(ExtraItem("Obstsalat", 800), ExtraItem(Extras.SALAD, 0)),
+        ))
+        val withExtra = asked.copy(events = listOf(older, event.copy(amount = 1_000)), customExtras = listOf("Obstsalat"))
+        val dish = MealDraft.newDish("Obstsalat", null, emptyList(), 1_000, byWeight = true, per100 = 200, dessert = true).copy(fromExtra = "Obstsalat")
+        val out = MealDraft.save(withExtra, 1, listOf(dish), null)
+        assertTrue(out.events[1].meal!!.dishes.single().dessert)
+        // The older payment's extra became the same dish, with its own amount and weight.
+        val converted = out.events[0].meal!!
+        assertEquals(listOf(ExtraItem(Extras.SALAD, 0)), converted.extras)
+        assertEquals(listOf(800 to 400), converted.dishes.filter { it.dessert }.map { it.price to it.grams })
+        assertTrue(out.customExtras.isEmpty())
+        assertEquals(2, MealSummary.desserts(out.events).count)
+        val search = MealDraft.options(500, emptyList(), false, emptyList(), out.events, out.customDishes, listOf("Obstsalat" to "Obstsalat", Extras.SALAD to "Salatbar"), null, 0)
+        assertEquals(listOf(false), search.filter { it.name.de == "Obstsalat" }.map { it.extra })
+        assertTrue(search.any { it.key == Extras.SALAD })
+    }
 }

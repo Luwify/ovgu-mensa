@@ -315,6 +315,26 @@ object StatsOps {
         return if (events == data.events && custom == data.customDishes) data else data.copy(events = events, customDishes = custom)
     }
 
+    /**
+     * The own extra [extra] (from before 1.3.0) is the hand-named [dish] now: in every meal it becomes that dish with the
+     * extra's amount (and the weight its price per 100 g gives), and it leaves the own extras.
+     */
+    fun extraToDish(data: StatsData, extra: String, dish: KnownDish): StatsData {
+        fun MealRecord.convert(): MealRecord {
+            val (hit, rest) = extras.partition { it.key == extra }
+            if (hit.isEmpty()) return this
+            val added = hit.map { e ->
+                val grams = e.grams ?: dish.per100?.takeIf { it > 0 }?.let { MealMatcher.estimateGrams(e.amount, it) }
+                EatenDish(dish.key, dish.name, dish.mensaId, e.amount, 1, dish.tags, grams, own = true, dessert = dish.dessert)
+            }
+            return copy(dishes = dishes + added, extras = rest)
+        }
+        return data.copy(
+            events = data.events.map { e -> e.meal?.let { e.copy(meal = it.convert()) } ?: e },
+            customExtras = data.customExtras - extra,
+        )
+    }
+
     /** Whether the scan [scanId] and the previous scan of the same card were on the same day. */
     fun sameDayAsPrevious(data: StatsData, scanId: Long): Boolean {
         val index = data.scans.indexOfFirst { it.id == scanId }
