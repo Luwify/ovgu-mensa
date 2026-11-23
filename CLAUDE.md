@@ -127,7 +127,9 @@ git-ignored `CLAUDE.local.md` at the repo root, which Claude Code loads after th
   debit is no `SeveralPayments` question but one payment with `CardEvent.payments = 2` ("mindestens 2 Zahlungen"; also after a
   top-up in `resolveCredit`); it counts as that many visits for "Ø pro Besuch"; "Ø pro Tag" = spent / days with a payment. Extras are `ExtraItem(key, amount)` (schema 6).
 - **Hand-named dishes** ("neu anlegen" in the question screen, `ui/stats/DishDialogs`): name + price (or "Nach Gewicht": paid
-  amount + optional price per 100 g, `KnownDish.byWeight`/`per100`, never a fixed-price candidate) + Mensa (catalog or unknown) + the menu's tag
+  amount + optional price per 100 g, `KnownDish.byWeight`/`per100`, never a fixed-price candidate; a dish by weight can be a
+  "Dessert": `EatenDish/KnownDish.dessert`, built-in generic `MealDraft.DESSERT`, left out of the meals' dishes and summed in
+  "Desserts", `MealSummary.desserts`; schema 7 turned the old dessert extras into such dishes) + Mensa (catalog or unknown) + the menu's tag
   chips (`DishTags`), saved as `KnownDish` and eaten as `EatenDish(own = true)`. For an `own` dish no tags = no information
   (`EatenDish.tagsKnown`): `MealSummary` computes the vegan/vegetarian shares over dishes with known tags only (`unknownTags` is shown
   as a hint); a menu dish without tags is known to carry none. A tap on a Verlauf entry opens the question screen with its items (Mensa +

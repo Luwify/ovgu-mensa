@@ -175,4 +175,30 @@ class StatsStoreTest {
         assertEquals(data, decodeStats(encodeStats(data)))
         assertFalse(encodeStats(data).toString().contains("extrasAmount"))
     }
+
+    /** Version 6 -> 7: the dessert extras become hand-named dessert dishes; Pudding and Rote Grütze are saved for the search. */
+    @Test fun dessertExtrasBecomeDessertDishes() {
+        val v6 = """{"version":6,"nextId":5,"customDishes":[{"key":"bagel","name":{"de":"Bagel","en":"Bagel"},"price":3200}],"events":[
+            {"id":1,"scanId":1,"kind":"payment","amount":3400,"date":"2026-11-12","dateKnown":true,
+             "meal":{"dishes":[{"key":"seelachs","name":{"de":"Seelachs","en":"Pollock"},"price":2500}],
+                     "extras":[{"key":"@pudding","amount":500,"grams":180},{"key":"@salad","amount":400}]}},
+            {"id":2,"scanId":1,"kind":"payment","amount":900,"date":"2026-11-13","dateKnown":true,
+             "meal":{"extras":[{"key":"@rote_gruetze","amount":600},{"key":"@dessert","amount":300}]}}]}"""
+        val data = decodeStats(statsJson.parseToJsonElement(v6) as JsonObject)
+        assertEquals(StatsMigrations.CURRENT, data.version)
+        val first = data.events[0].meal!!
+        assertEquals(listOf(ExtraItem(Extras.SALAD, 400)), first.extras)
+        val pudding = first.dishes.last()
+        assertEquals(listOf("pudding", 500, 180, true, true), listOf(pudding.key, pudding.price, pudding.grams, pudding.own, pudding.dessert))
+        val second = data.events[1].meal!!
+        assertTrue(second.extras.isEmpty())
+        assertEquals(listOf("Rote Grütze" to 600, "Dessert" to 300), second.dishes.map { it.name.de to it.price })
+        assertTrue(second.dishes.all { it.dessert })
+        // Saved for the search: Pudding and Rote Grütze (the generic Dessert is built in), by weight, as desserts.
+        assertEquals(listOf("bagel", "pudding", "rote grütze"), data.customDishes.map { it.key })
+        assertTrue(data.customDishes.drop(1).all { it.byWeight && it.dessert })
+        // The sums still match the payments.
+        for (e in data.events) assertEquals(e.amount, e.meal!!.dishes.sumOf { it.price * it.count } + e.meal!!.extras.sumOf { it.amount })
+        assertEquals(data, decodeStats(encodeStats(data)))
+    }
 }

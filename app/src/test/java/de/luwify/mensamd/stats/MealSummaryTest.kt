@@ -3,6 +3,7 @@ package de.luwify.mensamd.stats
 import de.luwify.mensamd.model.LocalizedText
 import de.luwify.mensamd.model.Tag
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Assert.assertNull
 import org.junit.Test
 import java.time.LocalDate
@@ -115,5 +116,23 @@ class MealSummaryTest {
         val refs = MealSummary.withoutMensa(listOf(a, b, pay(900, null)))
         assertEquals(listOf(b.id to 0, a.id to 1), refs.map { it.eventId to it.index })
         assertEquals(listOf("Wrap", "Shawarma"), refs.map { it.dish.name.de })
+    }
+
+    @Test fun dessertsHaveTheirOwnSummaryAndAreNoDishesOfTheMeals() {
+        val pudding = EatenDish("pudding", LocalizedText("Pudding"), null, 500, 1, emptyList(), grams = 180, own = true, dessert = true)
+        val grutze = EatenDish("rote grütze", LocalizedText("Rote Grütze"), null, 600, 1, emptyList(), own = true, dessert = true)
+        val list = listOf(
+            pay(3_000, MealRecord(listOf(dish("Curry", "unten", 2_500), pudding))),
+            pay(1_100, MealRecord(listOf(pudding.copy(grams = 200, price = 600), grutze.copy(price = 500)))),
+        )
+        val s = MealSummary.summarize(list)
+        assertEquals(listOf("curry"), s.top.map { it.key })
+        assertEquals(1, s.mealPayments) // desserts only: no meal
+        val d = MealSummary.desserts(list)
+        assertEquals(1_600, d.spent)
+        assertEquals(3, d.count)
+        assertEquals(380 to 2, d.grams to d.weighed)
+        assertEquals(listOf("pudding" to 1_100, "rote grütze" to 500), d.list.map { it.key to it.spent })
+        assertTrue(MealSummary.withoutMensa(list).none { it.dish.dessert })
     }
 }

@@ -234,7 +234,7 @@
     <string name="version_older">Android can\'t go back to an older version.</string>
 
     <!-- About / licenses -->
-    <string name="about_title">About</string>
+    <string name="about_title">Amount, estimated</string>
     <string name="about_licenses">Licenses and source code</string>
     <string name="licenses_free_software">Free software under the GNU General Public License, version 3 or (at your option) any later version. It comes with ABSOLUTELY NO WARRANTY.</string>
     <string name="licenses_source">Source code and license text:</string>
@@ -352,9 +352,6 @@
     <string name="event_until">by %1$s</string>
     <string name="meal_other">Other</string>
     <string name="extra_salad">Salad bar</string>
-    <string name="extra_dessert">Dessert by weight</string>
-    <string name="extra_pudding">Pudding</string>
-    <string name="extra_rote_gruetze">Rote Grütze</string>
     <string name="extra_drink">Drink</string>
     <string name="extra_coffee">Coffee</string>
 
@@ -398,6 +395,12 @@
     <!-- Card statistics: meals (detailed statistics) -->
     <string name="meal_title">Payment %1$s</string>
     <string name="meal_unknown_mensa">Unknown Mensa</string>
+    <string name="dish_dessert">Dessert</string>
+    <string name="desserts_title">Desserts</string>
+    <string name="desserts_spent">Spent</string>
+    <string name="desserts_amount">Amount, estimated</string>
+    <string name="desserts_weight_partial">Weight known (price per 100 g): %1$d/%2$d</string>
+    <string name="desserts_empty">No desserts yet. Mark a dish by weight as a dessert in the question.</string>
     <string name="stats_average_day">Avg. per day</string>
     <string name="meal_amount_hint">How much of the payment was it? Still open: %1$s</string>
     <string name="dish_by_weight">Priced by weight</string>

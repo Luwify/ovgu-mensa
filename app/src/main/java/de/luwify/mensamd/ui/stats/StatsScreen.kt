@@ -231,7 +231,10 @@ fun StatsScreen(vm: StatsViewModel, mainVm: MainViewModel, onRegister: () -> Uni
                                 )
                             }
                         }
-                        if (s.detailedActive) mealsSection(d, vm, locale) { showUnassigned = true }
+                        if (s.detailedActive) {
+                            mealsSection(d, vm, locale) { showUnassigned = true }
+                            dessertsSection(d, locale)
+                        }
                         item(key = "history-title") { SheetHeading(stringResource(R.string.stats_history)) }
                         val history = d.events.asReversed().let { if (showAll) it else it.take(20) }
                         items(history, key = { "event-${it.id}" }) { e ->
@@ -411,9 +414,6 @@ internal fun mealSummary(meal: de.luwify.mensamd.stats.MealRecord, language: Str
 @Composable
 internal fun extraName(key: String): String = when (key) {
     de.luwify.mensamd.stats.Extras.SALAD -> stringResource(R.string.extra_salad)
-    de.luwify.mensamd.stats.Extras.DESSERT -> stringResource(R.string.extra_dessert)
-    de.luwify.mensamd.stats.Extras.PUDDING -> stringResource(R.string.extra_pudding)
-    de.luwify.mensamd.stats.Extras.ROTE_GRUETZE -> stringResource(R.string.extra_rote_gruetze)
     de.luwify.mensamd.stats.Extras.DRINK -> stringResource(R.string.extra_drink)
     de.luwify.mensamd.stats.Extras.COFFEE -> stringResource(R.string.extra_coffee)
     de.luwify.mensamd.stats.Extras.OTHER -> stringResource(R.string.meal_other)

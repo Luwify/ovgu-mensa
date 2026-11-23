@@ -46,6 +46,19 @@ internal data class DishDetails(
     val price: Int?,
     val byWeight: Boolean = false,
     val per100: Int? = null,
+    val dessert: Boolean = false,
+)
+
+/**
+ * The weight part of [DishDetailsDialog]: [switchable] shows "Nach Gewicht" (else the dish is by weight as given);
+ * [per100Editable] the price per 100 g; a dish by weight can be marked as a dessert.
+ */
+internal data class WeightFields(
+    val switchable: Boolean,
+    val byWeight: Boolean = false,
+    val per100: Int? = null,
+    val per100Editable: Boolean = true,
+    val dessert: Boolean = false,
 )
 
 /**
@@ -53,8 +66,9 @@ internal data class DishDetails(
  * one of the catalog or "Andere / unbekannt" (null); the tags are the menu's tag chips, multiple choice, only those in
  * [tags] selected at the start. [nameEditable] false: a menu dish keeps its name. [note] explains what the change
  * reaches. Without a tag the dish counts as "no information" in the vegan/vegetarian shares. [price] (mills) non-null
- * adds a price field, starting with it; the confirmed price is then passed on (null without the field). [weightOption]
- * adds "Nach Gewicht": the price is then what was paid this time, with an optional price per 100 g.
+ * adds a price field, starting with it; the confirmed price is then passed on (null without the field). [weight] adds
+ * the weight part (see [WeightFields]): by weight, the price is what was paid this time, with an optional price per
+ * 100 g, and the dish can be a dessert.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -66,7 +80,7 @@ internal fun DishDetailsDialog(
     tags: List<Tag>,
     note: String?,
     price: Int? = null,
-    weightOption: Boolean = false,
+    weight: WeightFields? = null,
     onConfirm: (DishDetails) -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -76,8 +90,9 @@ internal fun DishDetailsDialog(
     var text by rememberSaveable { mutableStateOf(name) }
     var priceText by rememberSaveable { mutableStateOf(price?.takeIf { it > 0 }?.let { Amounts.toInput(it, comma) }.orEmpty()) }
     val parsedPrice = Amounts.parseEuro(priceText)?.takeIf { it > 0 }
-    var byWeight by rememberSaveable { mutableStateOf(false) }
-    var per100Text by rememberSaveable { mutableStateOf("") }
+    var byWeight by rememberSaveable { mutableStateOf(weight?.byWeight == true) }
+    var dessert by rememberSaveable { mutableStateOf(weight?.dessert == true) }
+    var per100Text by rememberSaveable { mutableStateOf(weight?.per100?.let { Amounts.toInput(it, comma) }.orEmpty()) }
     val per100 = Amounts.parseEuro(per100Text)?.takeIf { it > 0 }
     val per100Valid = per100Text.isBlank() || per100 != null
     // A MensaCatalog id, or "" for "Andere / unbekannt" (keeps the saved state a plain String).
@@ -104,22 +119,15 @@ internal fun DishDetailsDialog(
                     label = { Text(stringResource(R.string.meal_new_label)) },
                     modifier = Modifier.fillMaxWidth(),
                 )
-                if (weightOption) {
-                    Row(
-                        Modifier.fillMaxWidth().toggleable(value = byWeight, role = Role.Switch, onValueChange = { byWeight = it }),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(stringResource(R.string.dish_by_weight), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
-                        Switch(checked = byWeight, onCheckedChange = null)
-                    }
-                }
+                if (weight?.switchable == true) SwitchRow(stringResource(R.string.dish_by_weight), byWeight) { byWeight = it }
+                if (byWeight) SwitchRow(stringResource(R.string.dish_dessert), dessert) { dessert = it }
                 if (price != null) {
                     PriceField(
                         priceText, parsedPrice, per100.takeIf { byWeight },
                         label = stringResource(if (byWeight) R.string.dish_paid_now else R.string.meal_price),
                     ) { priceText = it }
                 }
-                if (byWeight) {
+                if (byWeight && weight?.per100Editable != false) {
                     PriceField(per100Text, per100, null, label = stringResource(R.string.dish_per_100g), optional = true) { per100Text = it }
                 }
                 SettingsDropdown(stringResource(R.string.dish_mensa_label), options, mensa, { mensa = it }, Modifier.fillMaxWidth())
@@ -139,10 +147,21 @@ internal fun DishDetailsDialog(
         },
         confirmButton = {
             TextButton(
-                onClick = { onConfirm(DishDetails(text.trim(), mensa.ifEmpty { null }, DishTags.pick(keys, tags), parsedPrice, byWeight, per100.takeIf { byWeight })) },
+                onClick = { onConfirm(DishDetails(text.trim(), mensa.ifEmpty { null }, DishTags.pick(keys, tags), parsedPrice, byWeight, per100.takeIf { byWeight }, byWeight && dessert)) },
                 enabled = text.isNotBlank() && (price == null || parsedPrice != null) && (!byWeight || per100Valid),
             ) { Text(stringResource(R.string.q_save)) }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel_action)) } },
     )
+}
+
+@Composable
+private fun SwitchRow(label: String, on: Boolean, onChange: (Boolean) -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().toggleable(value = on, role = Role.Switch, onValueChange = onChange),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+        Switch(checked = on, onCheckedChange = null)
+    }
 }

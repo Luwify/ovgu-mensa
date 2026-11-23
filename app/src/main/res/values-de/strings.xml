@@ -344,9 +344,6 @@
     <string name="event_until">bis %1$s</string>
     <string name="meal_other">Sonstiges</string>
     <string name="extra_salad">Salatbar</string>
-    <string name="extra_dessert">Dessert nach Gewicht</string>
-    <string name="extra_pudding">Pudding</string>
-    <string name="extra_rote_gruetze">Rote Grütze</string>
     <string name="extra_drink">Getränk</string>
     <string name="extra_coffee">Kaffee</string>
 
@@ -390,6 +387,12 @@
     <!-- Kartenstatistik: Gerichte (detaillierte Statistik) -->
     <string name="meal_title">Zahlung %1$s</string>
     <string name="meal_unknown_mensa">Unbekannte Mensa</string>
+    <string name="dish_dessert">Dessert</string>
+    <string name="desserts_title">Desserts</string>
+    <string name="desserts_spent">Ausgegeben</string>
+    <string name="desserts_amount">Menge, geschätzt</string>
+    <string name="desserts_weight_partial">Gewicht bekannt (Preis pro 100 g): %1$d/%2$d</string>
+    <string name="desserts_empty">Noch keine Desserts. Ein Gericht nach Gewicht lässt sich in der Frage als Dessert markieren.</string>
     <string name="stats_average_day">Ø pro Tag</string>
     <string name="meal_amount_hint">Wie viel davon war das? Noch offen: %1$s</string>
     <string name="dish_by_weight">Nach Gewicht</string>

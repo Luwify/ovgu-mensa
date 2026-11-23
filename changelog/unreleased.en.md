@@ -1,4 +1,5 @@
 New:
+- Desserts: a generic “Dessert” by weight and your own desserts (e.g. Pudding, Rote Grütze), created from the search. A dish by weight can be marked as “Dessert” when creating or editing it, optionally with a price per 100 g for the approximate amount. New “Desserts” section in the statistics: spending, estimated amount and a breakdown per dessert. Pudding, Rote Grütze and Dessert saved as extras so far become such desserts.
 - “Avg. per day” in the statistics: spending divided by the number of days with at least one payment. “Avg. per visit” counts an amount of at least 2 payments as 2 visits.
 
 Changed:

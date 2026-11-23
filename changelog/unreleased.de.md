@@ -1,4 +1,5 @@
 Neu:
+- Desserts: ein allgemeines „Dessert“ nach Gewicht und eigene Desserts (etwa Pudding, Rote Grütze), anlegbar über die Suche. Ein Gericht nach Gewicht lässt sich beim Anlegen und Bearbeiten als „Dessert“ markieren, optional mit Preis pro 100 g für die ungefähre Menge. Neuer Abschnitt „Desserts“ in der Statistik: Ausgaben, geschätzte Menge und eine Aufstellung je Dessert. Bisher gespeicherte Extras Pudding, Rote Grütze und Dessert werden zu solchen Desserts.
 - „Ø pro Tag“ in der Statistik: Ausgaben geteilt durch die Zahl der Tage mit mindestens einer Zahlung. „Ø pro Besuch“ zählt einen Betrag aus mindestens 2 Zahlungen als 2 Besuche.
 
 Geändert:

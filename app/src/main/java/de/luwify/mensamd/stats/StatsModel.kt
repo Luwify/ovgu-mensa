@@ -123,6 +123,8 @@ data class EatenDish(
     val tags: List<Tag> = emptyList(),
     val grams: Int? = null,
     val own: Boolean = false,
+    /** A dessert (weighed, marked by the user): counted in the desserts section, not among the meals' dishes. */
+    val dessert: Boolean = false,
 ) {
     /** Whether [tags] say anything about the dish (the vegan/vegetarian shares only count these). */
     val tagsKnown: Boolean get() = !own || tags.isNotEmpty()
@@ -144,6 +146,8 @@ data class KnownDish(
     val own: Boolean = true,
     val byWeight: Boolean = false,
     val per100: Int? = null,
+    /** A dessert (see [EatenDish.dessert]). */
+    val dessert: Boolean = false,
 )
 
 /** A dish of that day's menu, kept with an open meal question until it is answered (menus are not kept otherwise). */
@@ -248,7 +252,8 @@ object Extras {
     /** "Sonstiges": the part of a payment that isn't worth naming. */
     const val OTHER = "@other"
 
-    val builtIn: List<String> = listOf(SALAD, DESSERT, PUDDING, ROTE_GRUETZE, DRINK, COFFEE)
+    /** Offered in the search. The dessert keys are from before schema 7: desserts are dishes now ([MealDraft.DESSERT]). */
+    val builtIn: List<String> = listOf(SALAD, DRINK, COFFEE)
 
     fun isBuiltIn(key: String) = key.startsWith("@")
 }

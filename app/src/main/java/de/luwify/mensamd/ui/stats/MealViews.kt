@@ -179,6 +179,41 @@ internal fun LazyListScope.mealsSection(data: StatsData, vm: StatsViewModel, loc
     }
 }
 
+/**
+ * "Desserts" (detailed statistics): what desserts cost in total, about how much that was (where a price per 100 g gives a
+ * weight), and per dessert: how often, how much, about how many grams.
+ */
+internal fun LazyListScope.dessertsSection(data: StatsData, locale: Locale) {
+    val d = MealSummary.desserts(data.events)
+    val language = locale.language
+    item(key = "desserts-title") { SheetHeading(stringResource(R.string.desserts_title)) }
+    if (d.count == 0) {
+        item(key = "desserts-empty") { Hint(stringResource(R.string.desserts_empty)) }
+        return
+    }
+    item(key = "desserts-tiles") {
+        Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+            Tile(stringResource(R.string.desserts_spent), formatCardAmount(d.spent, locale))
+            if (d.weighed > 0) Tile(stringResource(R.string.desserts_amount), stringResource(R.string.meal_weight_estimate, d.grams))
+        }
+    }
+    if (d.weighed in 1 until d.count) item(key = "desserts-partial") {
+        Hint(stringResource(R.string.desserts_weight_partial, d.weighed, d.count), Modifier.padding(top = 8.dp))
+    }
+    items(d.list, key = { "dessert-${it.key}" }) { c ->
+        Row(Modifier.fillMaxWidth().heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text("${c.count}×", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, modifier = Modifier.width(44.dp))
+            Column(Modifier.weight(1f)) {
+                Text(c.name.forLanguage(language), style = MaterialTheme.typography.bodyMedium)
+                if (c.weighed > 0) {
+                    Text(stringResource(R.string.meal_weight_estimate, c.grams), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+            Text(formatCardAmount(c.spent, locale), style = MaterialTheme.typography.bodyMedium)
+        }
+    }
+}
+
 @Composable
 private fun Tile(label: String, value: String) {
     Column {

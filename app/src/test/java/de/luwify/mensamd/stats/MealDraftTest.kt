@@ -25,7 +25,7 @@ class MealDraftTest {
     private val pasta = dish(oben, "Pasta", 280, 490, 590)
     private val farfalle = SnapDish(oben, LocalizedText("Farfalle"), listOf(50, 80, 110), byWeight = true)
     private val day = listOf(chili, pommes, salat, pasta, farfalle)
-    private val extras = listOf(Extras.SALAD to "Salatbar", Extras.DESSERT to "Dessert", Extras.OTHER to "Sonstiges")
+    private val extras = listOf(Extras.SALAD to "Salatbar", Extras.OTHER to "Sonstiges")
 
     private fun options(rest: Int, days: List<Pair<LocalDate, List<SnapDish>>> = listOf(wednesday to day), events: List<CardEvent> = emptyList(), custom: List<KnownDish> = emptyList(), menus: List<SnapDish> = emptyList()) =
         MealDraft.options(rest, days, days.size > 1, menus, events, custom, extras, unten, 0)
@@ -64,9 +64,10 @@ class MealDraftTest {
         val chili = MealDraft.pick(3_400, emptyList(), option(3_400, "Chili"))
         val salad = MealDraft.pick(3_400, chili, options(900).first { it.key == Extras.SALAD }, price = 500)
         assertEquals(400, MealDraft.rest(3_400, salad))
-        val pudding = MealDraft.pick(3_400, salad, options(400).first { it.key == Extras.DESSERT })
+        val pudding = MealDraft.pick(3_400, salad, options(400).first { it.key == MealDraft.DESSERT.key })
         assertTrue(MealDraft.complete(3_400, pudding))
-        assertEquals(listOf(ExtraItem(Extras.SALAD, 500), ExtraItem(Extras.DESSERT, 400)), MealDraft.toRecord(pudding).extras)
+        assertEquals(listOf(ExtraItem(Extras.SALAD, 500)), MealDraft.toRecord(pudding).extras)
+        assertEquals(listOf(400 to true), MealDraft.toRecord(pudding).dishes.filter { it.key == "dessert" }.map { it.price to it.dessert })
         assertTrue(options(900).first { it.key == Extras.SALAD }.takesRest)
         assertFalse(option(900, "Chili").takesRest)
     }
@@ -93,7 +94,7 @@ class MealDraftTest {
         assertTrue(MealDraft.savesAtOnce(2_500, emptyList(), one))
         val first = MealDraft.pick(3_400, emptyList(), option(3_400, "Chili"))
         assertFalse(MealDraft.savesAtOnce(3_400, emptyList(), first)) // 0,90 € still open
-        val second = MealDraft.pick(3_400, first, options(900).first { it.key == Extras.DESSERT })
+        val second = MealDraft.pick(3_400, first, options(900).first { it.key == MealDraft.DESSERT.key })
         assertFalse(MealDraft.savesAtOnce(3_400, first, second)) // complete, but waits for "Speichern"
         assertTrue(MealDraft.complete(3_400, second))
     }
@@ -215,7 +216,7 @@ class MealDraftTest {
     @Test fun withoutAQueryTheDaysDishesComeFirstThoseAtWhatIsLeftFirstThenOwnDishesThenExtras() {
         val custom = listOf(KnownDish("bagel", LocalizedText("Bagel"), 3_400, mensaId = "pier16"))
         val list = MealDraft.search(options(2_800, custom = custom, menus = listOf(dish("herrenkrug", "Seelachs", 310))), "")
-        assertEquals(listOf("Pasta", "Chili", "Pommes", "Salat", "Farfalle", "Bagel", "Salatbar", "Dessert", "Sonstiges"), list.map { it.name.de })
+        assertEquals(listOf("Pasta", "Chili", "Pommes", "Salat", "Farfalle", "Bagel", "Dessert", "Salatbar", "Sonstiges"), list.map { it.name.de })
         assertNull(list.first { it.name.de == "Farfalle" }.price)
         assertEquals(500, list.first { it.name.de == "Farfalle" }.per100)
     }
@@ -250,5 +251,31 @@ class MealDraftTest {
 
     @Test fun weekdaysBetweenScans() {
         assertEquals(listOf(LocalDate.of(2026, 11, 13), LocalDate.of(2026, 11, 16)), MealDraft.weekdays(LocalDate.of(2026, 11, 13), monday))
+    }
+
+    @Test fun theGenericDessertIsOfferedAndANewDessertIsSavedAsOne() {
+        val generic = options(900).single { it.key == MealDraft.DESSERT.key }
+        assertTrue(generic.dessert && generic.takesRest)
+        val picked = MealDraft.pick(900, emptyList(), generic, 900)
+        assertTrue(MealDraft.toRecord(picked).dishes.single().dessert)
+        val item = MealDraft.newDish("Pudding", null, emptyList(), 900, byWeight = true, per100 = 250, dessert = true)
+        val out = MealDraft.save(asked.copy(events = listOf(event.copy(amount = 900))), 1, listOf(item), null)
+        assertTrue(out.customDishes.single().dessert)
+        assertTrue(out.events.single().meal!!.dishes.single().dessert)
+        // Only a dish by weight can be a dessert.
+        assertFalse(MealDraft.newDish("Kuchen", null, emptyList(), 900, dessert = true).dessert)
+    }
+
+    @Test fun markingAHandNamedDishAsDessertReachesItsOtherMeals() {
+        val pud = EatenDish("pudding", LocalizedText("Pudding"), null, 500, own = true)
+        val earlier = CardEvent(5, 1, EventKind.PAYMENT, 500, monday, true, MealRecord(listOf(pud)))
+        val data = asked.copy(
+            events = listOf(earlier, event.copy(amount = 500)),
+            customDishes = listOf(KnownDish("pudding", LocalizedText("Pudding"), 500, byWeight = true)),
+        )
+        val item = MealDraft.fromRecord(MealRecord(listOf(pud)), 500).single().copy(weighed = true, dessert = true, per100 = 250)
+        val out = MealDraft.save(data, 1, listOf(item), null)
+        assertTrue(out.events.all { it.meal!!.dishes.single().dessert })
+        assertEquals(true to 250, out.customDishes.single().let { it.dessert to it.per100 })
     }
 }

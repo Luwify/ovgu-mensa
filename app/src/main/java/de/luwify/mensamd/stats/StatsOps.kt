@@ -245,15 +245,15 @@ object StatsOps {
      */
     fun addCustomDish(
         data: StatsData, name: String, price: Int, mensaId: String? = null, tags: List<Tag> = emptyList(),
-        byWeight: Boolean = false, per100: Int? = null,
+        byWeight: Boolean = false, per100: Int? = null, dessert: Boolean = false,
     ): Pair<StatsData, EatenDish> {
         val clean = name.trim()
         val key = Favorites.normalize(clean)
-        val dish = KnownDish(key, LocalizedText(clean), price, tags, mensaId, byWeight = byWeight, per100 = per100.takeIf { byWeight })
+        val dish = KnownDish(key, LocalizedText(clean), price, tags, mensaId, byWeight = byWeight, per100 = per100.takeIf { byWeight }, dessert = byWeight && dessert)
         val list = data.customDishes.filterNot { it.key == key } + dish
         val earlier = data.events.map { e -> e.copy(meal = e.meal?.copy(dishes = e.meal.dishes.map { d -> if (d.own && d.key == key) d.copy(name = dish.name, mensaId = mensaId, tags = tags) else d })) }
         val grams = dish.per100?.takeIf { it > 0 }?.let { MealMatcher.estimateGrams(price, it) }
-        return data.copy(customDishes = list, events = earlier) to EatenDish(key, dish.name, mensaId, price, tags = tags, grams = grams, own = true)
+        return data.copy(customDishes = list, events = earlier) to EatenDish(key, dish.name, mensaId, price, tags = tags, grams = grams, own = true, dessert = dish.dessert)
     }
 
     /**
@@ -282,13 +282,17 @@ object StatsOps {
     }
 
     /**
-     * A hand-named dish ([key]) now belongs to [mensaId] with [tags]: every meal with it and the saved dish follow (its
-     * price stays). Nothing changes when they already say so.
+     * A hand-named dish ([key]) now belongs to [mensaId] with [tags] and is a [dessert] or not: every meal with it and the
+     * saved dish follow (its price stays; a weighed one also takes [per100] when given). Nothing changes when they
+     * already say so.
      */
-    fun followOwnDish(data: StatsData, key: String, mensaId: String?, tags: List<Tag>): StatsData {
-        fun EatenDish.follow() = if (own && this.key == key) copy(mensaId = mensaId, tags = tags) else this
+    fun followOwnDish(data: StatsData, key: String, mensaId: String?, tags: List<Tag>, dessert: Boolean = false, per100: Int? = null): StatsData {
+        fun EatenDish.follow() = if (own && this.key == key) copy(mensaId = mensaId, tags = tags, dessert = dessert) else this
         val events = data.events.map { e -> e.meal?.let { m -> e.copy(meal = m.copy(dishes = m.dishes.map { it.follow() })) } ?: e }
-        val custom = data.customDishes.map { if (it.key == key) it.copy(mensaId = mensaId, tags = tags) else it }
+        val custom = data.customDishes.map {
+            if (it.key != key) it
+            else it.copy(mensaId = mensaId, tags = tags, dessert = dessert && it.byWeight, per100 = if (it.byWeight) per100 ?: it.per100 else it.per100)
+        }
         return if (events == data.events && custom == data.customDishes) data else data.copy(events = events, customDishes = custom)
     }
 

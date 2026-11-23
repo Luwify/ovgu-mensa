@@ -1,5 +1,6 @@
 package de.luwify.mensamd.stats
 
+import de.luwify.mensamd.favorites.Favorites
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
@@ -24,13 +25,16 @@ class StatsTooNewException(val version: Int) : Exception("statistics version $ve
  * Version 6 = extras with their own amount ([ExtraItem]): a meal's `extras` (keys) and their shared `extrasAmount` become
  * one item per key, the total split evenly in whole cents (the first gets what doesn't divide); a total without a key
  * becomes "Sonstiges". Also new in 6, optional: `KnownDish.byWeight`/`per100` (a hand-named dish paid by weight).
- * Version 7 = `CardEvent.payments` (a payment standing for at least two): optional, nothing to convert.
+ * Version 7 = `CardEvent.payments` (a payment standing for at least two), `EatenDish.dessert`, `KnownDish.dessert`:
+ * desserts are dishes now. The dessert extras of a meal (`@dessert`, `@pudding`, `@rote_gruetze`) become hand-named dessert
+ * dishes with the same amount (and weight); "Pudding" and "Rote Grütze" are also saved as dessert dishes by weight, so
+ * the search offers them (the generic "Dessert" is built in).
  */
 object StatsMigrations {
     const val CURRENT = 7
 
     /** n -> n + 1. */
-    private val STEPS: Map<Int, (JsonObject) -> JsonObject> = mapOf(1 to { it }, 2 to { it }, 3 to ::markUnknownDishesOwn, 4 to { it }, 5 to ::extrasWithAmounts, 6 to { it })
+    private val STEPS: Map<Int, (JsonObject) -> JsonObject> = mapOf(1 to { it }, 2 to { it }, 3 to ::markUnknownDishesOwn, 4 to { it }, 5 to ::extrasWithAmounts, 6 to ::dessertsAsDishes)
 
     /** 3 -> 4: see the class comment. Every other part of the document is kept as it is. */
     private fun markUnknownDishesOwn(obj: JsonObject): JsonObject {
@@ -54,6 +58,55 @@ object StatsMigrations {
         val items = splitEvenly(total, keys.ifEmpty { if (total > 0) listOf(Extras.OTHER) else emptyList() })
             .map { (key, amount) -> JsonObject(mapOf("key" to JsonPrimitive(key), "amount" to JsonPrimitive(amount))) }
         JsonObject(meal - "extrasAmount" + ("extras" to JsonArray(items)))
+    }
+
+    /** The dessert extras before schema 7, as the dessert dishes they become: key to (German name, English name). */
+    private val DESSERT_EXTRAS = mapOf(
+        Extras.DESSERT to ("Dessert" to "Dessert"),
+        Extras.PUDDING to ("Pudding" to "Pudding"),
+        Extras.ROTE_GRUETZE to ("Rote Grütze" to "Rote Grütze"),
+    )
+
+    /** 6 -> 7: see the class comment. */
+    private fun dessertsAsDishes(obj: JsonObject): JsonObject {
+        val lastPrice = linkedMapOf<String, Int>() // extra key -> its latest amount, for the saved dishes
+        val out = mapMeals(obj) { meal ->
+            val extras = (meal["extras"] as? JsonArray).orEmpty().filterIsInstance<JsonObject>()
+            val (desserts, rest) = extras.partition { (it["key"] as? JsonPrimitive)?.contentOrNull in DESSERT_EXTRAS }
+            if (desserts.isEmpty()) return@mapMeals meal
+            val dishes = desserts.map { e ->
+                val extra = e["key"]!!.jsonPrimitive.content
+                val (de, en) = DESSERT_EXTRAS.getValue(extra)
+                val amount = e["amount"]?.jsonPrimitive?.intOrNull ?: 0
+                lastPrice[extra] = amount
+                JsonObject(
+                    buildMap {
+                        put("key", JsonPrimitive(Favorites.normalize(de)))
+                        put("name", JsonObject(mapOf("de" to JsonPrimitive(de), "en" to JsonPrimitive(en))))
+                        put("price", JsonPrimitive(amount))
+                        put("count", JsonPrimitive(1))
+                        e["grams"]?.takeIf { it !is JsonNull }?.let { put("grams", it) }
+                        put("own", JsonPrimitive(true))
+                        put("dessert", JsonPrimitive(true))
+                    },
+                )
+            }
+            val before = (meal["dishes"] as? JsonArray).orEmpty()
+            JsonObject(meal + ("dishes" to JsonArray(before + dishes)) + ("extras" to JsonArray(rest)))
+        }
+        val saved = (out["customDishes"] as? JsonArray).orEmpty()
+        val savedKeys = saved.mapNotNull { (it as? JsonObject)?.get("key")?.jsonPrimitive?.contentOrNull }.toSet()
+        val added = lastPrice.filterKeys { it != Extras.DESSERT }.mapNotNull { (extra, price) ->
+            val (de, en) = DESSERT_EXTRAS.getValue(extra)
+            val key = Favorites.normalize(de)
+            if (key in savedKeys) null else JsonObject(
+                mapOf(
+                    "key" to JsonPrimitive(key), "name" to JsonObject(mapOf("de" to JsonPrimitive(de), "en" to JsonPrimitive(en))),
+                    "price" to JsonPrimitive(price), "own" to JsonPrimitive(true), "byWeight" to JsonPrimitive(true), "dessert" to JsonPrimitive(true),
+                ),
+            )
+        }
+        return if (added.isEmpty()) out else JsonObject(out + ("customDishes" to JsonArray(saved + added)))
     }
 
     /** [total] mills over [keys] in whole cents; the first key gets the remainder. */

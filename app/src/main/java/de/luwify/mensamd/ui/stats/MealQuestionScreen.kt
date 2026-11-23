@@ -297,10 +297,10 @@ internal fun MealQuestionScreen(
             tags = emptyList(),
             note = null,
             price = rest.coerceAtLeast(0),
-            weightOption = true,
+            weight = WeightFields(switchable = true),
             onConfirm = { d ->
                 naming = null
-                val item = MealDraft.newDish(d.name, d.mensaId, d.tags, d.price ?: rest, days.singleOrNull()?.takeIf { range }, d.byWeight, d.per100)
+                val item = MealDraft.newDish(d.name, d.mensaId, d.tags, d.price ?: rest, days.singleOrNull()?.takeIf { range }, d.byWeight, d.per100, d.dessert)
                 applyPick(MealDraft.add(picked.toList(), item), oneTap = picked.isEmpty())
             },
             onDismiss = { naming = null },
@@ -486,6 +486,7 @@ private fun optionDetail(o: MealOption, rest: Int, range: Boolean, language: Str
         o.per100 != null -> formatCardAmount(o.per100, locale) + " " + stringResource(R.string.price_per_100g) + " · " +
             stringResource(R.string.meal_weight_estimate, de.luwify.mensamd.stats.MealMatcher.estimateGrams(rest, o.per100))
         o.price != null -> formatCardAmount(o.price, locale)
+        o.dessert -> stringResource(R.string.dish_dessert) + " · " + stringResource(R.string.dish_by_weight)
         o.byWeight -> stringResource(R.string.dish_by_weight)
         else -> stringResource(R.string.meal_takes_rest)
     },
@@ -514,11 +515,19 @@ private fun ItemDialog(item: MealItem, language: String, onConfirm: (MealItem) -
             tags = item.tags,
             note = if (item.own && !item.isNew) stringResource(R.string.dish_own_note) else null,
             price = item.price,
+            // A weighed dish: its price per 100 g (own dishes only; a menu's is fixed) and the dessert mark.
+            weight = if (item.weighed) WeightFields(false, true, item.per100, per100Editable = item.own, dessert = item.dessert) else null,
             onConfirm = { d ->
                 val renamed = if (item.isNew && d.name != item.name.de) {
                     MealDraft.newDish(d.name, d.mensaId, d.tags, item.price, byWeight = item.weighed, per100 = item.newPer100)
                 } else item
-                onConfirm(renamed.copy(mensaId = d.mensaId, tags = d.tags, price = d.price ?: item.price, count = item.count, day = item.day))
+                val per100 = if (item.weighed && item.own) d.per100 else item.per100
+                onConfirm(
+                    renamed.copy(
+                        mensaId = d.mensaId, tags = d.tags, price = d.price ?: item.price, count = item.count, day = item.day,
+                        per100 = per100, newPer100 = if (item.isNew) per100 else null, dessert = item.weighed && d.dessert,
+                    ),
+                )
             },
             onDismiss = onDismiss,
         )

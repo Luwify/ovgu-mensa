@@ -26,6 +26,8 @@ data class MealItem(
     val weighed: Boolean = per100 != null,
     /** A dish named now and paid by weight: saved with this price per 100 g (null: unknown). */
     val newPer100: Int? = null,
+    /** A dessert ([EatenDish.dessert]). */
+    val dessert: Boolean = false,
 ) {
     val isExtra: Boolean get() = name == null
     val total: Int get() = price * count
@@ -53,6 +55,7 @@ data class MealOption(
     val per100: Int? = null,
     val day: LocalDate? = null,
     val byWeight: Boolean = per100 != null,
+    val dessert: Boolean = false,
 ) {
     /** Without a fixed price the user says how much of the payment it was (the rest is offered). */
     val takesRest: Boolean get() = price == null
@@ -74,6 +77,9 @@ data class Suggestion(val day: LocalDate?, val candidate: MealMatcher.Candidate)
 object MealDraft {
     /** Suggestions shown at most. */
     const val MAX_SUGGESTIONS = 3
+
+    /** The generic dessert by weight, always offered (own desserts like "Pudding" are hand-named dishes). */
+    val DESSERT = KnownDish("dessert", LocalizedText("Dessert", "Dessert"), 0, byWeight = true, dessert = true)
 
     fun sum(items: List<MealItem>): Int = items.sumOf { it.total }
 
@@ -104,17 +110,21 @@ object MealDraft {
             per100 = option.per100,
             day = option.day,
             weighed = option.byWeight,
+            dessert = option.dessert,
         )
         return add(items, item)
     }
 
-    /** A dish named now ("„…“ neu anlegen"), at [price] (mills); [byWeight] with its price per 100 g, if known. */
-    fun newDish(name: String, mensaId: String?, tags: List<Tag>, price: Int, day: LocalDate? = null, byWeight: Boolean = false, per100: Int? = null): MealItem {
+    /** A dish named now ("„…“ neu anlegen"), at [price] (mills); [byWeight] with its price per 100 g, if known, maybe a [dessert]. */
+    fun newDish(
+        name: String, mensaId: String?, tags: List<Tag>, price: Int, day: LocalDate? = null,
+        byWeight: Boolean = false, per100: Int? = null, dessert: Boolean = false,
+    ): MealItem {
         val clean = name.trim()
         val p100 = per100?.takeIf { byWeight && it > 0 }
         return MealItem(
             Favorites.normalize(clean), LocalizedText(clean), mensaId, tags, own = true, isNew = true, price = price, day = day,
-            per100 = p100, weighed = byWeight, newPer100 = p100,
+            per100 = p100, weighed = byWeight, newPer100 = p100, dessert = byWeight && dessert,
         )
     }
 
@@ -152,7 +162,10 @@ object MealDraft {
         if (record.other) return listOf(MealItem(Extras.OTHER, price = amount))
         fun per100(price: Int, grams: Int?) = grams?.takeIf { it > 0 }?.let { ((price.toLong() * 100 + it / 2) / it).toInt() }
         return record.dishes.map {
-            MealItem(it.key, it.name, it.mensaId, it.tags, it.own, count = it.count, price = it.price, per100 = per100(it.price, it.grams), weighed = it.grams != null)
+            MealItem(
+                it.key, it.name, it.mensaId, it.tags, it.own, count = it.count, price = it.price, per100 = per100(it.price, it.grams),
+                weighed = it.grams != null || it.dessert, dessert = it.dessert,
+            )
         } +
             record.extras.map { MealItem(it.key, price = it.amount, per100 = per100(it.amount, it.grams)) }
     }
@@ -160,7 +173,7 @@ object MealDraft {
     /** The meal the [items] make (each extra key once, with its amount); only "Sonstiges" = the whole payment is other. */
     fun toRecord(items: List<MealItem>): MealRecord {
         val dishes = items.filterNot { it.isExtra }.map {
-            EatenDish(it.key, it.name!!, it.mensaId, it.price, it.count, it.tags, it.grams, it.own || it.isNew)
+            EatenDish(it.key, it.name!!, it.mensaId, it.price, it.count, it.tags, it.grams, it.own || it.isNew, it.dessert)
         }
         val extras = items.filter { it.isExtra }.groupBy { it.key }.map { (key, list) ->
             val grams = list.map { it.grams }
@@ -180,10 +193,11 @@ object MealDraft {
         if (!complete(event.amount, items)) return data
         var next = data
         items.filter { it.isNew }.distinctBy { it.key }.forEach {
-            next = StatsOps.addCustomDish(next, it.name!!.de, it.price, it.mensaId, it.tags, it.weighed, it.newPer100).first
+            next = StatsOps.addCustomDish(next, it.name!!.de, it.price, it.mensaId, it.tags, it.weighed, it.newPer100, it.dessert).first
         }
-        // A hand-named dish is one dish for the app: a Mensa or tags changed here reach its other meals too.
-        items.filter { it.own && !it.isNew }.forEach { next = StatsOps.followOwnDish(next, it.key, it.mensaId, it.tags) }
+        // A hand-named dish is one dish for the app: a Mensa, tags, dessert mark or price per 100 g changed here reach its
+        // other meals and the saved dish too.
+        items.filter { it.own && !it.isNew }.forEach { next = StatsOps.followOwnDish(next, it.key, it.mensaId, it.tags, it.dessert, it.per100.takeIf { _ -> it.weighed }) }
         val byDay = items.groupBy { it.day ?: date }
         if (byDay.size <= 1) return StatsOps.answerMeal(next, eventId, toRecord(items), byDay.keys.singleOrNull())
         val parts = byDay.map { (day, list) -> Triple(day ?: event.date, sum(list), toRecord(list.map { it.copy(day = null) })) }
@@ -256,11 +270,14 @@ object MealDraft {
         }.distinctBy { Triple(it.key, it.mensaId, it.day) }.sortedBy { it.tier }
         val dayKeys = onDay.map { it.key to it.mensaId }.toSet()
         val own = custom.map {
-            if (it.byWeight) MealOption(it.key, it.name, it.mensaId, it.tags, null, tier = 2, own = true, per100 = it.per100, byWeight = true)
+            if (it.byWeight) MealOption(it.key, it.name, it.mensaId, it.tags, null, tier = 2, own = true, per100 = it.per100, byWeight = true, dessert = it.dessert)
             else MealOption(it.key, it.name, it.mensaId, it.tags, it.price.takeIf { p -> p > 0 }, tier = 2, own = true)
         }
             .sortedBy { it.name.de.lowercase() }
-        val extraOptions = extras.map { (key, label) -> MealOption(key, LocalizedText(label), null, emptyList(), null, tier = 3, extra = true) }
+        val dessert = listOfNotNull(DESSERT.takeIf { d -> custom.none { it.key == d.key } }?.let {
+            MealOption(it.key, it.name, null, emptyList(), null, tier = 3, own = true, byWeight = true, dessert = true)
+        })
+        val extraOptions = dessert + extras.map { (key, label) -> MealOption(key, LocalizedText(label), null, emptyList(), null, tier = 3, extra = true) }
         val shown = dayKeys + own.map { it.key to it.mensaId }
         val menuOthers = menus.filterNot { it.own }.map { d ->
             val price = MealMatcher.prices(d, group).firstOrNull()
@@ -268,7 +285,7 @@ object MealDraft {
         }
         // The latest price of a dish eaten before; a weighed portion's price says nothing about the next one.
         val eaten = events.mapNotNull { it.meal }.flatMap { it.dishes }.asReversed().map { d ->
-            MealOption(d.key, d.name, d.mensaId, d.tags, d.price.takeIf { d.grams == null }, tier = 4, own = d.own, byWeight = d.grams != null)
+            MealOption(d.key, d.name, d.mensaId, d.tags, d.price.takeIf { d.grams == null && !d.dessert }, tier = 4, own = d.own, byWeight = d.grams != null || d.dessert, dessert = d.dessert)
         }
         val others = (menuOthers + eaten).filterNot { (it.key to it.mensaId) in shown }.distinctBy { it.key to it.mensaId }
             .sortedBy { it.name.de.lowercase() }
