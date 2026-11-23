@@ -405,7 +405,7 @@
     <string name="desserts_spent">Spent</string>
     <string name="desserts_amount">Amount, estimated</string>
     <string name="desserts_weight_partial">Weight known (price per 100 g): %1$d/%2$d</string>
-    <string name="desserts_empty">No desserts yet. Mark a dish by weight as a dessert in the question.</string>
+    <string name="desserts_empty">No desserts yet. Mark a dish as a dessert in the question.</string>
     <string name="stats_average_day">Avg. per day</string>
     <string name="meal_amount_hint">How much of the payment was it? Still open: %1$s</string>
     <string name="dish_by_weight">Priced by weight</string>

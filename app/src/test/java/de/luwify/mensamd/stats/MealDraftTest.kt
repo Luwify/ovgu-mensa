@@ -262,8 +262,43 @@ class MealDraftTest {
         val out = MealDraft.save(asked.copy(events = listOf(event.copy(amount = 900))), 1, listOf(item), null)
         assertTrue(out.customDishes.single().dessert)
         assertTrue(out.events.single().meal!!.dishes.single().dessert)
-        // Only a dish by weight can be a dessert.
-        assertFalse(MealDraft.newDish("Kuchen", null, emptyList(), 900, dessert = true).dessert)
+    }
+
+    /** Desserts by weight cost 0,60 € per 100 g unless said otherwise; the price per 100 g can be changed per pick. */
+    @Test fun dessertsByWeightStartAt60CentsPer100g() {
+        val generic = options(900).single { it.key == MealDraft.DESSERT.key }
+        assertEquals(600, generic.per100)
+        assertEquals(150, MealDraft.pick(900, emptyList(), generic, 900).single().grams)
+        // A special one (or a new price): 0,75 € per 100 g.
+        val special = MealDraft.pick(900, emptyList(), generic, 900, per100 = 750).single()
+        assertEquals(750 to 120, special.per100 to special.grams)
+        // An own dessert by weight without a price per 100 g (e.g. migrated "Pudding") is offered at the default too.
+        val pudding = KnownDish("pudding", LocalizedText("Pudding"), 0, byWeight = true, dessert = true)
+        assertEquals(600, options(900, custom = listOf(pudding)).single { it.key == "pudding" }.per100)
+        // A changed price per 100 g reaches the saved dessert.
+        val data = asked.copy(events = listOf(event.copy(amount = 900)), customDishes = listOf(pudding))
+        val picked = MealDraft.pick(900, emptyList(), options(900, custom = listOf(pudding)).single { it.key == "pudding" }, 900, per100 = 700)
+        assertEquals(700, MealDraft.save(data, 1, picked, null).customDishes.single().per100)
+        // A dish by weight that is no dessert has no default.
+        val salad = KnownDish("nudelbar", LocalizedText("Nudelbar"), 0, byWeight = true)
+        assertEquals(null, options(900, custom = listOf(salad)).single { it.key == "nudelbar" }.per100)
+    }
+
+    /** A dessert with a fixed price (e.g. a cake) is a dessert too, offered at its price, never by weight. */
+    @Test fun aDessertWithAFixedPrice() {
+        val cake = MealDraft.newDish("Kuchen", null, emptyList(), 1_200, dessert = true)
+        assertTrue(cake.dessert && !cake.weighed)
+        val out = MealDraft.save(asked.copy(events = listOf(event.copy(amount = 1_200))), 1, listOf(cake), null)
+        val known = out.customDishes.single()
+        assertTrue(known.dessert && !known.byWeight)
+        assertTrue(out.events.single().meal!!.dishes.single().dessert)
+        val offered = options(1_200, custom = out.customDishes).single { it.key == known.key }
+        assertEquals(1_200 to true, offered.price to offered.dessert)
+        assertFalse(offered.byWeight)
+        // A correction keeps it at its fixed price.
+        val fixed = out.customDishes.filterNot { it.byWeight }.map { it.key }.toSet()
+        assertFalse(MealDraft.fromRecord(out.events.single().meal, 1_200, fixed).single().weighed)
+        assertEquals(1, MealSummary.desserts(out.events).count)
     }
 
     @Test fun markingAHandNamedDishAsDessertReachesItsOtherMeals() {

@@ -397,7 +397,7 @@
     <string name="desserts_spent">Ausgegeben</string>
     <string name="desserts_amount">Menge, geschätzt</string>
     <string name="desserts_weight_partial">Gewicht bekannt (Preis pro 100 g): %1$d/%2$d</string>
-    <string name="desserts_empty">Noch keine Desserts. Ein Gericht nach Gewicht lässt sich in der Frage als Dessert markieren.</string>
+    <string name="desserts_empty">Noch keine Desserts. Ein Gericht lässt sich in der Frage als Dessert markieren.</string>
     <string name="stats_average_day">Ø pro Tag</string>
     <string name="meal_amount_hint">Wie viel davon war das? Noch offen: %1$s</string>
     <string name="dish_by_weight">Nach Gewicht</string>

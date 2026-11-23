@@ -33,6 +33,7 @@ import de.luwify.mensamd.model.MensaCatalog
 import de.luwify.mensamd.model.Tag
 import de.luwify.mensamd.stats.Amounts
 import de.luwify.mensamd.stats.DishTags
+import de.luwify.mensamd.stats.MealDraft
 import de.luwify.mensamd.ui.SettingsDropdown
 import de.luwify.mensamd.ui.forLanguage
 import de.luwify.mensamd.ui.tagLabelRes
@@ -50,8 +51,9 @@ internal data class DishDetails(
 )
 
 /**
- * The weight part of [DishDetailsDialog]: [switchable] shows "Nach Gewicht" (else the dish is by weight as given);
- * [per100Editable] the price per 100 g; a dish by weight can be marked as a dessert.
+ * The weight part of [DishDetailsDialog]: [switchable] shows "Nach Gewicht" (else the dish is by weight or not as given);
+ * [per100Editable] the price per 100 g; every dish can be marked as a dessert (by weight its price per 100 g starts at
+ * [MealDraft.DESSERT_PER_100]).
  */
 internal data class WeightFields(
     val switchable: Boolean,
@@ -68,7 +70,7 @@ internal data class WeightFields(
  * reaches. Without a tag the dish counts as "no information" in the vegan/vegetarian shares. [price] (mills) non-null
  * adds a price field, starting with it; the confirmed price is then passed on (null without the field). [weight] adds
  * the weight part (see [WeightFields]): by weight, the price is what was paid this time, with an optional price per
- * 100 g, and the dish can be a dessert.
+ * 100 g; the dish can be a dessert either way.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -119,8 +121,14 @@ internal fun DishDetailsDialog(
                     label = { Text(stringResource(R.string.meal_new_label)) },
                     modifier = Modifier.fillMaxWidth(),
                 )
-                if (weight?.switchable == true) SwitchRow(stringResource(R.string.dish_by_weight), byWeight) { byWeight = it }
-                if (byWeight) SwitchRow(stringResource(R.string.dish_dessert), dessert) { dessert = it }
+                // A dessert by weight starts at the usual price per 100 g (changeable: a special one, a new price).
+                fun defaultPer100(weighed: Boolean, isDessert: Boolean) {
+                    if (weighed && isDessert && per100Text.isBlank() && weight?.per100Editable != false) {
+                        per100Text = Amounts.toInput(MealDraft.DESSERT_PER_100, comma)
+                    }
+                }
+                if (weight?.switchable == true) SwitchRow(stringResource(R.string.dish_by_weight), byWeight) { byWeight = it; defaultPer100(it, dessert) }
+                if (weight != null) SwitchRow(stringResource(R.string.dish_dessert), dessert) { dessert = it; defaultPer100(byWeight, it) }
                 if (price != null) {
                     PriceField(
                         priceText, parsedPrice, per100.takeIf { byWeight },
@@ -147,7 +155,7 @@ internal fun DishDetailsDialog(
         },
         confirmButton = {
             TextButton(
-                onClick = { onConfirm(DishDetails(text.trim(), mensa.ifEmpty { null }, DishTags.pick(keys, tags), parsedPrice, byWeight, per100.takeIf { byWeight }, byWeight && dessert)) },
+                onClick = { onConfirm(DishDetails(text.trim(), mensa.ifEmpty { null }, DishTags.pick(keys, tags), parsedPrice, byWeight, per100.takeIf { byWeight }, weight != null && dessert)) },
                 enabled = text.isNotBlank() && (price == null || parsedPrice != null) && (!byWeight || per100Valid),
             ) { Text(stringResource(R.string.q_save)) }
         },

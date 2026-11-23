@@ -112,7 +112,9 @@ internal fun MealQuestionScreen(
     val defaultId = context?.defaultMensaId
     val event = data.events.firstOrNull { it.id == question.eventId }
     val amount = event?.amount ?: question.amount
-    val initial = remember(question.eventId) { MealDraft.fromRecord(current, amount) }
+    val initial = remember(question.eventId) {
+        MealDraft.fromRecord(current, amount, data.customDishes.filterNot { it.byWeight }.map { it.key }.toSet())
+    }
     val picked = remember(question.eventId) { mutableStateListOf<MealItem>().apply { addAll(initial) } }
     var query by rememberSaveable { mutableStateOf("") }
     // The day the user chose with the date line (epoch day), null: unchanged.
@@ -307,9 +309,9 @@ internal fun MealQuestionScreen(
         )
     }
     askingAmount?.let { o ->
-        AmountForDialog(o, rest, language, onConfirm = { price ->
+        AmountForDialog(o, rest, language, onConfirm = { price, per100 ->
             askingAmount = null
-            applyPick(MealDraft.pick(amount, picked.toList(), o, price), oneTap = picked.isEmpty())
+            applyPick(MealDraft.pick(amount, picked.toList(), o, price, per100), oneTap = picked.isEmpty())
         }, onDismiss = { askingAmount = null })
     }
     editIndex?.let { i -> picked.getOrNull(i) }?.let { item ->
@@ -485,8 +487,8 @@ private fun optionDetail(o: MealOption, rest: Int, range: Boolean, language: Str
     when {
         o.per100 != null -> formatCardAmount(o.per100, locale) + " " + stringResource(R.string.price_per_100g) + " · " +
             stringResource(R.string.meal_weight_estimate, de.luwify.mensamd.stats.MealMatcher.estimateGrams(rest, o.per100))
-        o.price != null -> formatCardAmount(o.price, locale)
-        o.dessert -> stringResource(R.string.dish_dessert) + " · " + stringResource(R.string.dish_by_weight)
+        o.price != null -> formatCardAmount(o.price, locale) + if (o.dessert) " · " + stringResource(R.string.dish_dessert) else ""
+        o.dessert && o.byWeight -> stringResource(R.string.dish_dessert) + " · " + stringResource(R.string.dish_by_weight)
         o.byWeight -> stringResource(R.string.dish_by_weight)
         else -> stringResource(R.string.meal_takes_rest)
     },
@@ -534,17 +536,17 @@ private fun ItemDialog(item: MealItem, language: String, onConfirm: (MealItem) -
             tags = item.tags,
             note = if (item.own && !item.isNew) stringResource(R.string.dish_own_note) else null,
             price = item.price,
-            // A weighed dish: its price per 100 g (own dishes only; a menu's is fixed) and the dessert mark.
-            weight = if (item.weighed) WeightFields(false, true, item.per100, per100Editable = item.own, dessert = item.dessert) else null,
+            // A weighed dish: its price per 100 g (own dishes only; a menu's is fixed). Every dish: the dessert mark.
+            weight = WeightFields(false, item.weighed, item.per100, per100Editable = item.weighed && item.own, dessert = item.dessert),
             onConfirm = { d ->
                 val renamed = if (item.isNew && d.name != item.name.de) {
-                    MealDraft.newDish(d.name, d.mensaId, d.tags, item.price, byWeight = item.weighed, per100 = item.newPer100)
+                    MealDraft.newDish(d.name, d.mensaId, d.tags, item.price, byWeight = item.weighed, per100 = item.newPer100, dessert = d.dessert)
                 } else item
                 val per100 = if (item.weighed && item.own) d.per100 else item.per100
                 onConfirm(
                     renamed.copy(
                         mensaId = d.mensaId, tags = d.tags, price = d.price ?: item.price, count = item.count, day = item.day,
-                        per100 = per100, newPer100 = if (item.isNew) per100 else null, dessert = item.weighed && d.dessert,
+                        per100 = per100, newPer100 = if (item.isNew) per100 else null, dessert = d.dessert,
                     ),
                 )
             },
@@ -567,24 +569,36 @@ private fun ItemDialog(item: MealItem, language: String, onConfirm: (MealItem) -
 
 /**
  * "Wie viel davon?" for a pick without a fixed price: the amount, starting with what is still open (the user lowers it to
- * leave room for more, e.g. a salad and a pudding); with a price per 100 g the weight it buys below.
+ * leave room for more, e.g. a salad and a pudding); with a price per 100 g the weight it buys below. An own dish by
+ * weight (a dessert: 0,60 € by default) also shows its price per 100 g, changeable; confirmed as (amount, per 100 g).
  */
 @Composable
-private fun AmountForDialog(option: MealOption, rest: Int, language: String, onConfirm: (Int) -> Unit, onDismiss: () -> Unit) {
+private fun AmountForDialog(option: MealOption, rest: Int, language: String, onConfirm: (Int, Int?) -> Unit, onDismiss: () -> Unit) {
     val locale = LocalConfiguration.current.locales[0]
     val comma = remember(locale) { DecimalFormatSymbols.getInstance(locale).decimalSeparator == ',' }
     var text by rememberSaveable { mutableStateOf(rest.takeIf { it > 0 }?.let { Amounts.toInput(it, comma) }.orEmpty()) }
     val price = Amounts.parseEuro(text)?.takeIf { it > 0 }
+    val per100Shown = option.own && option.byWeight
+    var per100Text by rememberSaveable { mutableStateOf(option.per100?.let { Amounts.toInput(it, comma) }.orEmpty()) }
+    val per100 = if (per100Shown) Amounts.parseEuro(per100Text)?.takeIf { it > 0 } else option.per100
+    val per100Valid = !per100Shown || per100Text.isBlank() || per100 != null
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(option.name.forLanguage(language)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(stringResource(R.string.meal_amount_hint, formatCardAmount(rest.coerceAtLeast(0), locale)), style = MaterialTheme.typography.bodyMedium)
-                PriceField(text, price, option.per100) { text = it }
+                PriceField(text, price, per100) { text = it }
+                if (per100Shown) {
+                    PriceField(per100Text, per100, null, label = stringResource(R.string.dish_per_100g), optional = true) { per100Text = it }
+                }
             }
         },
-        confirmButton = { TextButton(onClick = { onConfirm(price!!) }, enabled = price != null) { Text(stringResource(android.R.string.ok)) } },
+        confirmButton = {
+            TextButton(onClick = { onConfirm(price!!, per100.takeIf { per100Shown }) }, enabled = price != null && per100Valid) {
+                Text(stringResource(android.R.string.ok))
+            }
+        },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel_action)) } },
     )
 }

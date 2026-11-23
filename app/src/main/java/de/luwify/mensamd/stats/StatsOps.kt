@@ -268,7 +268,7 @@ object StatsOps {
     ): Pair<StatsData, EatenDish> {
         val clean = name.trim()
         val key = Favorites.normalize(clean)
-        val dish = KnownDish(key, LocalizedText(clean), price, tags, mensaId, byWeight = byWeight, per100 = per100.takeIf { byWeight }, dessert = byWeight && dessert)
+        val dish = KnownDish(key, LocalizedText(clean), price, tags, mensaId, byWeight = byWeight, per100 = per100.takeIf { byWeight }, dessert = dessert)
         val list = data.customDishes.filterNot { it.key == key } + dish
         val earlier = data.events.map { e -> e.copy(meal = e.meal?.copy(dishes = e.meal.dishes.map { d -> if (d.own && d.key == key) d.copy(name = dish.name, mensaId = mensaId, tags = tags) else d })) }
         val grams = dish.per100?.takeIf { it > 0 }?.let { MealMatcher.estimateGrams(price, it) }
@@ -310,7 +310,7 @@ object StatsOps {
         val events = data.events.map { e -> e.meal?.let { m -> e.copy(meal = m.copy(dishes = m.dishes.map { it.follow() })) } ?: e }
         val custom = data.customDishes.map {
             if (it.key != key) it
-            else it.copy(mensaId = mensaId, tags = tags, dessert = dessert && it.byWeight, per100 = if (it.byWeight) per100 ?: it.per100 else it.per100)
+            else it.copy(mensaId = mensaId, tags = tags, dessert = dessert, per100 = if (it.byWeight) per100 ?: it.per100 else it.per100)
         }
         return if (events == data.events && custom == data.customDishes) data else data.copy(events = events, customDishes = custom)
     }

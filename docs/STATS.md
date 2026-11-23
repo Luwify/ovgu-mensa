@@ -123,4 +123,4 @@ Resume point for the card statistics feature (started 2026-11-05). Tick items as
       earlier never saw it. `StatsOps.offerFirstDebit` now offers the first recorded scan's debit whenever it is unanswered (no
       payment from that scan, not declined: `firstDebitDone`), at every `matchPending`; the card screen shows it as a note.
 - [x] Phase 2 (2026-11-23): several payments folded into the question screen with detailed statistics (`CardEvent.payments`),
-      desserts as dishes by weight (`dessert` flag, Desserts section, old dessert extras migrated), schema 7.
+      desserts as dishes (`dessert` flag, by weight at 0,60 €/100 g by default or at a fixed price, Desserts section, old dessert extras migrated), schema 7.
