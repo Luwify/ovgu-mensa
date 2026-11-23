@@ -113,7 +113,7 @@ internal fun MealQuestionScreen(
     val event = data.events.firstOrNull { it.id == question.eventId }
     val amount = event?.amount ?: question.amount
     val initial = remember(question.eventId) {
-        MealDraft.fromRecord(current, amount, data.customDishes.filterNot { it.byWeight }.map { it.key }.toSet())
+        MealDraft.fromRecord(current, amount, data.customDishes)
     }
     val picked = remember(question.eventId) { mutableStateListOf<MealItem>().apply { addAll(initial) } }
     var query by rememberSaveable { mutableStateOf("") }

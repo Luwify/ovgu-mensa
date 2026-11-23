@@ -164,19 +164,37 @@ object MealDraft {
 
     /**
      * The items of a saved meal, for a correction. A dessert without a weight was by weight unless it is one of the
-     * hand-named dishes with a fixed price ([fixed], their keys).
+     * hand-named dishes ([custom]) with a fixed price. The price per 100 g comes back from the saved weight, see [per100].
      */
-    fun fromRecord(record: MealRecord?, amount: Int, fixed: Set<String> = emptySet()): List<MealItem> {
+    fun fromRecord(record: MealRecord?, amount: Int, custom: List<KnownDish> = emptyList()): List<MealItem> {
         if (record == null) return emptyList()
         if (record.other) return listOf(MealItem(Extras.OTHER, price = amount))
-        fun per100(price: Int, grams: Int?) = grams?.takeIf { it > 0 }?.let { ((price.toLong() * 100 + it / 2) / it).toInt() }
+        val fixed = custom.filterNot { it.byWeight }.map { it.key }.toSet()
+        val saved = custom.mapNotNull { d -> d.per100?.let { d.key to it } }.toMap()
         return record.dishes.map {
+            val known = listOfNotNull(saved[it.key], DESSERT_PER_100.takeIf { _ -> it.dessert })
             MealItem(
-                it.key, it.name, it.mensaId, it.tags, it.own, count = it.count, price = it.price, per100 = per100(it.price, it.grams),
+                it.key, it.name, it.mensaId, it.tags, it.own, count = it.count, price = it.price, per100 = per100(it.price, it.grams, known),
                 weighed = it.grams != null || (it.dessert && it.key !in fixed), dessert = it.dessert,
             )
         } +
             record.extras.map { MealItem(it.key, price = it.amount, per100 = per100(it.amount, it.grams)) }
+    }
+
+    /**
+     * The price per 100 g (mills) that bought [grams] for [price]. The weight is saved rounded to 10 g, so dividing alone
+     * is off by a cent or two (1,00 € for "170 g" = 0,588 €): a [known] price that gives the same weight wins (the dish's
+     * saved one, the usual dessert price), else among the whole-cent prices that give it (several can) a round one: a
+     * multiple of 10 cents, then of 5 cents, then the closest to the quotient.
+     */
+    fun per100(price: Int, grams: Int?, known: List<Int> = emptyList()): Int? {
+        if (grams == null || grams <= 0 || price <= 0) return null
+        fun fits(p: Int) = p > 0 && MealMatcher.estimateGrams(price, p) == grams
+        known.firstOrNull(::fits)?.let { return it }
+        val exact = ((price.toLong() * 100 + grams / 2) / grams).toInt()
+        val cents = (exact + 5) / 10 * 10
+        return (-20..20).map { cents + it * 10 }.filter(::fits)
+            .minWithOrNull(compareBy<Int>({ it % 100 != 0 }, { it % 50 != 0 }, { kotlin.math.abs(it - exact) })) ?: exact
     }
 
     /** The meal the [items] make (each extra key once, with its amount); only "Sonstiges" = the whole payment is other. */

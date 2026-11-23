@@ -296,8 +296,7 @@ class MealDraftTest {
         assertEquals(1_200 to true, offered.price to offered.dessert)
         assertFalse(offered.byWeight)
         // A correction keeps it at its fixed price.
-        val fixed = out.customDishes.filterNot { it.byWeight }.map { it.key }.toSet()
-        assertFalse(MealDraft.fromRecord(out.events.single().meal, 1_200, fixed).single().weighed)
+        assertFalse(MealDraft.fromRecord(out.events.single().meal, 1_200, out.customDishes).single().weighed)
         assertEquals(1, MealSummary.desserts(out.events).count)
     }
 
@@ -332,5 +331,20 @@ class MealDraftTest {
         val search = MealDraft.options(500, emptyList(), false, emptyList(), out.events, out.customDishes, listOf("Obstsalat" to "Obstsalat", Extras.SALAD to "Salatbar"), null, 0)
         assertEquals(listOf(false), search.filter { it.name.de == "Obstsalat" }.map { it.extra })
         assertTrue(search.any { it.key == Extras.SALAD })
+    }
+
+    /** Reopened, a dessert at 0,60 € per 100 g shows 0,60 €, not 0,59 € or 0,61 € from the rounded weight. */
+    @Test fun aReopenedPricePer100gIsTheOneEntered() {
+        fun reopened(price: Int, per100: Int, custom: List<KnownDish> = emptyList(), key: String = "obstsalat"): Int? {
+            val dish = EatenDish(key, LocalizedText("Obstsalat"), null, price, grams = MealMatcher.estimateGrams(price, per100), own = true, dessert = true)
+            return MealDraft.fromRecord(MealRecord(listOf(dish)), price, custom).single().per100
+        }
+        assertEquals(600, reopened(1_000, 600)) // 170 g; 1,00 € / 170 g = 0,588 €
+        assertEquals(600, reopened(970, 600)) // 160 g; 0,606 €
+        // Another price saved for the dessert, or none known: the whole-cent price that gives the weight.
+        val special = listOf(KnownDish("obstsalat", LocalizedText("Obstsalat"), 0, byWeight = true, per100 = 750, dessert = true))
+        assertEquals(750, reopened(1_000, 750, special))
+        assertEquals(800, MealDraft.per100(2_350, MealMatcher.estimateGrams(2_350, 800)))
+        assertEquals(null, MealDraft.per100(1_000, null))
     }
 }
