@@ -398,6 +398,7 @@
     <!-- Card statistics: meals (detailed statistics) -->
     <string name="meal_title">Payment %1$s</string>
     <string name="meal_unknown_mensa">Unknown Mensa</string>
+    <string name="stats_average_day">Avg. per day</string>
     <string name="meal_amount_hint">How much of the payment was it? Still open: %1$s</string>
     <string name="dish_by_weight">Priced by weight</string>
     <string name="dish_paid_now">Paid this time</string>
@@ -486,4 +487,12 @@
     <string name="pfand_reassign">Assign differently</string>
     <string name="pfand_snackbar">Pfand return %1$s saved</string>
     <string name="q_credit_only_pfand">Only a Pfand return of %1$s</string>
+    <plurals name="event_payments_several">
+        <item quantity="one">At least %1$d payment</item>
+        <item quantity="other">At least %1$d payments</item>
+    </plurals>
+    <plurals name="meal_several">
+        <item quantity="one">At least %1$d payment since the last scan.</item>
+        <item quantity="other">At least %1$d payments since the last scan. Assign everything that was bought; on several days, spread it below.</item>
+    </plurals>
 </resources>

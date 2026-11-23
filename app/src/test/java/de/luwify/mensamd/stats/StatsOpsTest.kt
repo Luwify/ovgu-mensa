@@ -346,4 +346,34 @@ class StatsOpsTest {
         assertEquals(listOf(3_100), payments.map { it.amount })
         assertTrue(c.open.isEmpty())
     }
+
+    /** Detailed statistics: a drop of more than the last debit is one payment for at least two, asked in the question screen. */
+    @Test fun severalPaymentsFoldIntoOnePaymentOfAtLeastTwo() {
+        val a = baseline(StatsOps.recordScan(registered, fp, 0, day, 10_000, 3_100, known))
+        val (asked, _) = StatsOps.recordScan(a, fp, 0, day, 4_400, 2_500, known)
+        assertTrue(asked.open.single() is OpenItem.SeveralPayments)
+        val (folded, r) = StatsOps.recordScan(a, fp, 0, day, 4_400, 2_500, known, foldSeveral = true)
+        assertTrue(folded.open.isEmpty())
+        assertEquals(listOf(5_600 to 2), folded.events.map { it.amount to it.payments })
+        assertEquals(folded.events, (r as RecordResult.Recorded).newEvents)
+    }
+
+    @Test fun aTopUpPlusSeveralPaymentsFoldsToo() {
+        val a = baseline(StatsOps.recordScan(registered, fp, 0, day, 10_000, 3_100, known))
+        val (b, _) = StatsOps.recordScan(a, fp, 0, day, 14_000, 2_500, known) // +4 €: top-up 10 € and 6 € spent
+        val q = b.open.single() as OpenItem.CreditAndPayment
+        val (c, payments) = StatsOps.resolveCredit(b, q.id, 10_000, EventKind.TOP_UP, foldSeveral = true)
+        assertEquals(listOf(6_000 to 2), payments.map { it.amount to it.payments })
+        assertTrue(c.open.isEmpty())
+    }
+
+    @Test fun spreadingKeepsAtLeastAsManyPayments() {
+        val event = CardEvent(1, 1, EventKind.PAYMENT, 5_600, day, false, payments = 3)
+        val data = StatsData(events = listOf(event), nextId = 2)
+        val meal = MealRecord(other = true)
+        val two = StatsOps.splitPayment(data, 1, listOf(Triple(day.minusDays(1), 3_100, meal), Triple(day, 2_500, meal)))
+        assertEquals(listOf(2, 1), two.events.map { it.payments })
+        val one = StatsOps.splitPayment(data.copy(events = listOf(event.copy(payments = 2))), 1, listOf(Triple(day.minusDays(1), 3_100, meal), Triple(day, 2_500, meal)))
+        assertEquals(listOf(1, 1), one.events.map { it.payments })
+    }
 }

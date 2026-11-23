@@ -164,7 +164,7 @@ class StatsStoreTest {
              "meal":{"dishes":[{"key":"x","name":{"de":"X","en":"X"},"price":3000}],"extrasAmount":1000}},
             {"id":4,"scanId":1,"kind":"top_up","amount":20000,"date":"2026-11-12","dateKnown":true}]}"""
         val data = decodeStats(statsJson.parseToJsonElement(v5) as JsonObject)
-        assertEquals(6, data.version)
+        assertEquals(StatsMigrations.CURRENT, data.version)
         val meal = data.events[0].meal!!
         assertEquals(listOf(ExtraItem("@salad", 730), ExtraItem("@drink", 710), ExtraItem("Smoothie", 710)), meal.extras)
         assertEquals(5_250, meal.dishes.sumOf { it.price * it.count } + meal.extras.sumOf { it.amount })

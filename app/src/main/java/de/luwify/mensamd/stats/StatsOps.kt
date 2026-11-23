@@ -38,7 +38,9 @@ object StatsOps {
 
     /**
      * Records one scan of the registered card: stores it and derives what happened since the previous scan of the
-     * same card. Certain events are stored, unclear ones become open questions.
+     * same card. Certain events are stored, unclear ones become open questions. [foldSeveral] (detailed statistics): a
+     * drop of more than the last debit is no "several payments?" question but one payment that stands for at least two
+     * ([CardEvent.payments]); the question screen then assigns what was bought (and may spread it over days).
      */
     fun recordScan(
         data: StatsData,
@@ -48,6 +50,7 @@ object StatsOps {
         balance: Int,
         lastDebit: Int?,
         known: KnownAmounts,
+        foldSeveral: Boolean = false,
     ): Pair<StatsData, RecordResult> {
         val card = data.card ?: return data to RecordResult.NoCard
         if (!CardIdentity.matches(card, fingerprint)) return data to RecordResult.OtherCard
@@ -72,7 +75,8 @@ object StatsOps {
                 events += CardEvent(nextId++, scan.id, kind, amount, date, dateKnown)
             }
             is BalanceDiff.Outcome.AskSeveral ->
-                questions += OpenItem.SeveralPayments(nextId++, scan.id, date, dateKnown, outcome.amount, outcome.lastDebit)
+                if (foldSeveral) events += CardEvent(nextId++, scan.id, EventKind.PAYMENT, outcome.amount, date, dateKnown, payments = 2)
+                else questions += OpenItem.SeveralPayments(nextId++, scan.id, date, dateKnown, outcome.amount, outcome.lastDebit)
             is BalanceDiff.Outcome.AskCredit ->
                 questions += OpenItem.CreditAndPayment(nextId++, scan.id, date, dateKnown, outcome.delta, outcome.lastDebit, outcome.suggested)
         }
@@ -103,11 +107,14 @@ object StatsOps {
     /**
      * A change no known amount explained. [credit] (with [kind]) chosen: that credit plus the payments of credit - delta.
      * Those are one payment when they don't exceed the card's last debit; more than it means several payments (the last
-     * one was the last debit), which becomes a "several payments?" question like a plain decrease. [credit] null: only
+     * one was the last debit), which becomes a "several payments?" question like a plain decrease ([foldSeveral]: one payment
+     * standing for at least two, see [recordScan]). [credit] null: only
      * the change itself, as a credit of [kind] (top-up or Pfand; delta > 0) or a payment (delta < 0); a zero change
      * stores nothing. Returns the new payments.
      */
-    fun resolveCredit(data: StatsData, itemId: Long, credit: Int?, kind: EventKind = EventKind.TOP_UP): Pair<StatsData, List<CardEvent>> {
+    fun resolveCredit(
+        data: StatsData, itemId: Long, credit: Int?, kind: EventKind = EventKind.TOP_UP, foldSeveral: Boolean = false,
+    ): Pair<StatsData, List<CardEvent>> {
         val item = data.open.firstOrNull { it.id == itemId } as? OpenItem.CreditAndPayment ?: return data to emptyList()
         var nextId = data.nextId
         val events = when {
@@ -115,14 +122,15 @@ object StatsOps {
                 val paid = credit - item.delta
                 require(kind != EventKind.PAYMENT && paid > 0) { "the payment must be positive" }
                 val last = item.lastDebit?.takeIf { it > 0 }
-                if (last != null && paid > last) {
+                val several = last != null && paid > last
+                if (several && !foldSeveral) {
                     val creditEvent = CardEvent(nextId++, item.scanId, kind, credit, item.date, item.dateKnown)
-                    val several = OpenItem.SeveralPayments(nextId++, item.scanId, item.date, item.dateKnown, paid, last)
-                    return data.copy(events = data.events + creditEvent, open = data.open - item + several, nextId = nextId) to emptyList()
+                    val question = OpenItem.SeveralPayments(nextId++, item.scanId, item.date, item.dateKnown, paid, last)
+                    return data.copy(events = data.events + creditEvent, open = data.open - item + question, nextId = nextId) to emptyList()
                 }
                 listOf(
                     CardEvent(nextId++, item.scanId, kind, credit, item.date, item.dateKnown),
-                    CardEvent(nextId++, item.scanId, EventKind.PAYMENT, paid, item.date, item.dateKnown),
+                    CardEvent(nextId++, item.scanId, EventKind.PAYMENT, paid, item.date, item.dateKnown, payments = if (several) 2 else 1),
                 )
             }
             item.delta > 0 -> listOf(
@@ -200,8 +208,10 @@ object StatsOps {
         val event = data.events.firstOrNull { it.id == eventId && it.kind == EventKind.PAYMENT } ?: return data
         if (parts.isEmpty() || parts.any { it.second <= 0 } || parts.sumOf { it.second } != event.amount) return data
         var nextId = data.nextId
+        // At least as many payments as before: the first part keeps what the other days don't account for.
         val split = parts.sortedBy { it.first }.mapIndexed { i, (day, amount, meal) ->
-            event.copy(id = if (i == 0) event.id else nextId++, amount = amount, date = day, dateKnown = true, meal = meal)
+            val payments = if (i == 0) maxOf(1, event.payments - (parts.size - 1)) else 1
+            event.copy(id = if (i == 0) event.id else nextId++, amount = amount, date = day, dateKnown = true, meal = meal, payments = payments)
         }
         return data.copy(
             events = data.events.flatMap { if (it.id == eventId) split else listOf(it) },

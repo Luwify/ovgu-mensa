@@ -168,6 +168,7 @@ fun StatsScreen(vm: StatsViewModel, mainVm: MainViewModel, onRegister: () -> Uni
                                 )
                                 FlowRow(horizontalArrangement = Arrangement.spacedBy(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                                     totals.averagePerVisit?.let { StatTile(stringResource(R.string.stats_average_visit), formatCardAmount(it, locale)) }
+                                    totals.averagePerDay?.let { StatTile(stringResource(R.string.stats_average_day), formatCardAmount(it, locale)) }
                                     StatTile(stringResource(R.string.stats_topped_up_month), formatCardAmount(totals.toppedUpThisMonth, locale))
                                     if (totals.pfandThisMonth > 0) StatTile(stringResource(R.string.stats_pfand_month), formatCardAmount(totals.pfandThisMonth, locale))
                                     totals.currentBalance?.let { StatTile(stringResource(R.string.stats_balance_now), formatCardAmount(it, locale)) }
@@ -356,7 +357,7 @@ private fun EventRow(
 ) {
     val amount = formatCardAmount(e.amount, locale)
     val title = when (e.kind) {
-        EventKind.PAYMENT -> stringResource(R.string.event_payment)
+        EventKind.PAYMENT -> if (e.payments >= 2) pluralStringResource(R.plurals.event_payments_several, e.payments, e.payments) else stringResource(R.string.event_payment)
         EventKind.TOP_UP -> stringResource(R.string.event_top_up)
         EventKind.PFAND -> stringResource(R.string.event_pfand)
     }

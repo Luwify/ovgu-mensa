@@ -390,6 +390,7 @@
     <!-- Kartenstatistik: Gerichte (detaillierte Statistik) -->
     <string name="meal_title">Zahlung %1$s</string>
     <string name="meal_unknown_mensa">Unbekannte Mensa</string>
+    <string name="stats_average_day">Ø pro Tag</string>
     <string name="meal_amount_hint">Wie viel davon war das? Noch offen: %1$s</string>
     <string name="dish_by_weight">Nach Gewicht</string>
     <string name="dish_paid_now">Diesmal bezahlt</string>
@@ -477,4 +478,12 @@
     <string name="pfand_reassign">Anders zuordnen</string>
     <string name="pfand_snackbar">Pfandrückgabe %1$s gespeichert</string>
     <string name="q_credit_only_pfand">Nur eine Pfandrückgabe von %1$s</string>
+    <plurals name="event_payments_several">
+        <item quantity="one">Mind. %1$d Zahlung</item>
+        <item quantity="other">Mind. %1$d Zahlungen</item>
+    </plurals>
+    <plurals name="meal_several">
+        <item quantity="one">Mindestens %1$d Zahlung nach dem letzten Scan.</item>
+        <item quantity="other">Mindestens %1$d Zahlungen nach dem letzten Scan. Ordne alles zu, was gekauft wurde; an mehreren Tagen unten verteilen.</item>
+    </plurals>
 </resources>

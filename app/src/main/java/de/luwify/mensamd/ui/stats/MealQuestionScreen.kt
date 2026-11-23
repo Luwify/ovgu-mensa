@@ -59,6 +59,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
@@ -196,6 +197,9 @@ internal fun MealQuestionScreen(
         Column(Modifier.fillMaxSize().imePadding()) {
             TopBar(stringResource(R.string.meal_title, formatCardAmount(amount, locale)), onBack = onClose)
             DateLine(days, scanDate, previous, range, chosen != null, locale) { pickingDate = true }
+            if ((event?.payments ?: 1) >= 2) {
+                Hint(pluralStringResource(R.plurals.meal_several, event!!.payments, event.payments), Modifier.padding(start = 16.dp, end = 16.dp, bottom = 4.dp))
+            }
             LazyColumn(
                 Modifier.weight(1f).fillMaxWidth().windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal)),
                 state = listState,

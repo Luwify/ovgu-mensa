@@ -58,6 +58,19 @@ class StatsSummaryTest {
         val scans = listOf(Scan(1, 10, thu, "a", 100), Scan(2, 20, thu, "b", 200), Scan(3, 30, thu, "a", 50))
         assertEquals(listOf(100, 50), StatsSummary.balance(scans, "a").map { it.balance })
     }
+
+    @Test fun averagesPerVisitAndPerDay() {
+        val d = StatsData(events = listOf(
+            CardEvent(1, 0, EventKind.PAYMENT, 3_000, thu, true),
+            CardEvent(2, 0, EventKind.PAYMENT, 6_000, thu, true, payments = 2), // at least two payments
+            CardEvent(3, 0, EventKind.PAYMENT, 3_000, thu.minusDays(1), true),
+            CardEvent(4, 0, EventKind.TOP_UP, 50_000, thu, true),
+        ))
+        val t = StatsSummary.totals(d, thu)
+        assertEquals(3_000, t.averagePerVisit) // 12 € over 4 visits
+        assertEquals(6_000, t.averagePerDay) // 12 € over 2 days
+        assertEquals(4, t.payments)
+    }
 }
 
 class NiceMaxTest {

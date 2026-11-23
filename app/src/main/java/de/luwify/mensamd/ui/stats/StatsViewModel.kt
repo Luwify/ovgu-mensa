@@ -97,7 +97,7 @@ class StatsViewModel(private val container: AppContainer) : ViewModel() {
     fun resolveCredit(itemId: Long, credit: Int?, kind: EventKind) = edit {
         var payments = emptyList<CardEvent>()
         val before = store.load().open.map { it.id }.toSet()
-        val after = store.update { d -> StatsOps.resolveCredit(d, itemId, credit, kind).also { payments = it.second }.first }
+        val after = store.update { d -> StatsOps.resolveCredit(d, itemId, credit, kind, settings.value?.detailedActive == true).also { payments = it.second }.first }
         after.open.firstOrNull { it is OpenItem.SeveralPayments && it.id !in before }?.let { _focusQuestion.value = it.id }
         recorder.matchPayments(payments)
     }

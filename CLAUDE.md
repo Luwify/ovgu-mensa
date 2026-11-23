@@ -123,7 +123,9 @@ git-ignored `CLAUDE.local.md` at the repo root, which Claude Code loads after th
   weighed dishes and extras ask for their amount, the rest prefilled, so several fit); "Noch x € offen" + "Rest als Sonstiges" until it adds up; a single pick for the whole
   amount saves at once, several wait for "Speichern". Bottom: "Später" / "Nicht erfassen". Undated payments get a question too
   (days = weekdays since the previous scan); "Auf mehrere Tage verteilen" (scan more than a day after the previous one) gives each
-  item a day and `StatsOps.splitPayment` makes one payment per day. Extras are `ExtraItem(key, amount)` (schema 6).
+  item a day and `StatsOps.splitPayment` makes one payment per day. With detailed statistics a drop of more than the last
+  debit is no `SeveralPayments` question but one payment with `CardEvent.payments = 2` ("mindestens 2 Zahlungen"; also after a
+  top-up in `resolveCredit`); it counts as that many visits for "Ø pro Besuch"; "Ø pro Tag" = spent / days with a payment. Extras are `ExtraItem(key, amount)` (schema 6).
 - **Hand-named dishes** ("neu anlegen" in the question screen, `ui/stats/DishDialogs`): name + price (or "Nach Gewicht": paid
   amount + optional price per 100 g, `KnownDish.byWeight`/`per100`, never a fixed-price candidate) + Mensa (catalog or unknown) + the menu's tag
   chips (`DishTags`), saved as `KnownDish` and eaten as `EatenDish(own = true)`. For an `own` dish no tags = no information

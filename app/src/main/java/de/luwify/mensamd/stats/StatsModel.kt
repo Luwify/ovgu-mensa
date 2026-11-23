@@ -84,6 +84,11 @@ data class CardEvent(
     val dateKnown: Boolean,
     /** What was eaten (detailed statistics), payments only. */
     val meal: MealRecord? = null,
+    /**
+     * How many payments this one stands for, at least: 2 for a drop of more than the last debit kept as one amount
+     * (detailed statistics, "mindestens 2 Zahlungen seit dem letzten Scan"). Counts as that many visits.
+     */
+    val payments: Int = 1,
 )
 
 /**

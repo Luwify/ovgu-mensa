@@ -19,8 +19,13 @@ object StatsSummary {
         val spentThisMonth: Int,
         val toppedUpThisMonth: Int,
         val pfandThisMonth: Int,
-        /** Average payment (a "visit" = one recorded payment); null without payments. */
+        /**
+         * Spending per visit: a "visit" is one payment, and a payment that stands for at least two ([CardEvent.payments])
+         * counts as that many. Null without payments.
+         */
         val averagePerVisit: Int?,
+        /** Spending per day with at least one payment (all payments; an undated one counts on its scan's day). */
+        val averagePerDay: Int?,
         val payments: Int,
         val currentBalance: Int?,
     )
@@ -49,7 +54,7 @@ object StatsSummary {
         val payments = events.filter { it.kind == EventKind.PAYMENT && it.dateKnown }
         return DayOfWeek.entries.mapNotNull { day ->
             val list = payments.filter { it.date.dayOfWeek == day }
-            if (list.isEmpty() && day.value >= 6) null else Weekday(day, list.sumOf { it.amount }, list.size)
+            if (list.isEmpty() && day.value >= 6) null else Weekday(day, list.sumOf { it.amount }, list.sumOf { it.payments })
         }
     }
 
@@ -61,12 +66,17 @@ object StatsSummary {
         val month = periodStart(today, Unit.MONTH)
         val thisMonth = data.events.filter { periodStart(it.date, Unit.MONTH) == month }
         val payments = data.events.filter { it.kind == EventKind.PAYMENT }
+        val spent = payments.sumOf { it.amount.toLong() }
+        // A payment kept as "at least 2" counts as that many visits; a day counts once however many payments it had.
+        val visits = payments.sumOf { it.payments }
+        val days = payments.map { it.date }.distinct().size
         return Totals(
             spentThisMonth = thisMonth.sumOfKind(EventKind.PAYMENT),
             toppedUpThisMonth = thisMonth.sumOfKind(EventKind.TOP_UP),
             pfandThisMonth = thisMonth.sumOfKind(EventKind.PFAND),
-            averagePerVisit = if (payments.isEmpty()) null else (payments.sumOf { it.amount.toLong() } / payments.size).toInt(),
-            payments = payments.size,
+            averagePerVisit = visits.takeIf { it > 0 }?.let { (spent / it).toInt() },
+            averagePerDay = days.takeIf { it > 0 }?.let { (spent / it).toInt() },
+            payments = visits,
             currentBalance = data.scans.lastOrNull { data.card == null || it.card == data.card.hash }?.balance
                 ?: data.scans.lastOrNull()?.balance,
         )

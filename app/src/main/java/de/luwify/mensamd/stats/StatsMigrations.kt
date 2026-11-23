@@ -24,12 +24,13 @@ class StatsTooNewException(val version: Int) : Exception("statistics version $ve
  * Version 6 = extras with their own amount ([ExtraItem]): a meal's `extras` (keys) and their shared `extrasAmount` become
  * one item per key, the total split evenly in whole cents (the first gets what doesn't divide); a total without a key
  * becomes "Sonstiges". Also new in 6, optional: `KnownDish.byWeight`/`per100` (a hand-named dish paid by weight).
+ * Version 7 = `CardEvent.payments` (a payment standing for at least two): optional, nothing to convert.
  */
 object StatsMigrations {
-    const val CURRENT = 6
+    const val CURRENT = 7
 
     /** n -> n + 1. */
-    private val STEPS: Map<Int, (JsonObject) -> JsonObject> = mapOf(1 to { it }, 2 to { it }, 3 to ::markUnknownDishesOwn, 4 to { it }, 5 to ::extrasWithAmounts)
+    private val STEPS: Map<Int, (JsonObject) -> JsonObject> = mapOf(1 to { it }, 2 to { it }, 3 to ::markUnknownDishesOwn, 4 to { it }, 5 to ::extrasWithAmounts, 6 to { it })
 
     /** 3 -> 4: see the class comment. Every other part of the document is kept as it is. */
     private fun markUnknownDishesOwn(obj: JsonObject): JsonObject {

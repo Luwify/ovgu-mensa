@@ -111,7 +111,7 @@ class StatsRecorder(
         val date = Instant.ofEpochMilli(now).atZone(zone()).toLocalDate()
         var result: RecordResult = RecordResult.Off
         store.update { data ->
-            val (next, r) = StatsOps.recordScan(data, fingerprint, now, date, balance, lastDebit, config.known)
+            val (next, r) = StatsOps.recordScan(data, fingerprint, now, date, balance, lastDebit, config.known, config.detailedActive)
             result = r
             if (config.detailedActive && r is RecordResult.Recorded) StatsOps.markForMatching(next, r.newEvents) else next
         }
