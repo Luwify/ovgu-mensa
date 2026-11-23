@@ -4,6 +4,7 @@ import de.luwify.mensamd.model.LocalizedText
 import de.luwify.mensamd.stats.CardEvent
 import de.luwify.mensamd.stats.EatenDish
 import de.luwify.mensamd.stats.EventKind
+import de.luwify.mensamd.stats.ExtraItem
 import de.luwify.mensamd.stats.KnownDish
 import de.luwify.mensamd.stats.MealRecord
 import de.luwify.mensamd.stats.OpenItem
@@ -26,7 +27,7 @@ class BackupFormatTest {
         events = listOf(
             CardEvent(
                 2, 1, EventKind.PAYMENT, 5_600, day, true,
-                MealRecord(listOf(EatenDish("seelachs", LocalizedText("Seelachs", "Pollock"), "unicampus-unten", 3_100)), listOf("@salad", "Smoothie"), 2_500),
+                MealRecord(listOf(EatenDish("seelachs", LocalizedText("Seelachs", "Pollock"), "unicampus-unten", 3_100)), listOf(ExtraItem("@salad", 1_250), ExtraItem("Smoothie", 1_250))),
             ),
         ),
         open = listOf(OpenItem.SeveralPayments(3, 1, day, true, 5_600, 2_500)),

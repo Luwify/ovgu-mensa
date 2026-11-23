@@ -299,11 +299,11 @@ fun StatsScreen(vm: StatsViewModel, mainVm: MainViewModel, onRegister: () -> Uni
             },
             onDismiss = { openId = null },
         )
-        is OpenItem.MealQuestion -> MealQuestionScreen(vm, open, d.customDishes, d.customExtras, d.events, onClose = { openId = null })
+        is OpenItem.MealQuestion -> MealQuestionScreen(vm, open, d, onClose = { openId = null })
         null -> if (openId != null && d != null) openId = null
     }
     if (editEvent != null && d != null) {
-        MealQuestionScreen(vm, editEvent.asQuestion(), d.customDishes, d.customExtras, d.events, current = editEvent.meal, onClose = { editEventId = null })
+        MealQuestionScreen(vm, editEvent.asQuestion(), d, current = editEvent.meal, onClose = { editEventId = null })
     }
     if (showUnassigned && d != null) UnassignedDishesScreen(vm, d.events, onClose = { showUnassigned = false })
 }
@@ -333,7 +333,11 @@ private fun QuestionRow(item: OpenItem, locale: Locale, onClick: () -> Unit) {
         Row(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text(text, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSecondaryContainer)
-                Text(shortDate(item.date, locale), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSecondaryContainer)
+                Text(
+                    if (item.dateKnown) shortDate(item.date, locale) else stringResource(R.string.event_until, shortDate(item.date, locale)),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                )
             }
             Text(stringResource(R.string.q_answer), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSecondaryContainer)
         }
@@ -399,7 +403,7 @@ internal fun mealSummary(meal: de.luwify.mensamd.stats.MealRecord, language: Str
         (if (d.count > 1) "${d.count}× " else "") + d.name.forLanguage(language) +
             (d.grams?.let { " (" + stringResource(R.string.meal_weight_estimate, it) + ")" } ?: "")
     }
-    val extras = meal.extras.map { extraName(it) }
+    val extras = meal.extras.map { extraName(it.key) }
     return (dishes + extras).joinToString(", ")
 }
 
@@ -411,6 +415,7 @@ internal fun extraName(key: String): String = when (key) {
     de.luwify.mensamd.stats.Extras.ROTE_GRUETZE -> stringResource(R.string.extra_rote_gruetze)
     de.luwify.mensamd.stats.Extras.DRINK -> stringResource(R.string.extra_drink)
     de.luwify.mensamd.stats.Extras.COFFEE -> stringResource(R.string.extra_coffee)
+    de.luwify.mensamd.stats.Extras.OTHER -> stringResource(R.string.meal_other)
     else -> key
 }
 

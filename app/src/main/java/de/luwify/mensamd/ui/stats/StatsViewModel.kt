@@ -11,8 +11,8 @@ import de.luwify.mensamd.stats.CardEvent
 import de.luwify.mensamd.stats.EatenDish
 import de.luwify.mensamd.stats.EventKind
 import de.luwify.mensamd.stats.MealContext
-import de.luwify.mensamd.stats.MealPart
-import de.luwify.mensamd.stats.MealParts
+import de.luwify.mensamd.stats.MealDraft
+import de.luwify.mensamd.stats.MealItem
 import de.luwify.mensamd.stats.MealRecord
 import de.luwify.mensamd.stats.OpenItem
 import de.luwify.mensamd.stats.StatsData
@@ -139,18 +139,11 @@ class StatsViewModel(private val container: AppContainer) : ViewModel() {
 
     fun setMeal(eventId: Long, meal: MealRecord?) = edit { store.update { StatsOps.setMeal(it, eventId, meal) } }
 
-    fun markDateUnknown(eventId: Long) = edit { store.update { StatsOps.markDateUnknown(it, eventId) } }
-
-    /** "Als neues Gericht speichern": the dish (with its Mensa and tags) is kept for later searches and set as the payment's meal. */
-    fun saveNewDish(eventId: Long, name: String, price: Int, mensaId: String?, tags: List<Tag>) = edit {
-        store.update { d ->
-            val (next, eaten) = StatsOps.addCustomDish(d, name, price, mensaId, tags)
-            StatsOps.setMeal(next, eventId, MealRecord(dishes = listOf(eaten)))
-        }
-    }
-
-    /** "Mehrere Gerichte": the parts become the payment's meal; new dishes are saved with their Mensa, tags and price. */
-    fun saveParts(eventId: Long, parts: List<MealPart>) = edit { store.update { MealParts.apply(it, eventId, parts) } }
+    /**
+     * The question screen's answer: [items] (adding up to the payment) become its meal; dishes named there are saved, a
+     * chosen [date] dates the payment, items on several days split it.
+     */
+    fun saveItems(eventId: Long, items: List<MealItem>, date: LocalDate?) = edit { store.update { MealDraft.save(it, eventId, items, date) } }
 
     /** Changes the Mensa and tags (and the name of a hand-named dish) of dish [index] of a payment's meal. */
     fun editDish(eventId: Long, index: Int, name: String, mensaId: String?, tags: List<Tag>) = edit {
@@ -159,9 +152,6 @@ class StatsViewModel(private val container: AppContainer) : ViewModel() {
 
     fun deleteEvent(event: CardEvent) = edit { store.update { StatsOps.deleteEvent(it, event.id) } }
     fun restoreEvent(event: CardEvent) = edit { store.update { StatsOps.restoreEvent(it, event) } }
-
-    fun addCustomExtra(name: String) = edit { store.update { StatsOps.addCustomExtra(it, name) } }
-    fun removeCustomExtra(name: String) = edit { store.update { StatsOps.removeCustomExtra(it, name) } }
 
     /** The heart in the meals overview: same favorite key and info as on a menu card. */
     fun toggleFavorite(dish: EatenDish) = edit {

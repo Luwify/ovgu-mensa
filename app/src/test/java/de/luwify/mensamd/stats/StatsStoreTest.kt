@@ -5,6 +5,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -150,5 +151,28 @@ class StatsStoreTest {
         val withFirst = data.copy(open = data.open + OpenItem.FirstDebit(3, 1, java.time.LocalDate.of(2026, 11, 9), amount = 3_100), nextId = 4)
         assertEquals(withFirst, decodeStats(encodeStats(withFirst)))
         assertTrue(encodeStats(withFirst).toString().contains("\"first_debit\""))
+    }
+
+    /** Version 5 -> 6: the extras' shared total becomes one amount per extra (whole cents, the first gets the remainder). */
+    @Test fun aVersion5MealSplitsItsExtrasTotal() {
+        val v5 = """{"version":5,"nextId":5,"events":[
+            {"id":1,"scanId":1,"kind":"payment","amount":5250,"date":"2026-11-12","dateKnown":true,
+             "meal":{"dishes":[{"key":"seelachs","name":{"de":"Seelachs","en":"Pollock"},"mensaId":"unicampus-unten","price":3100}],
+                     "extras":["@salad","@drink","Smoothie"],"extrasAmount":2150}},
+            {"id":2,"scanId":1,"kind":"payment","amount":900,"date":"2026-11-12","dateKnown":true,"meal":{"other":true}},
+            {"id":3,"scanId":1,"kind":"payment","amount":4000,"date":"2026-11-12","dateKnown":true,
+             "meal":{"dishes":[{"key":"x","name":{"de":"X","en":"X"},"price":3000}],"extrasAmount":1000}},
+            {"id":4,"scanId":1,"kind":"top_up","amount":20000,"date":"2026-11-12","dateKnown":true}]}"""
+        val data = decodeStats(statsJson.parseToJsonElement(v5) as JsonObject)
+        assertEquals(6, data.version)
+        val meal = data.events[0].meal!!
+        assertEquals(listOf(ExtraItem("@salad", 730), ExtraItem("@drink", 710), ExtraItem("Smoothie", 710)), meal.extras)
+        assertEquals(5_250, meal.dishes.sumOf { it.price * it.count } + meal.extras.sumOf { it.amount })
+        assertEquals("seelachs", meal.dishes.single().key)
+        assertEquals(MealRecord(other = true), data.events[1].meal)
+        assertEquals(listOf(ExtraItem(Extras.OTHER, 1_000)), data.events[2].meal!!.extras) // a total without a key
+        assertNull(data.events[3].meal)
+        assertEquals(data, decodeStats(encodeStats(data)))
+        assertFalse(encodeStats(data).toString().contains("extrasAmount"))
     }
 }

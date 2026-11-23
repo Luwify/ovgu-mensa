@@ -170,9 +170,9 @@ object StatsOps {
         open = data.open.map { if (it is OpenItem.MealQuestion && it.id == itemId) it.copy(dishes = dishes, missingMensen = missing) else it },
     )
 
-    /** Remembers the dated, unmatched payments among [events] for the next visit to the app (see `StatsRecorder.matchPending`). */
+    /** Remembers the unmatched payments among [events] for the next visit to the app (see `StatsRecorder.matchPending`). */
     fun markForMatching(data: StatsData, events: List<CardEvent>): StatsData {
-        val ids = events.filter { it.kind == EventKind.PAYMENT && it.dateKnown && it.meal == null }.map { it.id }
+        val ids = events.filter { it.kind == EventKind.PAYMENT && it.meal == null }.map { it.id }
         return if (ids.isEmpty()) data else data.copy(pendingMatch = data.pendingMatch + ids)
     }
 
@@ -182,11 +182,41 @@ object StatsOps {
         open = data.open.filterNot { it is OpenItem.MealQuestion && it.eventId == eventId },
     )
 
-    /** "Nicht an diesem Tag": the payment's day is unknown, so no matching; closes its meal question. */
-    fun markDateUnknown(data: StatsData, eventId: Long): StatsData = data.copy(
-        events = data.events.map { if (it.id == eventId) it.copy(dateKnown = false) else it },
-        open = data.open.filterNot { it is OpenItem.MealQuestion && it.eventId == eventId },
-    )
+    /**
+     * Answers payment [eventId] with [meal] and closes its meal question; [date] (the day the user chose) also dates the
+     * payment, which then counts as known.
+     */
+    fun answerMeal(data: StatsData, eventId: Long, meal: MealRecord, date: LocalDate?): StatsData {
+        val next = setMeal(data, eventId, meal)
+        if (date == null) return next
+        return next.copy(events = next.events.map { if (it.id == eventId && it.kind == EventKind.PAYMENT) it.copy(date = date, dateKnown = true) else it })
+    }
+
+    /**
+     * "Auf mehrere Tage verteilen": payment [eventId] becomes one payment per part (day, amount, meal), each dated. The
+     * parts must add up to the payment; the first keeps its id. Closes its meal question.
+     */
+    fun splitPayment(data: StatsData, eventId: Long, parts: List<Triple<LocalDate, Int, MealRecord>>): StatsData {
+        val event = data.events.firstOrNull { it.id == eventId && it.kind == EventKind.PAYMENT } ?: return data
+        if (parts.isEmpty() || parts.any { it.second <= 0 } || parts.sumOf { it.second } != event.amount) return data
+        var nextId = data.nextId
+        val split = parts.sortedBy { it.first }.mapIndexed { i, (day, amount, meal) ->
+            event.copy(id = if (i == 0) event.id else nextId++, amount = amount, date = day, dateKnown = true, meal = meal)
+        }
+        return data.copy(
+            events = data.events.flatMap { if (it.id == eventId) split else listOf(it) },
+            open = data.open.filterNot { it is OpenItem.MealQuestion && it.eventId == eventId },
+            nextId = nextId,
+        )
+    }
+
+    /** The day of the scan before [scanId] of the same card (null: none), the earliest day a payment it found can have. */
+    fun previousScanDate(data: StatsData, scanId: Long): LocalDate? {
+        val index = data.scans.indexOfFirst { it.id == scanId }
+        if (index <= 0) return null
+        val scan = data.scans[index]
+        return data.scans.subList(0, index).lastOrNull { it.card == scan.card }?.date
+    }
 
     /** Deletes an event and its open meal question. */
     fun deleteEvent(data: StatsData, eventId: Long): StatsData = data.copy(
@@ -197,14 +227,6 @@ object StatsOps {
     /** Undo of [deleteEvent]: puts the event back in order. */
     fun restoreEvent(data: StatsData, event: CardEvent): StatsData =
         if (data.events.any { it.id == event.id }) data else data.copy(events = (data.events + event).sortedBy { it.id })
-
-    fun addCustomExtra(data: StatsData, name: String): StatsData {
-        val clean = name.trim()
-        if (clean.isEmpty() || Extras.isBuiltIn(clean) || data.customExtras.any { it.equals(clean, ignoreCase = true) }) return data
-        return data.copy(customExtras = data.customExtras + clean)
-    }
-
-    fun removeCustomExtra(data: StatsData, name: String): StatsData = data.copy(customExtras = data.customExtras - name)
 
     /**
      * Saves a hand-named dish with its [mensaId] (null = unknown) and [tags] (none = no information), or updates the
@@ -243,6 +265,17 @@ object StatsOps {
             events = data.events.map { e -> e.meal?.let { m -> e.copy(meal = m.copy(dishes = m.dishes.map { it.follow() })) } ?: e },
             customDishes = data.customDishes.filterNot { it.key == dish.key || it.key == key } + KnownDish(key, newName, price, tags, mensaId),
         )
+    }
+
+    /**
+     * A hand-named dish ([key]) now belongs to [mensaId] with [tags]: every meal with it and the saved dish follow (its
+     * price stays). Nothing changes when they already say so.
+     */
+    fun followOwnDish(data: StatsData, key: String, mensaId: String?, tags: List<Tag>): StatsData {
+        fun EatenDish.follow() = if (own && this.key == key) copy(mensaId = mensaId, tags = tags) else this
+        val events = data.events.map { e -> e.meal?.let { m -> e.copy(meal = m.copy(dishes = m.dishes.map { it.follow() })) } ?: e }
+        val custom = data.customDishes.map { if (it.key == key) it.copy(mensaId = mensaId, tags = tags) else it }
+        return if (events == data.events && custom == data.customDishes) data else data.copy(events = events, customDishes = custom)
     }
 
     /** Whether the scan [scanId] and the previous scan of the same card were on the same day. */

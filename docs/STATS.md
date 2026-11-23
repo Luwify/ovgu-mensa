@@ -114,3 +114,8 @@ Resume point for the card statistics feature (started 2026-11-05). Tick items as
       in the background. All cached: 0.6 s -> 0.09 s. From the popup, app opened with no menu cached: 2.6 s -> 0.3 s after the app start
       (full list after about 3-4 s); all cached: about 0.5 s both (activity start). A popup scan in a cold process takes about 3.4 s to
       store (PBKDF2 in a cold process); the balance is drawn before that.
+- [x] One question screen (2026-11-23): the old paths (candidates, "Wo hast du gegessen?", "Gericht + Extras", "Mehrere Gerichte",
+      "Vorhandenes Gericht wählen", "Als neues Gericht speichern", "Weitere Gerichte des Tages", "Nicht an diesem Tag", "Sonstiges")
+      became one screen (`MealQuestionScreen`, `MealDraft`): suggestions, one search, items with "Noch x € offen", "Später" /
+      "Nicht erfassen". Undated payments are asked too; "Auf mehrere Tage verteilen" splits a payment by day. Schema 6: extras with
+      their own amount (`ExtraItem`; the old shared total is split evenly). Tested on the phone with a throwaway package and fake data.

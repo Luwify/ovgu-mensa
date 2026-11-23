@@ -22,9 +22,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import java.text.DecimalFormatSymbols
 import de.luwify.mensamd.R
 import de.luwify.mensamd.model.MensaCatalog
 import de.luwify.mensamd.model.Tag
+import de.luwify.mensamd.stats.Amounts
 import de.luwify.mensamd.stats.DishTags
 import de.luwify.mensamd.ui.SettingsDropdown
 import de.luwify.mensamd.ui.forLanguage
@@ -35,7 +37,8 @@ import de.luwify.mensamd.ui.theme.MensaFilterChip
  * Name, Mensa and tags of a dish, for "Als neues Gericht speichern" and for editing a dish of a payment. The Mensa is
  * one of the catalog or "Andere / unbekannt" (null); the tags are the menu's tag chips, multiple choice, only those in
  * [tags] selected at the start. [nameEditable] false: a menu dish keeps its name. [note] explains what the change
- * reaches. Without a tag the dish counts as "no information" in the vegan/vegetarian shares.
+ * reaches. Without a tag the dish counts as "no information" in the vegan/vegetarian shares. [price] (mills) non-null
+ * adds a price field, starting with it; the confirmed price is then passed on (null without the field).
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -46,11 +49,16 @@ internal fun DishDetailsDialog(
     mensaId: String?,
     tags: List<Tag>,
     note: String?,
-    onConfirm: (name: String, mensaId: String?, tags: List<Tag>) -> Unit,
+    price: Int? = null,
+    onConfirm: (name: String, mensaId: String?, tags: List<Tag>, price: Int?) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val language = LocalConfiguration.current.locales[0].language
+    val locale = LocalConfiguration.current.locales[0]
+    val language = locale.language
+    val comma = remember(locale) { DecimalFormatSymbols.getInstance(locale).decimalSeparator == ',' }
     var text by rememberSaveable { mutableStateOf(name) }
+    var priceText by rememberSaveable { mutableStateOf(price?.takeIf { it > 0 }?.let { Amounts.toInput(it, comma) }.orEmpty()) }
+    val parsedPrice = Amounts.parseEuro(priceText)?.takeIf { it > 0 }
     // A MensaCatalog id, or "" for "Andere / unbekannt" (keeps the saved state a plain String).
     var mensa by rememberSaveable { mutableStateOf(mensaId.orEmpty()) }
     // Tag keys never contain a comma.
@@ -75,6 +83,7 @@ internal fun DishDetailsDialog(
                     label = { Text(stringResource(R.string.meal_new_label)) },
                     modifier = Modifier.fillMaxWidth(),
                 )
+                if (price != null) PriceField(priceText, parsedPrice, null) { priceText = it }
                 SettingsDropdown(stringResource(R.string.dish_mensa_label), options, mensa, { mensa = it }, Modifier.fillMaxWidth())
                 Text(stringResource(R.string.dish_tags_title), style = MaterialTheme.typography.titleSmall)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -92,8 +101,8 @@ internal fun DishDetailsDialog(
         },
         confirmButton = {
             TextButton(
-                onClick = { onConfirm(text.trim(), mensa.ifEmpty { null }, DishTags.pick(keys, tags)) },
-                enabled = text.isNotBlank(),
+                onClick = { onConfirm(text.trim(), mensa.ifEmpty { null }, DishTags.pick(keys, tags), parsedPrice) },
+                enabled = text.isNotBlank() && (price == null || parsedPrice != null),
             ) { Text(stringResource(R.string.q_save)) }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel_action)) } },

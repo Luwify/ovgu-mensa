@@ -170,11 +170,12 @@ class StatsRecorder(
 
     /**
      * Payments that just got known (from a pending scan or an answered question): matched against the menus the app has
-     * now, at once; missing menus follow in the background ([loadInBackground]). Only with detailed statistics.
+     * now, at once; missing menus follow in the background ([loadInBackground]). Only with detailed statistics. A payment
+     * whose day isn't known gets a question too (with the scan day's menu; the screen offers the days in between).
      */
     suspend fun matchPayments(payments: List<CardEvent>) {
         if (!settings.first().detailedActive) return
-        val dated = payments.filter { it.kind == EventKind.PAYMENT && it.dateKnown && it.meal == null }
+        val dated = payments.filter { it.kind == EventKind.PAYMENT && it.meal == null }
         if (dated.isEmpty()) return
         val context = mealContext()
         dated.groupBy { it.date }.forEach { (date, list) ->
@@ -199,8 +200,7 @@ class StatsRecorder(
      */
     private fun singleMatch(data: StatsData, scanId: Long, amount: Int, menu: DayMenu, context: MealContext): MealMatcher.Candidate? {
         if (menu.missing.isNotEmpty() || !StatsOps.sameDayAsPrevious(data, scanId)) return null
-        val plan = MealMatcher.plan(amount, menu.dishes + MenuDishes.own(data.customDishes), context.defaultMensaId, context.priceGroup)
-        return (plan as? MealMatcher.Plan.Choose)?.candidates?.singleOrNull()
+        return MealMatcher.single(amount, menu.dishes + MenuDishes.own(data.customDishes), context.priceGroup)
     }
 
     /**

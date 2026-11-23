@@ -20,7 +20,7 @@ class MealSummaryTest {
         pay(3_100, MealRecord(listOf(dish("Curry", "unten", 3_100, 1, vegan)))),
         pay(6_200, MealRecord(listOf(dish("Curry", "unten", 3_100, 2, vegan)))),
         pay(4_400, MealRecord(listOf(dish("Burger", "oben", 4_400)))),
-        pay(5_000, MealRecord(listOf(dish("Pasta", "unten", 2_800, 1, veggie)), listOf(Extras.SALAD), 2_200)),
+        pay(5_000, MealRecord(listOf(dish("Pasta", "unten", 2_800, 1, veggie)), listOf(ExtraItem(Extras.SALAD, 2_200)))),
         pay(1_200, MealRecord(other = true)),
         pay(900, null),
         CardEvent(++id, 0, EventKind.TOP_UP, 20_000, day, true),

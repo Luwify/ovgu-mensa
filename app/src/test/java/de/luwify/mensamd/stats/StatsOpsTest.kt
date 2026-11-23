@@ -1,5 +1,6 @@
 package de.luwify.mensamd.stats
 
+import de.luwify.mensamd.favorites.Favorites
 import de.luwify.mensamd.model.LocalizedText
 import de.luwify.mensamd.model.Tag
 import org.junit.Assert.assertEquals
@@ -30,8 +31,9 @@ class StatsOpsTest {
         val (first, _) = scan(registered, 10_000, 0)
         val (paid, _) = scan(first, 8_000, 2_000)
         val payment = paid.events.single()
-        val wrong = StatsOps.setMeal(paid, payment.id, MealMatcher.asPayment(pommes, payment.amount))
-        val fixed = StatsOps.setMeal(wrong, payment.id, MealMatcher.asPayment(chili, payment.amount))
+        fun asPayment(d: SnapDish) = MealRecord(listOf(EatenDish(Favorites.normalize(d.name.de), d.name, d.mensaId, payment.amount)))
+        val wrong = StatsOps.setMeal(paid, payment.id, asPayment(pommes))
+        val fixed = StatsOps.setMeal(wrong, payment.id, asPayment(chili))
         val event = fixed.events.single()
         assertEquals(payment.copy(meal = event.meal), event)
         assertEquals(listOf("oben" to "chili sin carne"), event.meal!!.dishes.map { it.mensaId to it.key })
@@ -127,9 +129,9 @@ class StatsOpsTest {
         val answered = StatsOps.setMeal(asked, payment.id, meal)
         assertEquals(meal, answered.events.single().meal)
         assertTrue(answered.open.isEmpty())
-        val notToday = StatsOps.markDateUnknown(asked, payment.id)
-        assertFalse(notToday.events.single().dateKnown)
-        assertNull(notToday.events.single().meal)
+        val otherDay = StatsOps.answerMeal(asked, payment.id, meal, payment.date.minusDays(1))
+        assertEquals(payment.date.minusDays(1) to true, otherDay.events.single().let { it.date to it.dateKnown })
+        assertTrue(otherDay.open.isEmpty())
     }
 
     @Test fun deleteAndRestoreEvent() {
@@ -139,13 +141,6 @@ class StatsOpsTest {
         val deleted = StatsOps.deleteEvent(b, event.id)
         assertTrue(deleted.events.isEmpty())
         assertEquals(b.events, StatsOps.restoreEvent(deleted, event).events)
-    }
-
-    @Test fun customExtrasAreUniqueAndNeverBuiltInKeys() {
-        var d = StatsOps.addCustomExtra(StatsData(), " Smoothie ")
-        d = StatsOps.addCustomExtra(d, "smoothie")
-        d = StatsOps.addCustomExtra(d, "@salad")
-        assertEquals(listOf("Smoothie"), d.customExtras)
     }
 
     @Test fun unregisterKeepsHistory() {
@@ -215,7 +210,7 @@ class StatsOpsTest {
         val saved = named.customDishes.single { it.key == "wrap" }
         assertEquals("unicampus-unten", saved.mensaId)
         assertEquals(listOf(vegan), saved.tags)
-        val hit = DishSearch.hits(emptyList(), emptyList(), named.events, named.customDishes, 0).single { it.key == "wrap" }
+        val hit = MealDraft.options(0, emptyList(), false, emptyList(), named.events, named.customDishes, emptyList(), null, 0).single { it.key == "wrap" }
         assertEquals("unicampus-unten" to listOf(vegan), hit.mensaId to hit.tags)
         assertTrue(hit.own)
         assertEquals(id, paid.events.single().id)

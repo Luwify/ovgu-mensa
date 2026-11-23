@@ -87,16 +87,20 @@ data class CardEvent(
 )
 
 /**
- * What one payment bought. [dishes] with their price; [extras] (keys, see [Extras]) share [extrasAmount], the part of
- * the payment the dishes don't explain. [other] = "Sonstiges": not a meal (or not worth naming).
+ * What one payment bought: [dishes] with their price, [extras] each with its own amount (schema 6; before, the extras
+ * shared one total). [other] = "Sonstiges" for the whole payment: not a meal (or not worth naming); "Sonstiges" next to
+ * dishes is the extra [Extras.OTHER].
  */
 @Serializable
 data class MealRecord(
     val dishes: List<EatenDish> = emptyList(),
-    val extras: List<String> = emptyList(),
-    val extrasAmount: Int = 0,
+    val extras: List<ExtraItem> = emptyList(),
     val other: Boolean = false,
 )
+
+/** An extra (key, see [Extras]) and what it cost (mills); [grams] when it was weighed and the weight is known. */
+@Serializable
+data class ExtraItem(val key: String, val amount: Int, val grams: Int? = null)
 
 /**
  * A dish eaten [count] times for [price] each (mills). [key] = `Favorites.normalize(name.de)`. [grams]: a dish paid by
@@ -232,6 +236,9 @@ object Extras {
     const val ROTE_GRUETZE = "@rote_gruetze"
     const val DRINK = "@drink"
     const val COFFEE = "@coffee"
+
+    /** "Sonstiges": the part of a payment that isn't worth naming. */
+    const val OTHER = "@other"
 
     val builtIn: List<String> = listOf(SALAD, DESSERT, PUDDING, ROTE_GRUETZE, DRINK, COFFEE)
 

@@ -1,0 +1,7 @@
+Geändert:
+- Die Frage „Was hast du gegessen?“ ist jetzt ein einziger, einfacher Bildschirm: oben Betrag und Tag, darunter bis zu drei Vorschläge (auch Kombinationen wie „2× Chili“), die mit einem Tippen speichern. Eine Suche findet alles andere: Gerichte aller Mensen an dem Tag, eigene Gerichte, Desserts und Extras. Passt nichts, lässt sich der Suchbegriff direkt als neues Gericht anlegen (Name, Preis, Mensa, Tags).
+- Bleibt nach einer Auswahl ein Betrag offen, zeigt die Frage „Noch … offen“ und sucht weiter. Gerichte nach Gewicht, Desserts und Extras übernehmen den Rest; jeder Preis lässt sich antippen und ändern. Ein Rest kann mit einem Tippen als „Sonstiges“ gespeichert werden.
+- „Später“ behält die Frage, „Nicht erfassen“ speichert nur den Betrag. Die bisherigen Wege „Gericht + Extras“, „Mehrere Gerichte“, „Vorhandenes Gericht wählen“, „Wo hast du gegessen?“ und „Nicht an diesem Tag“ sind in diesem Bildschirm aufgegangen.
+- Der Tag einer Zahlung lässt sich in der Frage ändern. Liegt ein Scan mehr als einen Tag nach dem vorigen, fragt die App auch nach dem Gericht und bietet „Auf mehrere Tage verteilen“ an: Jede Auswahl bekommt ihren Tag, daraus werden getrennte Zahlungen.
+- Eine gespeicherte Zahlung in der Liste öffnet zum Korrigieren denselben Bildschirm mit ihren Einträgen.
+- Extras werden jetzt einzeln mit ihrem Betrag gespeichert. Ältere Einträge mit mehreren Extras teilen ihren gemeinsamen Betrag gleichmäßig auf.

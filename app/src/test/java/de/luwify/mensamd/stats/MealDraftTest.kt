@@ -1,0 +1,226 @@
+package de.luwify.mensamd.stats
+
+import de.luwify.mensamd.model.LocalizedText
+import de.luwify.mensamd.model.Tag
+import de.luwify.mensamd.parser.MenuPageParser
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertSame
+import org.junit.Assert.assertTrue
+import org.junit.Test
+import java.time.LocalDate
+
+class MealDraftTest {
+    private val unten = "unicampus-unten"
+    private val oben = "unicampus-oben"
+    private val monday = LocalDate.of(2026, 11, 16)
+    private val wednesday = LocalDate.of(2026, 11, 18)
+    private val vegan = listOf(Tag("vegan", "Vegan"))
+
+    private fun dish(mensa: String, name: String, vararg cents: Int) = SnapDish(mensa, LocalizedText(name), cents.toList(), true, vegan)
+    private val chili = dish(unten, "Chili", 250, 450, 550)
+    private val pommes = dish(unten, "Pommes", 120, 200, 250)
+    private val salat = dish(oben, "Salat", 250, 400, 500)
+    private val pasta = dish(oben, "Pasta", 280, 490, 590)
+    private val farfalle = SnapDish(oben, LocalizedText("Farfalle"), listOf(50, 80, 110), byWeight = true)
+    private val day = listOf(chili, pommes, salat, pasta, farfalle)
+    private val extras = listOf(Extras.SALAD to "Salatbar", Extras.DESSERT to "Dessert", Extras.OTHER to "Sonstiges")
+
+    private fun options(rest: Int, days: List<Pair<LocalDate, List<SnapDish>>> = listOf(wednesday to day), events: List<CardEvent> = emptyList(), custom: List<KnownDish> = emptyList(), menus: List<SnapDish> = emptyList()) =
+        MealDraft.options(rest, days, days.size > 1, menus, events, custom, extras, unten, 0)
+
+    private fun option(rest: Int, name: String) = options(rest).first { it.name.de == name }
+
+    // Picking
+
+    @Test fun aFixedPriceDishAddsItsPriceAndTheSameDishCountsUp() {
+        var items = MealDraft.pick(5_000, emptyList(), option(5_000, "Chili"))
+        assertEquals(listOf(2_500), items.map { it.price })
+        items = MealDraft.pick(5_000, items, option(2_500, "Chili"))
+        assertEquals(1, items.size)
+        assertEquals(2, items.single().count)
+        assertTrue(MealDraft.complete(5_000, items))
+        assertEquals(2, MealDraft.toRecord(items).dishes.single().count)
+    }
+
+    @Test fun aPriceAboveWhatIsLeftIsCappedAndNothingIsAddedWhenNothingIsLeft() {
+        val items = MealDraft.pick(2_000, emptyList(), option(2_000, "Pasta")) // 2,80 € on the menu, 2,00 € paid
+        assertEquals(2_000, items.single().price)
+        assertSame(items, MealDraft.pick(2_000, items, option(0, "Chili")))
+    }
+
+    @Test fun aWeighedDishOrAnExtraTakesWhatIsLeft() {
+        val first = MealDraft.pick(4_850, emptyList(), option(4_850, "Chili"))
+        val withPasta = MealDraft.pick(4_850, first, option(2_350, "Farfalle"))
+        assertEquals(2_350, withPasta[1].price)
+        assertEquals(470, withPasta[1].grams)
+        val withSalad = MealDraft.pick(3_400, MealDraft.pick(3_400, emptyList(), option(3_400, "Chili")), options(900).first { it.key == Extras.SALAD })
+        assertEquals(900, withSalad[1].price)
+        assertTrue(withSalad[1].isExtra)
+    }
+
+    @Test fun onlyASinglePickForTheWholeAmountSavesAtOnce() {
+        val one = MealDraft.pick(2_500, emptyList(), option(2_500, "Chili"))
+        assertTrue(MealDraft.savesAtOnce(2_500, emptyList(), one))
+        val first = MealDraft.pick(3_400, emptyList(), option(3_400, "Chili"))
+        assertFalse(MealDraft.savesAtOnce(3_400, emptyList(), first)) // 0,90 € still open
+        val second = MealDraft.pick(3_400, first, options(900).first { it.key == Extras.DESSERT })
+        assertFalse(MealDraft.savesAtOnce(3_400, first, second)) // complete, but waits for "Speichern"
+        assertTrue(MealDraft.complete(3_400, second))
+    }
+
+    @Test fun restAsOtherAndRemoving() {
+        val first = MealDraft.pick(3_400, emptyList(), option(3_400, "Chili"))
+        val all = MealDraft.restAsOther(3_400, first)
+        assertEquals(listOf(Extras.OTHER), all.filter { it.isExtra }.map { it.key })
+        assertEquals(MealRecord(first.map { EatenDish("chili", it.name!!, unten, 2_500, 1, vegan) }, listOf(ExtraItem(Extras.OTHER, 900))), MealDraft.toRecord(all))
+        val twice = MealDraft.pick(5_000, MealDraft.pick(5_000, emptyList(), option(5_000, "Chili")), option(2_500, "Chili"))
+        assertEquals(1, MealDraft.removeOne(twice, 0).single().count)
+        assertEquals(emptyList<MealItem>(), MealDraft.removeOne(MealDraft.removeOne(twice, 0), 0))
+    }
+
+    @Test fun onlyOtherIsTheWholePaymentAsOther() {
+        assertEquals(MealRecord(other = true), MealDraft.toRecord(MealDraft.restAsOther(1_200, emptyList())))
+        assertEquals(listOf(MealItem(Extras.OTHER, price = 1_200)), MealDraft.fromRecord(MealRecord(other = true), 1_200))
+    }
+
+    @Test fun aSavedMealComesBackAsTheSameItems() {
+        val record = MealRecord(
+            dishes = listOf(
+                EatenDish("chili", LocalizedText("Chili"), unten, 2_500, 2, vegan),
+                EatenDish("farfalle", LocalizedText("Farfalle"), oben, 2_350, 1, emptyList(), grams = 470),
+            ),
+            extras = listOf(ExtraItem(Extras.SALAD, 900)),
+        )
+        val items = MealDraft.fromRecord(record, 8_250)
+        assertEquals(listOf(5_000, 2_350, 900), items.map { it.total })
+        assertEquals(470, items[1].grams)
+        assertEquals(record, MealDraft.toRecord(items))
+    }
+
+    // Saving
+
+    private val event = CardEvent(1, 1, EventKind.PAYMENT, 3_400, wednesday, false)
+    private val asked = StatsData(
+        events = listOf(event),
+        open = listOf(OpenItem.MealQuestion(2, 1, wednesday, false, 1, 3_400)),
+        nextId = 3,
+    )
+
+    @Test fun savingSetsTheMealClosesTheQuestionAndDatesThePaymentWhenADayWasChosen() {
+        val items = MealDraft.restAsOther(3_400, MealDraft.pick(3_400, emptyList(), option(3_400, "Chili")))
+        val kept = MealDraft.save(asked, 1, items, null)
+        assertEquals(MealDraft.toRecord(items), kept.events.single().meal)
+        assertTrue(kept.open.isEmpty())
+        assertFalse(kept.events.single().dateKnown)
+        val dated = MealDraft.save(asked, 1, items, monday).events.single()
+        assertEquals(monday to true, dated.date to dated.dateKnown)
+    }
+
+    @Test fun incompleteItemsAreNotSaved() {
+        assertSame(asked, MealDraft.save(asked, 1, MealDraft.pick(3_400, emptyList(), option(3_400, "Chili")), null))
+        assertSame(asked, MealDraft.save(asked, 1, emptyList(), null))
+    }
+
+    @Test fun aNewDishIsSavedAsAHandNamedDish() {
+        val items = listOf(MealDraft.newDish("Bagel", "pier16", vegan, 3_400))
+        val out = MealDraft.save(asked, 1, items, null)
+        val known = out.customDishes.single()
+        assertEquals("bagel" to 3_400, known.key to known.price)
+        assertEquals("pier16", known.mensaId)
+        assertTrue(out.events.single().meal!!.dishes.single().own)
+    }
+
+    @Test fun itemsOnSeveralDaysSplitThePayment() {
+        val chiliMonday = MealDraft.pick(3_400, emptyList(), option(3_400, "Chili")).map { it.copy(day = monday) }
+        val items = chiliMonday + MealItem(Extras.SALAD, price = 900, day = wednesday)
+        val out = MealDraft.save(asked, 1, items, null)
+        assertEquals(listOf(1L, 3L), out.events.map { it.id })
+        assertEquals(listOf(monday to 2_500, wednesday to 900), out.events.map { it.date to it.amount })
+        assertTrue(out.events.all { it.dateKnown && it.scanId == 1L })
+        assertEquals(listOf(ExtraItem(Extras.SALAD, 900)), out.events[1].meal!!.extras)
+        assertTrue(out.open.isEmpty())
+        assertEquals(4, out.nextId)
+    }
+
+    @Test fun aHandNamedDishChangedHereChangesEverywhere() {
+        val bagel = EatenDish("bagel", LocalizedText("Bagel"), null, 3_400, own = true)
+        val earlier = CardEvent(5, 1, EventKind.PAYMENT, 3_400, monday, true, MealRecord(listOf(bagel)))
+        val data = asked.copy(events = listOf(earlier) + asked.events, customDishes = listOf(KnownDish("bagel", LocalizedText("Bagel"), 3_400)))
+        val item = MealDraft.fromRecord(MealRecord(listOf(bagel)), 3_400).single().copy(mensaId = "pier16", tags = vegan)
+        val out = MealDraft.save(data, 1, listOf(item), null)
+        assertTrue(out.events.all { it.meal!!.dishes.single().mensaId == "pier16" })
+        assertEquals("pier16", out.customDishes.single().mensaId)
+        assertEquals(3_400, out.customDishes.single().price)
+    }
+
+    // Suggestions
+
+    @Test fun suggestionsAreAtMostThreeEatenFirstThenSingleDishesAtTheDefaultMensa() {
+        val many = day + dish(oben, "Bowl", 250) + dish(unten, "Wrap", 125)
+        val s = MealDraft.suggestions(2_500, listOf(wednesday to many), unten, 0, eaten = emptySet(), favorites = emptySet())
+        assertEquals(3, s.size)
+        assertEquals("Chili", s[0].candidate.picks.single().dish.name.de) // single dish at the default Mensa
+        assertTrue(s.drop(1).all { it.candidate.mensaId == oben }) // the other singles before "2× Wrap"
+        val eatenFirst = MealDraft.suggestions(2_500, listOf(wednesday to many), unten, 0, eaten = setOf("wrap"), favorites = emptySet())
+        assertEquals(listOf("2xWrap"), eatenFirst[0].candidate.picks.map { "${it.count}x${it.dish.name.de}" })
+    }
+
+    @Test fun combinationsAreSuggested() {
+        val s = MealDraft.suggestions(3_700, listOf(wednesday to day), unten, 0, emptySet(), emptySet())
+        assertEquals(listOf("Chili", "Pommes"), s.single().candidate.picks.map { it.dish.name.de })
+    }
+
+    @Test fun aPaymentBetweenScansGetsSuggestionsOfEveryDayLatestFirst() {
+        val s = MealDraft.suggestions(2_500, listOf(monday to listOf(chili), wednesday to listOf(salat)), unten, 0, emptySet(), emptySet())
+        assertEquals(listOf(unten to monday, oben to wednesday), s.map { it.candidate.mensaId to it.day })
+        val items = MealDraft.itemsOf(s[0], range = true)
+        assertEquals(monday, items.single().day)
+        assertNull(MealDraft.itemsOf(s[0], range = false).single().day)
+        // The same dish on two days is one suggestion.
+        assertEquals(1, MealDraft.suggestions(2_500, listOf(monday to listOf(chili), wednesday to listOf(chili)), unten, 0, emptySet(), emptySet()).size)
+    }
+
+    // Search
+
+    @Test fun withoutAQueryTheDaysDishesComeFirstThoseAtWhatIsLeftFirstThenOwnDishesThenExtras() {
+        val custom = listOf(KnownDish("bagel", LocalizedText("Bagel"), 3_400, mensaId = "pier16"))
+        val list = MealDraft.search(options(2_800, custom = custom, menus = listOf(dish("herrenkrug", "Seelachs", 310))), "")
+        assertEquals(listOf("Pasta", "Chili", "Pommes", "Salat", "Farfalle", "Bagel", "Salatbar", "Dessert", "Sonstiges"), list.map { it.name.de })
+        assertNull(list.first { it.name.de == "Farfalle" }.price)
+        assertEquals(500, list.first { it.name.de == "Farfalle" }.per100)
+    }
+
+    @Test fun aQueryFindsEveryKnownDishTheDaysFirst() {
+        val eaten = CardEvent(9, 1, EventKind.PAYMENT, 3_100, monday, true, MealRecord(listOf(EatenDish("seelachs", LocalizedText("Seelachs"), "herrenkrug", 3_100))))
+        val all = options(2_500, events = listOf(eaten), menus = listOf(dish(oben, "Salatteller", 300), salat))
+        assertEquals(listOf("Salat", "Salatbar", "Salatteller"), MealDraft.search(all, "sala").map { it.name.de })
+        assertEquals("herrenkrug", MealDraft.search(all, "seelachs").single().mensaId)
+        assertEquals(emptyList<MealOption>(), MealDraft.search(all, "gibtsnicht"))
+    }
+
+    @Test fun anyCaseAnyPartAndUmlautsDontMatter() {
+        val list = options(1_000, listOf(wednesday to listOf(dish(unten, "Gemüsebrühe", 100), dish(unten, "Soße", 100))))
+        for (query in listOf("gemüse", "gemuse", "gemuese", "GEMÜSE", "bruehe", "  brühe ")) assertEquals(query, listOf("Gemüsebrühe"), MealDraft.search(list, query).map { it.name.de })
+        assertEquals(listOf("Soße"), MealDraft.search(list, "sosse").map { it.name.de })
+    }
+
+    /** The real dish of 2026-11-06, found at the Mensa it was eaten, with the student price. */
+    @Test fun chiliSinFindsTheRealDish() {
+        val friday = LocalDate.of(2026, 11, 6)
+        fun page(mensa: String) = mensa to MenuPageParser.parse(
+            checkNotNull(javaClass.getResourceAsStream("/fixtures/2026-11-06/$mensa.html")).use { it.readBytes().toString(Charsets.UTF_8) },
+        )
+        val pages = listOf(page(unten), page(oben))
+        val list = MealDraft.options(2_000, listOf(friday to MenuDishes.onDay(pages, friday)), false, MenuDishes.all(pages), emptyList(), emptyList(), extras, unten, 0)
+        val hit = MealDraft.search(list, "Chili sin").first()
+        assertTrue(hit.name.de.startsWith("Chili sin carne aus BIO-Sonnenblumenhack"))
+        assertEquals(oben to 2_000, hit.mensaId to hit.price)
+        assertEquals(0, hit.tier) // exactly the payment
+    }
+
+    @Test fun weekdaysBetweenScans() {
+        assertEquals(listOf(LocalDate.of(2026, 11, 13), LocalDate.of(2026, 11, 16)), MealDraft.weekdays(LocalDate.of(2026, 11, 13), monday))
+    }
+}

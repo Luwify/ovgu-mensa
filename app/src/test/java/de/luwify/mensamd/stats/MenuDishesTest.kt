@@ -37,8 +37,7 @@ class MenuDishesTest {
     @Test fun aQuestionWithoutAKeptMenuUsesTheCachedDay() {
         val merged = MenuDishes.merge(emptyList(), MenuDishes.onDay(pages, friday))
         assertEquals(2, merged.size)
-        val plan = MealMatcher.plan(2_000, merged, "unten", 0) as MealMatcher.Plan.Choose
-        assertEquals("Chili", plan.candidates.single().picks.single().dish.name.de)
+        assertEquals("Chili", MealMatcher.single(2_000, merged, 0)!!.picks.single().dish.name.de)
     }
 
     @Test fun aKeptMenuSurvivesThePageAndCountsOnce() {
