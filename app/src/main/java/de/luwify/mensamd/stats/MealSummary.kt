@@ -60,14 +60,4 @@ object MealSummary {
     fun withoutMensa(events: List<CardEvent>): List<DishRef> = events.asReversed()
         .filter { it.kind == EventKind.PAYMENT }
         .flatMap { e -> e.meal?.dishes.orEmpty().mapIndexedNotNull { i, d -> if (d.mensaId == null) DishRef(e.id, i, e.date, d) else null } }
-
-    /**
-     * Every dish eaten or saved by hand, one entry per key (the latest), sorted by name: for days without a menu. A dish
-     * paid by weight has no price to reuse, so it isn't one of them.
-     */
-    fun knownDishes(events: List<CardEvent>, custom: List<KnownDish>): List<KnownDish> {
-        val fromHistory = events.mapNotNull { it.meal }.flatMap { it.dishes }.filter { it.grams == null }
-            .map { KnownDish(it.key, it.name, it.price, it.tags, it.mensaId, it.own) }
-        return (fromHistory + custom).associateBy { it.key }.values.sortedBy { it.name.de.lowercase() }
-    }
 }

@@ -1,5 +1,10 @@
 package de.luwify.mensamd.ui.stats
 
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.Alignment
+import androidx.compose.material3.Switch
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -33,12 +38,23 @@ import de.luwify.mensamd.ui.forLanguage
 import de.luwify.mensamd.ui.tagLabelRes
 import de.luwify.mensamd.ui.theme.MensaFilterChip
 
+/** What [DishDetailsDialog] confirms; [price] null without a price field, [per100] only [byWeight] and when entered. */
+internal data class DishDetails(
+    val name: String,
+    val mensaId: String?,
+    val tags: List<Tag>,
+    val price: Int?,
+    val byWeight: Boolean = false,
+    val per100: Int? = null,
+)
+
 /**
  * Name, Mensa and tags of a dish, for "Als neues Gericht speichern" and for editing a dish of a payment. The Mensa is
  * one of the catalog or "Andere / unbekannt" (null); the tags are the menu's tag chips, multiple choice, only those in
  * [tags] selected at the start. [nameEditable] false: a menu dish keeps its name. [note] explains what the change
  * reaches. Without a tag the dish counts as "no information" in the vegan/vegetarian shares. [price] (mills) non-null
- * adds a price field, starting with it; the confirmed price is then passed on (null without the field).
+ * adds a price field, starting with it; the confirmed price is then passed on (null without the field). [weightOption]
+ * adds "Nach Gewicht": the price is then what was paid this time, with an optional price per 100 g.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -50,7 +66,8 @@ internal fun DishDetailsDialog(
     tags: List<Tag>,
     note: String?,
     price: Int? = null,
-    onConfirm: (name: String, mensaId: String?, tags: List<Tag>, price: Int?) -> Unit,
+    weightOption: Boolean = false,
+    onConfirm: (DishDetails) -> Unit,
     onDismiss: () -> Unit,
 ) {
     val locale = LocalConfiguration.current.locales[0]
@@ -59,6 +76,10 @@ internal fun DishDetailsDialog(
     var text by rememberSaveable { mutableStateOf(name) }
     var priceText by rememberSaveable { mutableStateOf(price?.takeIf { it > 0 }?.let { Amounts.toInput(it, comma) }.orEmpty()) }
     val parsedPrice = Amounts.parseEuro(priceText)?.takeIf { it > 0 }
+    var byWeight by rememberSaveable { mutableStateOf(false) }
+    var per100Text by rememberSaveable { mutableStateOf("") }
+    val per100 = Amounts.parseEuro(per100Text)?.takeIf { it > 0 }
+    val per100Valid = per100Text.isBlank() || per100 != null
     // A MensaCatalog id, or "" for "Andere / unbekannt" (keeps the saved state a plain String).
     var mensa by rememberSaveable { mutableStateOf(mensaId.orEmpty()) }
     // Tag keys never contain a comma.
@@ -83,7 +104,24 @@ internal fun DishDetailsDialog(
                     label = { Text(stringResource(R.string.meal_new_label)) },
                     modifier = Modifier.fillMaxWidth(),
                 )
-                if (price != null) PriceField(priceText, parsedPrice, null) { priceText = it }
+                if (weightOption) {
+                    Row(
+                        Modifier.fillMaxWidth().toggleable(value = byWeight, role = Role.Switch, onValueChange = { byWeight = it }),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(stringResource(R.string.dish_by_weight), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+                        Switch(checked = byWeight, onCheckedChange = null)
+                    }
+                }
+                if (price != null) {
+                    PriceField(
+                        priceText, parsedPrice, per100.takeIf { byWeight },
+                        label = stringResource(if (byWeight) R.string.dish_paid_now else R.string.meal_price),
+                    ) { priceText = it }
+                }
+                if (byWeight) {
+                    PriceField(per100Text, per100, null, label = stringResource(R.string.dish_per_100g), optional = true) { per100Text = it }
+                }
                 SettingsDropdown(stringResource(R.string.dish_mensa_label), options, mensa, { mensa = it }, Modifier.fillMaxWidth())
                 Text(stringResource(R.string.dish_tags_title), style = MaterialTheme.typography.titleSmall)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -101,8 +139,8 @@ internal fun DishDetailsDialog(
         },
         confirmButton = {
             TextButton(
-                onClick = { onConfirm(text.trim(), mensa.ifEmpty { null }, DishTags.pick(keys, tags), parsedPrice) },
-                enabled = text.isNotBlank() && (price == null || parsedPrice != null),
+                onClick = { onConfirm(DishDetails(text.trim(), mensa.ifEmpty { null }, DishTags.pick(keys, tags), parsedPrice, byWeight, per100.takeIf { byWeight })) },
+                enabled = text.isNotBlank() && (price == null || parsedPrice != null) && (!byWeight || per100Valid),
             ) { Text(stringResource(R.string.q_save)) }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel_action)) } },

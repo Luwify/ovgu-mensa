@@ -120,11 +120,12 @@ git-ignored `CLAUDE.local.md` at the repo root, which Claude Code loads after th
   double before pair, default Mensa, later day) save with one tap; one search (`MealDraft.options`/`search`, text matching in
   `DishSearch`: that day's dishes of all Mensen, at-the-rest price first, then own dishes, extras incl. "Sonstiges", then every
   cached menu and eaten dish only for a query) with "„…“ neu anlegen". A pick adds a `MealItem` (fixed price capped at the rest;
-  weighed dishes and extras take the rest); "Noch x € offen" + "Rest als Sonstiges" until it adds up; a single pick for the whole
+  weighed dishes and extras ask for their amount, the rest prefilled, so several fit); "Noch x € offen" + "Rest als Sonstiges" until it adds up; a single pick for the whole
   amount saves at once, several wait for "Speichern". Bottom: "Später" / "Nicht erfassen". Undated payments get a question too
   (days = weekdays since the previous scan); "Auf mehrere Tage verteilen" (scan more than a day after the previous one) gives each
   item a day and `StatsOps.splitPayment` makes one payment per day. Extras are `ExtraItem(key, amount)` (schema 6).
-- **Hand-named dishes** ("neu anlegen" in the question screen, `ui/stats/DishDialogs`): name + price + Mensa (catalog or unknown) + the menu's tag
+- **Hand-named dishes** ("neu anlegen" in the question screen, `ui/stats/DishDialogs`): name + price (or "Nach Gewicht": paid
+  amount + optional price per 100 g, `KnownDish.byWeight`/`per100`, never a fixed-price candidate) + Mensa (catalog or unknown) + the menu's tag
   chips (`DishTags`), saved as `KnownDish` and eaten as `EatenDish(own = true)`. For an `own` dish no tags = no information
   (`EatenDish.tagsKnown`): `MealSummary` computes the vegan/vegetarian shares over dishes with known tags only (`unknownTags` is shown
   as a hint); a menu dish without tags is known to carry none. A tap on a Verlauf entry opens the question screen with its items (Mensa +

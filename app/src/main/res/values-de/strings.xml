@@ -390,6 +390,10 @@
     <!-- Kartenstatistik: Gerichte (detaillierte Statistik) -->
     <string name="meal_title">Zahlung %1$s</string>
     <string name="meal_unknown_mensa">Unbekannte Mensa</string>
+    <string name="meal_amount_hint">Wie viel davon war das? Noch offen: %1$s</string>
+    <string name="dish_by_weight">Nach Gewicht</string>
+    <string name="dish_paid_now">Diesmal bezahlt</string>
+    <string name="dish_per_100g">Preis pro 100 g (optional)</string>
     <string name="meal_date_range">Zwischen %1$s und %2$s</string>
     <string name="meal_date_pick">Tag wählen</string>
     <string name="meal_date_change">ändern</string>
@@ -404,7 +408,7 @@
     <string name="meal_spread">Auf mehrere Tage verteilen</string>
     <string name="meal_later">Später</string>
     <string name="meal_dont_record">Nicht erfassen</string>
-    <string name="meal_takes_rest">nimmt den Rest</string>
+    <string name="meal_takes_rest">Betrag angeben</string>
     <string name="meal_price">Preis</string>
     <string name="meal_item_new">neu</string>
     <string name="meal_item_remove">Entfernen</string>

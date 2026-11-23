@@ -231,15 +231,19 @@ object StatsOps {
     /**
      * Saves a hand-named dish with its [mensaId] (null = unknown) and [tags] (none = no information), or updates the
      * saved one of the same name (price, Mensa, tags: its earlier meals follow, see [editDish]); returns it as eaten
-     * once at [price].
+     * once at [price]. [byWeight]: paid by weight, [per100] its price per 100 g if known (then the weight is returned too).
      */
-    fun addCustomDish(data: StatsData, name: String, price: Int, mensaId: String? = null, tags: List<Tag> = emptyList()): Pair<StatsData, EatenDish> {
+    fun addCustomDish(
+        data: StatsData, name: String, price: Int, mensaId: String? = null, tags: List<Tag> = emptyList(),
+        byWeight: Boolean = false, per100: Int? = null,
+    ): Pair<StatsData, EatenDish> {
         val clean = name.trim()
         val key = Favorites.normalize(clean)
-        val dish = KnownDish(key, LocalizedText(clean), price, tags, mensaId)
+        val dish = KnownDish(key, LocalizedText(clean), price, tags, mensaId, byWeight = byWeight, per100 = per100.takeIf { byWeight })
         val list = data.customDishes.filterNot { it.key == key } + dish
         val earlier = data.events.map { e -> e.copy(meal = e.meal?.copy(dishes = e.meal.dishes.map { d -> if (d.own && d.key == key) d.copy(name = dish.name, mensaId = mensaId, tags = tags) else d })) }
-        return data.copy(customDishes = list, events = earlier) to EatenDish(key, dish.name, mensaId, price, tags = tags, own = true)
+        val grams = dish.per100?.takeIf { it > 0 }?.let { MealMatcher.estimateGrams(price, it) }
+        return data.copy(customDishes = list, events = earlier) to EatenDish(key, dish.name, mensaId, price, tags = tags, grams = grams, own = true)
     }
 
     /**
@@ -260,10 +264,10 @@ object StatsOps {
         val key = Favorites.normalize(clean).ifEmpty { dish.key }
         val newName = if (clean == dish.name.de) dish.name else LocalizedText(clean)
         fun EatenDish.follow() = if (own && this.key == dish.key) copy(key = key, name = newName, mensaId = mensaId, tags = tags) else this
-        val price = data.customDishes.firstOrNull { it.key == dish.key }?.price ?: dish.price
+        val saved = data.customDishes.firstOrNull { it.key == dish.key } ?: KnownDish(key, newName, dish.price)
         return data.copy(
             events = data.events.map { e -> e.meal?.let { m -> e.copy(meal = m.copy(dishes = m.dishes.map { it.follow() })) } ?: e },
-            customDishes = data.customDishes.filterNot { it.key == dish.key || it.key == key } + KnownDish(key, newName, price, tags, mensaId),
+            customDishes = data.customDishes.filterNot { it.key == dish.key || it.key == key } + saved.copy(key = key, name = newName, tags = tags, mensaId = mensaId),
         )
     }
 

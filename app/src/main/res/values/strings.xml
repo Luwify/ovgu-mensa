@@ -398,6 +398,10 @@
     <!-- Card statistics: meals (detailed statistics) -->
     <string name="meal_title">Payment %1$s</string>
     <string name="meal_unknown_mensa">Unknown Mensa</string>
+    <string name="meal_amount_hint">How much of the payment was it? Still open: %1$s</string>
+    <string name="dish_by_weight">Priced by weight</string>
+    <string name="dish_paid_now">Paid this time</string>
+    <string name="dish_per_100g">Price per 100 g (optional)</string>
     <string name="meal_date_range">Between %1$s and %2$s</string>
     <string name="meal_date_pick">choose day</string>
     <string name="meal_date_change">change</string>
@@ -412,7 +416,7 @@
     <string name="meal_spread">Spread over several days</string>
     <string name="meal_later">Later</string>
     <string name="meal_dont_record">Don’t record</string>
-    <string name="meal_takes_rest">takes what is left</string>
+    <string name="meal_takes_rest">enter the amount</string>
     <string name="meal_price">Price</string>
     <string name="meal_item_new">new</string>
     <string name="meal_item_remove">Remove</string>

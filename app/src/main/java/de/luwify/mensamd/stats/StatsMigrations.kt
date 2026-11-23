@@ -23,7 +23,7 @@ class StatsTooNewException(val version: Int) : Exception("statistics version $ve
  * ([OpenItem.FirstDebit]): a new item type, nothing to convert (an older app can't read it, so the version guards it).
  * Version 6 = extras with their own amount ([ExtraItem]): a meal's `extras` (keys) and their shared `extrasAmount` become
  * one item per key, the total split evenly in whole cents (the first gets what doesn't divide); a total without a key
- * becomes "Sonstiges".
+ * becomes "Sonstiges". Also new in 6, optional: `KnownDish.byWeight`/`per100` (a hand-named dish paid by weight).
  */
 object StatsMigrations {
     const val CURRENT = 6

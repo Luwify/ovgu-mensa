@@ -38,7 +38,7 @@ object MenuDishes {
      * alone or together with menu dishes, like a fixed list. Their one price holds for every price group.
      */
     fun own(custom: List<KnownDish>): List<SnapDish> = custom
-        .filter { it.mensaId != null && it.price > 0 && it.price % 10 == 0 }
+        .filter { it.mensaId != null && !it.byWeight && it.price > 0 && it.price % 10 == 0 }
         .map { SnapDish(it.mensaId!!, it.name, listOf(it.price / 10), priceGroupsKnown = false, tags = it.tags, own = true) }
 
     private fun Dish.snap(mensaId: String) =

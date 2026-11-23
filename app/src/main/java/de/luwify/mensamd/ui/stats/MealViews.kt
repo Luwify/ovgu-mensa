@@ -99,7 +99,7 @@ internal fun mensaName(id: String?, language: String, unknown: String): String =
 internal fun EditDishDialog(
     dish: EatenDish,
     language: String,
-    onConfirm: (name: String, mensaId: String?, tags: List<Tag>, price: Int?) -> Unit,
+    onConfirm: (DishDetails) -> Unit,
     onDismiss: () -> Unit,
 ) {
     DishDetailsDialog(
@@ -223,7 +223,7 @@ internal fun UnassignedDishesScreen(vm: StatsViewModel, events: List<CardEvent>,
     }
     val target = editing?.let { (eventId, index) -> rows.firstOrNull { it.eventId == eventId && it.index == index } }
     if (target != null) {
-        EditDishDialog(target.dish, language, onConfirm = { name, mensaId, tags, _ ->
+        EditDishDialog(target.dish, language, onConfirm = { (name, mensaId, tags) ->
             editing = null
             vm.editDish(target.eventId, target.index, name, mensaId, tags)
         }, onDismiss = { editing = null })

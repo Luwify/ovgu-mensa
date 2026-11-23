@@ -125,8 +125,9 @@ data class EatenDish(
 
 /**
  * A dish the user named by hand, with the price it was saved with (mills), its [mensaId] (null = unknown) and its
- * [tags] (none = no information). [own] is true for every stored one; the list of dishes known from earlier meals
- * ([MealSummary.knownDishes]) also carries menu dishes, with false.
+ * [tags] (none = no information). [own] is true for every stored one. [byWeight]: paid by weight (a dessert, a salad):
+ * [price] is then the last portion's price and says nothing about the next; [per100] is its price per 100 g, if the user
+ * knows it (the weight is estimated from it).
  */
 @Serializable
 data class KnownDish(
@@ -136,6 +137,8 @@ data class KnownDish(
     val tags: List<Tag> = emptyList(),
     val mensaId: String? = null,
     val own: Boolean = true,
+    val byWeight: Boolean = false,
+    val per100: Int? = null,
 )
 
 /** A dish of that day's menu, kept with an open meal question until it is answered (menus are not kept otherwise). */

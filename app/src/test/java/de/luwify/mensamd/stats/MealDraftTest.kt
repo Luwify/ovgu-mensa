@@ -60,6 +60,34 @@ class MealDraftTest {
         assertTrue(withSalad[1].isExtra)
     }
 
+    @Test fun anAmountGivenForAnExtraLeavesRoomForAnother() {
+        val chili = MealDraft.pick(3_400, emptyList(), option(3_400, "Chili"))
+        val salad = MealDraft.pick(3_400, chili, options(900).first { it.key == Extras.SALAD }, price = 500)
+        assertEquals(400, MealDraft.rest(3_400, salad))
+        val pudding = MealDraft.pick(3_400, salad, options(400).first { it.key == Extras.DESSERT })
+        assertTrue(MealDraft.complete(3_400, pudding))
+        assertEquals(listOf(ExtraItem(Extras.SALAD, 500), ExtraItem(Extras.DESSERT, 400)), MealDraft.toRecord(pudding).extras)
+        assertTrue(options(900).first { it.key == Extras.SALAD }.takesRest)
+        assertFalse(option(900, "Chili").takesRest)
+    }
+
+    @Test fun aNewDishByWeightIsSavedWithItsPricePer100gAndOfferedByWeightNextTime() {
+        val item = MealDraft.newDish("Rote Grütze", unten, vegan, 900, byWeight = true, per100 = 150)
+        assertEquals(600, item.grams)
+        val out = MealDraft.save(asked.copy(events = listOf(event.copy(amount = 900))), 1, listOf(item), null)
+        val known = out.customDishes.single()
+        assertEquals(true to 150, known.byWeight to known.per100)
+        assertEquals(600, out.events.single().meal!!.dishes.single().grams)
+        val offered = options(500, custom = out.customDishes).first { it.key == known.key }
+        assertTrue(offered.takesRest && offered.byWeight)
+        assertEquals(150, offered.per100)
+        // Never a fixed-price candidate.
+        assertTrue(MenuDishes.own(out.customDishes).isEmpty())
+        // Two portions are two items, never "2×".
+        val two = MealDraft.pick(1_000, MealDraft.pick(1_000, emptyList(), offered, 500), offered, 500)
+        assertEquals(listOf(1, 1), two.map { it.count })
+    }
+
     @Test fun onlyASinglePickForTheWholeAmountSavesAtOnce() {
         val one = MealDraft.pick(2_500, emptyList(), option(2_500, "Chili"))
         assertTrue(MealDraft.savesAtOnce(2_500, emptyList(), one))

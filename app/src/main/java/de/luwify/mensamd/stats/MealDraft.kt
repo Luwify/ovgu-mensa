@@ -22,6 +22,10 @@ data class MealItem(
     val price: Int,
     val per100: Int? = null,
     val day: LocalDate? = null,
+    /** Paid by weight: never counted together with another portion; [per100] may be unknown. */
+    val weighed: Boolean = per100 != null,
+    /** A dish named now and paid by weight: saved with this price per 100 g (null: unknown). */
+    val newPer100: Int? = null,
 ) {
     val isExtra: Boolean get() = name == null
     val total: Int get() = price * count
@@ -48,7 +52,11 @@ data class MealOption(
     val own: Boolean = false,
     val per100: Int? = null,
     val day: LocalDate? = null,
+    val byWeight: Boolean = per100 != null,
 ) {
+    /** Without a fixed price the user says how much of the payment it was (the rest is offered). */
+    val takesRest: Boolean get() = price == null
+
     private val text = DishSearch.Text(name)
 
     fun matches(words: List<String>): Boolean = words.all(text::contains)
@@ -77,37 +85,43 @@ object MealDraft {
         items.isNotEmpty() && items.all { it.price > 0 } && rest(amount, items) == 0
 
     /**
-     * Adds [option] to [items]: its fixed price, at most what is left; without a fixed price, what is left. Nothing
-     * changes when nothing is left. The same dish at the same price and day is counted ("2× Chili").
+     * Adds [option] to [items]: at [price] when the user gave one (an option without a fixed price asks), else its fixed
+     * price, at most what is left, or what is left. Nothing changes when nothing is left (and no price was given). The
+     * same dish at the same price and day is counted ("2× Chili").
      */
-    fun pick(amount: Int, items: List<MealItem>, option: MealOption): List<MealItem> {
+    fun pick(amount: Int, items: List<MealItem>, option: MealOption, price: Int? = null): List<MealItem> {
         val rest = rest(amount, items)
-        if (rest <= 0) return items
-        val price = option.price?.coerceAtMost(rest) ?: rest
-        if (price <= 0) return items
+        if (price == null && rest <= 0) return items
+        val paid = price ?: option.price?.coerceAtMost(rest) ?: rest
+        if (paid <= 0) return items
         val item = MealItem(
             key = option.key,
             name = option.name.takeUnless { option.extra },
             mensaId = option.mensaId,
             tags = option.tags,
             own = option.own,
-            price = price,
+            price = paid,
             per100 = option.per100,
             day = option.day,
+            weighed = option.byWeight,
         )
         return add(items, item)
     }
 
-    /** A dish named now ("„…“ neu anlegen"), at [price] (mills). */
-    fun newDish(name: String, mensaId: String?, tags: List<Tag>, price: Int, day: LocalDate? = null): MealItem {
+    /** A dish named now ("„…“ neu anlegen"), at [price] (mills); [byWeight] with its price per 100 g, if known. */
+    fun newDish(name: String, mensaId: String?, tags: List<Tag>, price: Int, day: LocalDate? = null, byWeight: Boolean = false, per100: Int? = null): MealItem {
         val clean = name.trim()
-        return MealItem(Favorites.normalize(clean), LocalizedText(clean), mensaId, tags, own = true, isNew = true, price = price, day = day)
+        val p100 = per100?.takeIf { byWeight && it > 0 }
+        return MealItem(
+            Favorites.normalize(clean), LocalizedText(clean), mensaId, tags, own = true, isNew = true, price = price, day = day,
+            per100 = p100, weighed = byWeight, newPer100 = p100,
+        )
     }
 
     /** Adds [item], counting it to an equal one (same dish, Mensa, price and day; never weighed items or extras). */
     fun add(items: List<MealItem>, item: MealItem): List<MealItem> {
         val i = items.indexOfFirst {
-            !it.isExtra && !item.isExtra && it.per100 == null && item.per100 == null && it.key == item.key &&
+            !it.isExtra && !item.isExtra && !it.weighed && !item.weighed && it.key == item.key &&
                 it.mensaId == item.mensaId && it.price == item.price && it.day == item.day && it.isNew == item.isNew
         }
         return if (i < 0) items + item else items.mapIndexed { j, it -> if (j == i) it.copy(count = it.count + item.count) else it }
@@ -137,7 +151,9 @@ object MealDraft {
         if (record == null) return emptyList()
         if (record.other) return listOf(MealItem(Extras.OTHER, price = amount))
         fun per100(price: Int, grams: Int?) = grams?.takeIf { it > 0 }?.let { ((price.toLong() * 100 + it / 2) / it).toInt() }
-        return record.dishes.map { MealItem(it.key, it.name, it.mensaId, it.tags, it.own, count = it.count, price = it.price, per100 = per100(it.price, it.grams)) } +
+        return record.dishes.map {
+            MealItem(it.key, it.name, it.mensaId, it.tags, it.own, count = it.count, price = it.price, per100 = per100(it.price, it.grams), weighed = it.grams != null)
+        } +
             record.extras.map { MealItem(it.key, price = it.amount, per100 = per100(it.amount, it.grams)) }
     }
 
@@ -163,7 +179,9 @@ object MealDraft {
         val event = data.events.firstOrNull { it.id == eventId && it.kind == EventKind.PAYMENT } ?: return data
         if (!complete(event.amount, items)) return data
         var next = data
-        items.filter { it.isNew }.distinctBy { it.key }.forEach { next = StatsOps.addCustomDish(next, it.name!!.de, it.price, it.mensaId, it.tags).first }
+        items.filter { it.isNew }.distinctBy { it.key }.forEach {
+            next = StatsOps.addCustomDish(next, it.name!!.de, it.price, it.mensaId, it.tags, it.weighed, it.newPer100).first
+        }
         // A hand-named dish is one dish for the app: a Mensa or tags changed here reach its other meals too.
         items.filter { it.own && !it.isNew }.forEach { next = StatsOps.followOwnDish(next, it.key, it.mensaId, it.tags) }
         val byDay = items.groupBy { it.day ?: date }
@@ -232,22 +250,25 @@ object MealDraft {
                 MealOption(
                     Favorites.normalize(d.name.de), d.name, d.mensaId, d.tags,
                     price = price.takeUnless { d.byWeight }, tier = tier,
-                    per100 = price.takeIf { d.byWeight && (it ?: 0) > 0 }, day = day.takeIf { range },
+                    per100 = price.takeIf { d.byWeight && (it ?: 0) > 0 }, day = day.takeIf { range }, byWeight = d.byWeight,
                 )
             }
         }.distinctBy { Triple(it.key, it.mensaId, it.day) }.sortedBy { it.tier }
         val dayKeys = onDay.map { it.key to it.mensaId }.toSet()
-        val own = custom.map { MealOption(it.key, it.name, it.mensaId, it.tags, it.price.takeIf { p -> p > 0 }, tier = 2, own = true) }
+        val own = custom.map {
+            if (it.byWeight) MealOption(it.key, it.name, it.mensaId, it.tags, null, tier = 2, own = true, per100 = it.per100, byWeight = true)
+            else MealOption(it.key, it.name, it.mensaId, it.tags, it.price.takeIf { p -> p > 0 }, tier = 2, own = true)
+        }
             .sortedBy { it.name.de.lowercase() }
         val extraOptions = extras.map { (key, label) -> MealOption(key, LocalizedText(label), null, emptyList(), null, tier = 3, extra = true) }
         val shown = dayKeys + own.map { it.key to it.mensaId }
         val menuOthers = menus.filterNot { it.own }.map { d ->
             val price = MealMatcher.prices(d, group).firstOrNull()
-            MealOption(Favorites.normalize(d.name.de), d.name, d.mensaId, d.tags, price.takeUnless { d.byWeight }, tier = 4, per100 = price.takeIf { d.byWeight })
+            MealOption(Favorites.normalize(d.name.de), d.name, d.mensaId, d.tags, price.takeUnless { d.byWeight }, tier = 4, per100 = price.takeIf { d.byWeight }, byWeight = d.byWeight)
         }
         // The latest price of a dish eaten before; a weighed portion's price says nothing about the next one.
         val eaten = events.mapNotNull { it.meal }.flatMap { it.dishes }.asReversed().map { d ->
-            MealOption(d.key, d.name, d.mensaId, d.tags, d.price.takeIf { d.grams == null }, tier = 4, own = d.own)
+            MealOption(d.key, d.name, d.mensaId, d.tags, d.price.takeIf { d.grams == null }, tier = 4, own = d.own, byWeight = d.grams != null)
         }
         val others = (menuOthers + eaten).filterNot { (it.key to it.mensaId) in shown }.distinctBy { it.key to it.mensaId }
             .sortedBy { it.name.de.lowercase() }

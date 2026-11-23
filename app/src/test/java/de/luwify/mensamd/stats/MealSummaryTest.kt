@@ -52,11 +52,6 @@ class MealSummaryTest {
         assertNull(s.averagePerMeal)
     }
 
-    @Test fun knownDishes() {
-        val custom = listOf(KnownDish("smoothie bowl", LocalizedText("Smoothie Bowl"), 3_500))
-        assertEquals(listOf("burger", "curry", "pasta", "smoothie bowl"), MealSummary.knownDishes(events, custom).map { it.key })
-    }
-
     @Test fun weightMealsCountAsMealsAndTheAverageUsesWhatWasPaid() {
         val farfalle = EatenDish("farfalle", LocalizedText("Farfalle"), "oben", 2_350, 1, emptyList(), grams = 470)
         val s = MealSummary.summarize(listOf(pay(2_350, MealRecord(listOf(farfalle))), pay(3_650, MealRecord(listOf(dish("Curry", "unten", 3_650))))))
@@ -64,11 +59,6 @@ class MealSummaryTest {
         assertEquals(2, s.servings)
         assertEquals(3_000, s.averagePerMeal) // (2.35 + 3.65) / 2, not the 0.50 per 100 g
         assertEquals(listOf("oben" to 1, "unten" to 1), s.byMensa.sortedBy { it.first })
-    }
-
-    @Test fun aWeightMealIsNoFixedPriceDishForLater() {
-        val farfalle = EatenDish("farfalle", LocalizedText("Farfalle"), "oben", 2_350, 1, emptyList(), grams = 470)
-        assertEquals(emptyList<KnownDish>(), MealSummary.knownDishes(listOf(pay(2_350, MealRecord(listOf(farfalle)))), emptyList()))
     }
 
     private fun own(name: String, mensa: String?, vararg tags: Tag) =
