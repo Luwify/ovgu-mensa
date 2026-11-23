@@ -189,7 +189,8 @@ class StatsStoreTest {
         val first = data.events[0].meal!!
         assertEquals(listOf(ExtraItem(Extras.SALAD, 400)), first.extras)
         val pudding = first.dishes.last()
-        assertEquals(listOf("pudding", 500, 180, true, true), listOf(pudding.key, pudding.price, pudding.grams, pudding.own, pudding.dessert))
+        // Then 7 -> 8: the worked-out weight (180 g) is dropped, the saved Pudding has no price per 100 g: the usual 0,60 €.
+        assertEquals(listOf("pudding", 500, null, 600, true, true), listOf(pudding.key, pudding.price, pudding.grams, pudding.per100, pudding.own, pudding.dessert))
         val second = data.events[1].meal!!
         assertTrue(second.extras.isEmpty())
         assertEquals(listOf("Rote Grütze" to 600, "Dessert" to 300), second.dishes.map { it.name.de to it.price })
@@ -200,5 +201,42 @@ class StatsStoreTest {
         // The sums still match the payments.
         for (e in data.events) assertEquals(e.amount, e.meal!!.dishes.sumOf { it.price * it.count } + e.meal!!.extras.sumOf { it.amount })
         assertEquals(data, decodeStats(encodeStats(data)))
+    }
+
+    /**
+     * Version 7 -> 8: weighed dishes keep the amount paid and get a price per 100 g instead of the old rounded weight:
+     * the dessert's saved one, else 0,60 €; a fixed-price dessert none; a menu dish the round price its weight came from.
+     */
+    @Test fun weightsBecomePricesPer100g() {
+        val v7 = """{"version":7,"nextId":5,"customDishes":[
+            {"key":"obstsalat","name":{"de":"Obstsalat","en":"Obstsalat"},"price":1000,"byWeight":true,"per100":600,"dessert":true,"own":true},
+            {"key":"rote grütze","name":{"de":"Rote Grütze","en":"Rote Grütze"},"price":600,"byWeight":true,"dessert":true,"own":true},
+            {"key":"pudding","name":{"de":"Pudding","en":"Pudding"},"price":750,"byWeight":true,"per100":750,"dessert":true,"own":true},
+            {"key":"kuchen","name":{"de":"Kuchen","en":"Kuchen"},"price":1200,"dessert":true,"own":true}],"events":[
+            {"id":1,"scanId":1,"kind":"payment","amount":1970,"date":"2026-11-20","dateKnown":true,
+             "meal":{"dishes":[{"key":"obstsalat","name":{"de":"Obstsalat","en":"Obstsalat"},"price":1000,"grams":170,"own":true,"dessert":true},
+                               {"key":"rote grütze","name":{"de":"Rote Grütze","en":"Rote Grütze"},"price":970,"grams":160,"own":true,"dessert":true}]}},
+            {"id":2,"scanId":1,"kind":"payment","amount":4150,"date":"2026-11-21","dateKnown":true,
+             "meal":{"dishes":[{"key":"farfalle","name":{"de":"Farfalle","en":"Farfalle"},"mensaId":"unicampus-unten","price":2350,"grams":290},
+                               {"key":"dessert","name":{"de":"Dessert","en":"Dessert"},"price":300,"own":true,"dessert":true},
+                               {"key":"pudding","name":{"de":"Pudding","en":"Pudding"},"price":300,"grams":40,"own":true,"dessert":true},
+                               {"key":"kuchen","name":{"de":"Kuchen","en":"Kuchen"},"price":1200,"own":true,"dessert":true}]}}]}"""
+        val data = decodeStats(statsJson.parseToJsonElement(v7) as JsonObject)
+        assertEquals(StatsMigrations.CURRENT, data.version)
+        val (obst, gruetze) = data.events[0].meal!!.dishes
+        assertEquals(listOf(1_000, 600, 167), listOf(obst.price, obst.per100, obst.weight))
+        assertEquals(listOf(970, 600, 162), listOf(gruetze.price, gruetze.per100, gruetze.weight))
+        val (farfalle, dessert, pudding, kuchen) = data.events[1].meal!!.dishes
+        assertEquals(800, farfalle.per100) // 0,80 € and 0,81 € both gave "290 g": the round one
+        assertEquals(600, dessert.per100)
+        assertEquals(750, pudding.per100) // its saved price
+        assertNull(kuchen.per100)
+        assertTrue(data.events.flatMap { it.meal!!.dishes }.all { it.grams == null })
+        // The amounts paid are untouched.
+        for (e in data.events) assertEquals(e.amount, e.meal!!.dishes.sumOf { it.price * it.count })
+        assertEquals(data, decodeStats(encodeStats(data)))
+        // Reopened in the question screen: 0,60 € and the weight to the gram.
+        val items = MealDraft.fromRecord(data.events[0].meal, 1_970, data.customDishes)
+        assertEquals(listOf(600 to 167, 600 to 162), items.map { it.per100 to it.grams })
     }
 }

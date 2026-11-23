@@ -78,7 +78,8 @@ class MealDraftTest {
         val out = MealDraft.save(asked.copy(events = listOf(event.copy(amount = 900))), 1, listOf(item), null)
         val known = out.customDishes.single()
         assertEquals(true to 150, known.byWeight to known.per100)
-        assertEquals(600, out.events.single().meal!!.dishes.single().grams)
+        val eaten = out.events.single().meal!!.dishes.single()
+        assertEquals(Triple(150, null, 600), Triple(eaten.per100, eaten.grams, eaten.weight)) // inputs stored, weight shown
         val offered = options(500, custom = out.customDishes).first { it.key == known.key }
         assertTrue(offered.takesRest && offered.byWeight)
         assertEquals(150, offered.per100)
@@ -325,7 +326,7 @@ class MealDraftTest {
         // The older payment's extra became the same dish, with its own amount and weight.
         val converted = out.events[0].meal!!
         assertEquals(listOf(ExtraItem(Extras.SALAD, 0)), converted.extras)
-        assertEquals(listOf(800 to 400), converted.dishes.filter { it.dessert }.map { it.price to it.grams })
+        assertEquals(listOf(800 to 400), converted.dishes.filter { it.dessert }.map { it.price to it.weight })
         assertTrue(out.customExtras.isEmpty())
         assertEquals(2, MealSummary.desserts(out.events).count)
         val search = MealDraft.options(500, emptyList(), false, emptyList(), out.events, out.customDishes, listOf("Obstsalat" to "Obstsalat", Extras.SALAD to "Salatbar"), null, 0)
@@ -333,18 +334,21 @@ class MealDraftTest {
         assertTrue(search.any { it.key == Extras.SALAD })
     }
 
-    /** Reopened, a dessert at 0,60 € per 100 g shows 0,60 €, not 0,59 € or 0,61 € from the rounded weight. */
-    @Test fun aReopenedPricePer100gIsTheOneEntered() {
-        fun reopened(price: Int, per100: Int, custom: List<KnownDish> = emptyList(), key: String = "obstsalat"): Int? {
-            val dish = EatenDish(key, LocalizedText("Obstsalat"), null, price, grams = MealMatcher.estimateGrams(price, per100), own = true, dessert = true)
-            return MealDraft.fromRecord(MealRecord(listOf(dish)), price, custom).single().per100
+    /** A weighed item stores its inputs: reopened it has the same price per 100 g, and the weight is worked out to the gram. */
+    @Test fun aReopenedWeighedItemKeepsItsInputs() {
+        fun roundTrip(price: Int, per100: Int): MealItem {
+            val item = MealDraft.newDish("Obstsalat", null, emptyList(), price, byWeight = true, per100 = per100, dessert = true)
+            val dish = MealDraft.toRecord(listOf(item)).dishes.single()
+            assertEquals(null, dish.grams) // a worked-out weight is never stored
+            return MealDraft.fromRecord(MealRecord(listOf(dish)), price).single()
         }
-        assertEquals(600, reopened(1_000, 600)) // 170 g; 1,00 € / 170 g = 0,588 €
-        assertEquals(600, reopened(970, 600)) // 160 g; 0,606 €
-        // Another price saved for the dessert, or none known: the whole-cent price that gives the weight.
-        val special = listOf(KnownDish("obstsalat", LocalizedText("Obstsalat"), 0, byWeight = true, per100 = 750, dessert = true))
-        assertEquals(750, reopened(1_000, 750, special))
-        assertEquals(800, MealDraft.per100(2_350, MealMatcher.estimateGrams(2_350, 800)))
-        assertEquals(null, MealDraft.per100(1_000, null))
+        assertEquals(600 to 167, roundTrip(1_000, 600).let { it.per100 to it.grams })
+        assertEquals(600 to 162, roundTrip(970, 600).let { it.per100 to it.grams })
+        assertEquals(630 to 159, roundTrip(1_000, 630).let { it.per100 to it.grams })
+        // An entered weight is stored as it is.
+        val weighed = MealItem("salat", LocalizedText("Salat"), price = 1_000, enteredGrams = 213, own = true)
+        val stored = MealDraft.toRecord(listOf(weighed)).dishes.single()
+        assertEquals(213 to null, stored.grams to stored.per100)
+        assertEquals(213, MealDraft.fromRecord(MealRecord(listOf(stored)), 1_000).single().grams)
     }
 }

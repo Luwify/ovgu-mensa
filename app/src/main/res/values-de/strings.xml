@@ -436,7 +436,7 @@
     <string name="unassigned_empty">Jedes Gericht hat eine Mensa.</string>
     <string name="meal_new_title">Neues Gericht</string>
     <string name="meal_new_label">Name</string>
-    <string name="meal_weight_estimate">ca. %1$d g</string>
+    <string name="meal_weight_estimate">%1$d g</string>
     <string name="meal_missing_mensen">Nicht geladen: %1$s. Gerichte von dort fehlen, deshalb wurde nichts automatisch gespeichert.</string>
     <string name="meal_loading_mensen">Lädt weitere Mensen …</string>
     <string name="scan_choose_dish">Gericht wählen</string>

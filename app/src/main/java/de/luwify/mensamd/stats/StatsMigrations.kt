@@ -6,6 +6,7 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonPrimitive
@@ -29,12 +30,18 @@ class StatsTooNewException(val version: Int) : Exception("statistics version $ve
  * desserts are dishes now. The dessert extras of a meal (`@dessert`, `@pudding`, `@rote_gruetze`) become hand-named dessert
  * dishes with the same amount (and weight); "Pudding" and "Rote Grütze" are also saved as dessert dishes by weight, so
  * the search offers them (the generic "Dessert" is built in). Also new in 7, optional: `StatsData.firstDebitDone`.
+ * Version 8 = weighed dishes store their inputs, never a worked-out weight: `EatenDish.per100` (price per 100 g) is new
+ * and `grams` means only a weight the user entered. Until 7 `grams` was always worked out from the price, rounded to 10 g,
+ * so it is dropped: a dessert gets the price per 100 g saved with its hand-named dish (by weight), else the usual 0,60 €
+ * ([MealDraft.DESSERT_PER_100]; a hand-named dessert with a fixed price gets none); any other weighed dish gets its
+ * hand-named dish's price per 100 g, else the one price that old rounding came from (whole cents, a round one first),
+ * the only source left for a menu dish. The amounts paid stay as they are.
  */
 object StatsMigrations {
-    const val CURRENT = 7
+    const val CURRENT = 8
 
     /** n -> n + 1. */
-    private val STEPS: Map<Int, (JsonObject) -> JsonObject> = mapOf(1 to { it }, 2 to { it }, 3 to ::markUnknownDishesOwn, 4 to { it }, 5 to ::extrasWithAmounts, 6 to ::dessertsAsDishes)
+    private val STEPS: Map<Int, (JsonObject) -> JsonObject> = mapOf(1 to { it }, 2 to { it }, 3 to ::markUnknownDishesOwn, 4 to { it }, 5 to ::extrasWithAmounts, 6 to ::dessertsAsDishes, 7 to ::weightInputs)
 
     /** 3 -> 4: see the class comment. Every other part of the document is kept as it is. */
     private fun markUnknownDishesOwn(obj: JsonObject): JsonObject {
@@ -107,6 +114,47 @@ object StatsMigrations {
             )
         }
         return if (added.isEmpty()) out else JsonObject(out + ("customDishes" to JsonArray(saved + added)))
+    }
+
+    /** 7 -> 8: see the class comment. */
+    private fun weightInputs(obj: JsonObject): JsonObject {
+        // Hand-named dishes: key -> (by weight, price per 100 g).
+        val saved = (obj["customDishes"] as? JsonArray).orEmpty().filterIsInstance<JsonObject>().associate { d ->
+            d["key"]?.jsonPrimitive?.contentOrNull to (((d["byWeight"] as? JsonPrimitive)?.booleanOrNull == true) to d["per100"]?.jsonPrimitive?.intOrNull)
+        }
+        fun dish(d: JsonElement): JsonElement {
+            if (d !is JsonObject) return d
+            val key = d["key"]?.jsonPrimitive?.contentOrNull
+            val price = d["price"]?.jsonPrimitive?.intOrNull ?: 0
+            val grams = d["grams"]?.jsonPrimitive?.intOrNull
+            val dessert = (d["dessert"] as? JsonPrimitive)?.booleanOrNull == true
+            val known = saved[key]
+            val per100 = when {
+                dessert -> if (known != null && !known.first) null else known?.second ?: MealDraft.DESSERT_PER_100
+                grams != null -> known?.second ?: roundedFrom(price, grams)
+                else -> null
+            }
+            val out = d - "grams"
+            return JsonObject(if (per100 != null) out + ("per100" to JsonPrimitive(per100)) else out)
+        }
+        return mapMeals(obj) { meal ->
+            val dishes = meal["dishes"] as? JsonArray ?: return@mapMeals meal
+            JsonObject(meal + ("dishes" to JsonArray(dishes.map(::dish))))
+        }
+    }
+
+    /**
+     * The price per 100 g (mills) a weight saved until schema 7 came from: those weights were [price] at that price, rounded
+     * to 10 g. Several whole-cent prices give the same rounded weight; a round one (10 cents, then 5) wins, then the one
+     * closest to the quotient. Used only by the 7 -> 8 step.
+     */
+    internal fun roundedFrom(price: Int, grams: Int): Int? {
+        if (price <= 0 || grams <= 0) return null
+        fun oldGrams(p: Int) = ((price.toLong() * 100 / p + 5) / 10 * 10).toInt().coerceAtLeast(10)
+        val exact = ((price.toLong() * 100 + grams / 2) / grams).toInt()
+        val cents = (exact + 5) / 10 * 10
+        return (-20..20).map { cents + it * 10 }.filter { it > 0 && oldGrams(it) == grams }
+            .minWithOrNull(compareBy<Int>({ it % 100 != 0 }, { it % 50 != 0 }, { kotlin.math.abs(it - exact) })) ?: exact
     }
 
     /** [total] mills over [keys] in whole cents; the first key gets the remainder. */

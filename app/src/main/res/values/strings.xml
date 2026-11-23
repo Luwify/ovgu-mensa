@@ -444,7 +444,7 @@
     <string name="unassigned_empty">Every dish has a Mensa.</string>
     <string name="meal_new_title">New dish</string>
     <string name="meal_new_label">Name</string>
-    <string name="meal_weight_estimate">approx. %1$d g</string>
+    <string name="meal_weight_estimate">%1$d g</string>
     <string name="price_per_100g" translatable="false">/100 g</string>
     <string name="meal_missing_mensen">Menus not loaded: %1$s. Dishes from there are missing, so nothing was saved automatically.</string>
     <string name="meal_loading_mensen">Loading more Mensen …</string>

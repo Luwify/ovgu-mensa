@@ -8,7 +8,7 @@ import java.time.LocalDate
 /**
  * One thing a payment bought, as the question screen lists it: a dish ([name] set) or an extra ([name] null, named by its
  * [key], see [Extras]). [price] is per piece in mills; for a weighed item it is the portion's price and [per100] (if known)
- * gives the weight. [day]: the day this item was bought, when the payment is spread over several days (null: the payment's
+ * its price per 100 g, or [enteredGrams] a weight the user entered: inputs, stored as they are; [grams] only shows. [day]: the day this item was bought, when the payment is spread over several days (null: the payment's
  * day). [isNew]: named just now ("neu anlegen"), saved as a hand-named dish together with the meal.
  */
 data class MealItem(
@@ -22,8 +22,10 @@ data class MealItem(
     val price: Int,
     val per100: Int? = null,
     val day: LocalDate? = null,
+    /** A weight the user entered (grams), stored as it is. */
+    val enteredGrams: Int? = null,
     /** Paid by weight: never counted together with another portion; [per100] may be unknown. */
-    val weighed: Boolean = per100 != null,
+    val weighed: Boolean = per100 != null || enteredGrams != null,
     /** A dish named now and paid by weight: saved with this price per 100 g (null: unknown). */
     val newPer100: Int? = null,
     /** A dessert ([EatenDish.dessert]). */
@@ -34,8 +36,8 @@ data class MealItem(
     val isExtra: Boolean get() = name == null
     val total: Int get() = price * count
 
-    /** About how many grams [price] bought of a weighed item, else null. */
-    val grams: Int? get() = per100?.takeIf { it > 0 }?.let { MealMatcher.estimateGrams(price, it) }
+    /** The weight for showing (whole grams): the entered one, else what [price] buys at [per100]; null when unknown. */
+    val grams: Int? get() = enteredGrams ?: per100?.takeIf { it > 0 }?.let { MealMatcher.estimateGrams(price, it) }
 }
 
 /**
@@ -163,47 +165,30 @@ object MealDraft {
         before.isEmpty() && after.size == 1 && complete(amount, after)
 
     /**
-     * The items of a saved meal, for a correction. A dessert without a weight was by weight unless it is one of the
-     * hand-named dishes ([custom]) with a fixed price. The price per 100 g comes back from the saved weight, see [per100].
+     * The items of a saved meal, for a correction, with the stored inputs (price, price per 100 g, entered weight). A
+     * dessert without them was by weight unless it is one of the hand-named dishes ([custom]) with a fixed price.
      */
     fun fromRecord(record: MealRecord?, amount: Int, custom: List<KnownDish> = emptyList()): List<MealItem> {
         if (record == null) return emptyList()
         if (record.other) return listOf(MealItem(Extras.OTHER, price = amount))
         val fixed = custom.filterNot { it.byWeight }.map { it.key }.toSet()
-        val saved = custom.mapNotNull { d -> d.per100?.let { d.key to it } }.toMap()
         return record.dishes.map {
-            val known = listOfNotNull(saved[it.key], DESSERT_PER_100.takeIf { _ -> it.dessert })
             MealItem(
-                it.key, it.name, it.mensaId, it.tags, it.own, count = it.count, price = it.price, per100 = per100(it.price, it.grams, known),
-                weighed = it.grams != null || (it.dessert && it.key !in fixed), dessert = it.dessert,
+                it.key, it.name, it.mensaId, it.tags, it.own, count = it.count, price = it.price, per100 = it.per100,
+                enteredGrams = it.grams, weighed = it.per100 != null || it.grams != null || (it.dessert && it.key !in fixed),
+                dessert = it.dessert,
             )
         } +
-            record.extras.map { MealItem(it.key, price = it.amount, per100 = per100(it.amount, it.grams)) }
-    }
-
-    /**
-     * The price per 100 g (mills) that bought [grams] for [price]. The weight is saved rounded to 10 g, so dividing alone
-     * is off by a cent or two (1,00 € for "170 g" = 0,588 €): a [known] price that gives the same weight wins (the dish's
-     * saved one, the usual dessert price), else among the whole-cent prices that give it (several can) a round one: a
-     * multiple of 10 cents, then of 5 cents, then the closest to the quotient.
-     */
-    fun per100(price: Int, grams: Int?, known: List<Int> = emptyList()): Int? {
-        if (grams == null || grams <= 0 || price <= 0) return null
-        fun fits(p: Int) = p > 0 && MealMatcher.estimateGrams(price, p) == grams
-        known.firstOrNull(::fits)?.let { return it }
-        val exact = ((price.toLong() * 100 + grams / 2) / grams).toInt()
-        val cents = (exact + 5) / 10 * 10
-        return (-20..20).map { cents + it * 10 }.filter(::fits)
-            .minWithOrNull(compareBy<Int>({ it % 100 != 0 }, { it % 50 != 0 }, { kotlin.math.abs(it - exact) })) ?: exact
+            record.extras.map { MealItem(it.key, price = it.amount, enteredGrams = it.grams) }
     }
 
     /** The meal the [items] make (each extra key once, with its amount); only "Sonstiges" = the whole payment is other. */
     fun toRecord(items: List<MealItem>): MealRecord {
         val dishes = items.filterNot { it.isExtra }.map {
-            EatenDish(it.key, it.name!!, it.mensaId, it.price, it.count, it.tags, it.grams, it.own || it.isNew, it.dessert)
+            EatenDish(it.key, it.name!!, it.mensaId, it.price, it.count, it.tags, it.enteredGrams, it.own || it.isNew, it.dessert, it.per100.takeIf { _ -> it.weighed })
         }
         val extras = items.filter { it.isExtra }.groupBy { it.key }.map { (key, list) ->
-            val grams = list.map { it.grams }
+            val grams = list.map { it.enteredGrams }
             ExtraItem(key, list.sumOf { it.total }, if (grams.all { it != null }) grams.sumOf { it!! } else null)
         }
         return if (dishes.isEmpty() && extras.isNotEmpty() && extras.all { it.key == Extras.OTHER }) MealRecord(other = true)
@@ -321,7 +306,7 @@ object MealDraft {
         }
         // The latest price of a dish eaten before; a weighed portion's price says nothing about the next one.
         val eaten = events.mapNotNull { it.meal }.flatMap { it.dishes }.asReversed().map { d ->
-            val weighed = d.grams != null || (d.dessert && d.key !in fixed)
+            val weighed = d.grams != null || d.per100 != null || (d.dessert && d.key !in fixed)
             MealOption(d.key, d.name, d.mensaId, d.tags, d.price.takeUnless { weighed }, tier = 4, own = d.own, byWeight = weighed, dessert = d.dessert)
         }
         val others = (menuOthers + eaten).filterNot { (it.key to it.mensaId) in shown }.distinctBy { it.key to it.mensaId }

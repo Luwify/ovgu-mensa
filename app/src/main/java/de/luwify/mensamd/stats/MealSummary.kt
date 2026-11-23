@@ -67,7 +67,7 @@ object MealSummary {
     fun desserts(events: List<CardEvent>): Desserts {
         val all = events.filter { it.kind == EventKind.PAYMENT }.mapNotNull { it.meal }.flatMap { it.dishes }.filter { it.dessert }
         val list = all.groupBy { it.key }.map { (key, l) ->
-            DessertCount(key, l.last().name, l.sumOf { it.count }, l.sumOf { it.price * it.count }, l.sumOf { it.grams ?: 0 }, l.count { it.grams != null })
+            DessertCount(key, l.last().name, l.sumOf { it.count }, l.sumOf { it.price * it.count }, l.sumOf { (it.weight ?: 0) * it.count }, l.count { it.weight != null })
         }.sortedWith(compareByDescending<DessertCount> { it.spent }.thenBy { it.name.de.lowercase() })
         return Desserts(list.sumOf { it.spent }, list.sumOf { it.count }, list.sumOf { it.grams }, list.sumOf { it.weighed }, list)
     }

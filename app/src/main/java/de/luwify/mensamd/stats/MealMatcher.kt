@@ -28,9 +28,12 @@ object MealMatcher {
         if (dish.priceGroupsKnown) listOfNotNull((dish.prices.getOrNull(group) ?: dish.prices.firstOrNull())?.times(10))
         else dish.prices.distinct().map { it * 10 }
 
-    /** About how many grams [amount] buys at [per100] (both mills), to the nearest 10 g. */
+    /**
+     * How many grams [amount] buys at [per100] (both mills), to the nearest gram (integer arithmetic). Only for showing:
+     * a weight worked out from a price is never stored (see [EatenDish.per100]).
+     */
     fun estimateGrams(amount: Int, per100: Int): Int =
-        ((amount.toLong() * 100 / per100 + 5) / 10 * 10).toInt().coerceAtLeast(10)
+        ((amount.toLong() * 100 + per100 / 2) / per100).toInt().coerceAtLeast(1)
 
     /** The one candidate for [amount] among all of [dishes], or null when there is none or more than one. */
     fun single(amount: Int, dishes: List<SnapDish>, group: Int): Candidate? = candidates(amount, dishes, group).singleOrNull()

@@ -94,10 +94,12 @@ class MealMatcherTest {
         assertEquals(listOf(listOf("1xSeelachs")), found(3_100, day))
     }
 
-    @Test fun estimateRoundsToTenGrams() {
+    @Test fun estimateIsToTheGram() {
         assertEquals(470, MealMatcher.estimateGrams(2_350, 500))
-        assertEquals(470, MealMatcher.estimateGrams(2_370, 500)) // 474
-        assertEquals(480, MealMatcher.estimateGrams(2_380, 500)) // 476
-        assertEquals(10, MealMatcher.estimateGrams(10, 500))
+        assertEquals(474, MealMatcher.estimateGrams(2_370, 500))
+        assertEquals(167, MealMatcher.estimateGrams(1_000, 600)) // 166,67
+        assertEquals(162, MealMatcher.estimateGrams(970, 600)) // 161,67
+        assertEquals(2, MealMatcher.estimateGrams(10, 500))
+        assertEquals(1, MealMatcher.estimateGrams(1, 500)) // never 0
     }
 }

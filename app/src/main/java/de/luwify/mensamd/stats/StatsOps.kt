@@ -260,7 +260,7 @@ object StatsOps {
     /**
      * Saves a hand-named dish with its [mensaId] (null = unknown) and [tags] (none = no information), or updates the
      * saved one of the same name (price, Mensa, tags: its earlier meals follow, see [editDish]); returns it as eaten
-     * once at [price]. [byWeight]: paid by weight, [per100] its price per 100 g if known (then the weight is returned too).
+     * once at [price]. [byWeight]: paid by weight, [per100] its price per 100 g if known (stored with the eaten dish too).
      */
     fun addCustomDish(
         data: StatsData, name: String, price: Int, mensaId: String? = null, tags: List<Tag> = emptyList(),
@@ -271,8 +271,8 @@ object StatsOps {
         val dish = KnownDish(key, LocalizedText(clean), price, tags, mensaId, byWeight = byWeight, per100 = per100.takeIf { byWeight }, dessert = dessert)
         val list = data.customDishes.filterNot { it.key == key } + dish
         val earlier = data.events.map { e -> e.copy(meal = e.meal?.copy(dishes = e.meal.dishes.map { d -> if (d.own && d.key == key) d.copy(name = dish.name, mensaId = mensaId, tags = tags) else d })) }
-        val grams = dish.per100?.takeIf { it > 0 }?.let { MealMatcher.estimateGrams(price, it) }
-        return data.copy(customDishes = list, events = earlier) to EatenDish(key, dish.name, mensaId, price, tags = tags, grams = grams, own = true, dessert = dish.dessert)
+        return data.copy(customDishes = list, events = earlier) to
+            EatenDish(key, dish.name, mensaId, price, tags = tags, own = true, dessert = dish.dessert, per100 = dish.per100)
     }
 
     /**
@@ -317,15 +317,15 @@ object StatsOps {
 
     /**
      * The own extra [extra] (from before 1.3.0) is the hand-named [dish] now: in every meal it becomes that dish with the
-     * extra's amount (and the weight its price per 100 g gives), and it leaves the own extras.
+     * extra's amount (and the dish's price per 100 g; an entered weight stays), and it leaves the own extras.
      */
     fun extraToDish(data: StatsData, extra: String, dish: KnownDish): StatsData {
         fun MealRecord.convert(): MealRecord {
             val (hit, rest) = extras.partition { it.key == extra }
             if (hit.isEmpty()) return this
             val added = hit.map { e ->
-                val grams = e.grams ?: dish.per100?.takeIf { it > 0 }?.let { MealMatcher.estimateGrams(e.amount, it) }
-                EatenDish(dish.key, dish.name, dish.mensaId, e.amount, 1, dish.tags, grams, own = true, dessert = dish.dessert)
+                val per100 = dish.per100 ?: MealDraft.DESSERT_PER_100.takeIf { dish.byWeight && dish.dessert }
+                EatenDish(dish.key, dish.name, dish.mensaId, e.amount, 1, dish.tags, e.grams, own = true, dessert = dish.dessert, per100 = per100.takeIf { dish.byWeight })
             }
             return copy(dishes = dishes + added, extras = rest)
         }

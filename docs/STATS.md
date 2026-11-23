@@ -124,3 +124,4 @@ Resume point for the card statistics feature (started 2026-11-05). Tick items as
       payment from that scan, not declined: `firstDebitDone`), at every `matchPending`; the card screen shows it as a note.
 - [x] Phase 2 (2026-11-23): several payments folded into the question screen with detailed statistics (`CardEvent.payments`),
       desserts as dishes (`dessert` flag, by weight at 0,60 €/100 g by default or at a fixed price, Desserts section, old dessert extras migrated), schema 7.
+      Schema 8: weighed dishes store their inputs (`EatenDish.per100`, `grams` only when entered), weights shown to the gram.

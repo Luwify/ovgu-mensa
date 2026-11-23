@@ -108,13 +108,15 @@ data class MealRecord(
     val other: Boolean = false,
 )
 
-/** An extra (key, see [Extras]) and what it cost (mills); [grams] when it was weighed and the weight is known. */
+/** An extra (key, see [Extras]) and what it cost (mills); [grams] only a weight the user entered (never a worked-out one). */
 @Serializable
 data class ExtraItem(val key: String, val amount: Int, val grams: Int? = null)
 
 /**
- * A dish eaten [count] times for [price] each (mills). [key] = `Favorites.normalize(name.de)`. [grams]: a dish paid by
- * weight, about that much; [price] is then what the portion cost, not the menu's price per 100 g. [own]: named by the
+ * A dish eaten [count] times for [price] each (mills). [key] = `Favorites.normalize(name.de)`. A dish paid by weight
+ * stores what was entered, never a worked-out value: [price] is what the portion cost, [per100] its price per 100 g (mills,
+ * the menu's or the user's; null: unknown), [grams] only a weight the user entered. [weight] works the weight out for
+ * showing. [own]: named by the
  * user, not read from a menu: its [tags] are only what the user said, so none at all means "no information" (see
  * [tagsKnown]); a menu dish without tags is known to carry none.
  */
@@ -128,9 +130,13 @@ data class EatenDish(
     val tags: List<Tag> = emptyList(),
     val grams: Int? = null,
     val own: Boolean = false,
-    /** A dessert (weighed, marked by the user): counted in the desserts section, not among the meals' dishes. */
+    /** A dessert (marked by the user): counted in the desserts section, not among the meals' dishes. */
     val dessert: Boolean = false,
+    val per100: Int? = null,
 ) {
+    /** The weight for showing (whole grams): the entered one, else what [price] buys at [per100]; null when unknown. */
+    val weight: Int? get() = grams ?: per100?.takeIf { it > 0 }?.let { MealMatcher.estimateGrams(price, it) }
+
     /** Whether [tags] say anything about the dish (the vegan/vegetarian shares only count these). */
     val tagsKnown: Boolean get() = !own || tags.isNotEmpty()
 }

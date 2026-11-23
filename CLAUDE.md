@@ -141,8 +141,11 @@ git-ignored `CLAUDE.local.md` at the repo root, which Claude Code loads after th
   in "Nach Mensa" lists dishes without a Mensa (`MealSummary.withoutMensa`). Schema 4 marks old dishes without Mensa and tags as `own`.
 - **Dishes priced per 100 g:** the pages don't say so, so `model/WeightPricing` decides (the only place with these rules:
   badge "Pastabuffet", soup icon in UniCampus unten). Menu cards show "/100 g" at the price. Such dishes never match as a
-  fixed price and are never saved automatically: the question screen lists them with the weight the rest buys ("ca. 470 g");
-  picked, they take what is left (price editable). `EatenDish.price` is what was paid, `grams` the weight; `SnapDish.byWeight` marks them.
+  fixed price and are never saved automatically: the question screen lists them with the weight the rest buys ("470 g");
+  picked, they take what is left (price editable). Only inputs are stored, never a worked-out value (schema 8): `EatenDish.price` is
+  what was paid, `per100` the price per 100 g (menu's or user's), `grams` only a weight the user entered; `EatenDish.weight` /
+  `MealMatcher.estimateGrams` work the weight out to the gram for showing (integer math; money is Int mills everywhere, no
+  Float/Double). `SnapDish.byWeight` marks them.
 - **License GPL-3.0-or-later** (see below).
 - Not done / only if asked: a baseline profile (separate `:baselineprofile` module). Swipe smoothness (B3) is closed.
 
