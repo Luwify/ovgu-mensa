@@ -383,7 +383,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.pickedRows(
         val item = list[i]
         val name = (if (item.count > 1) "${item.count}× " else "") + (item.name?.forLanguage(language) ?: extraName(item.key))
         val detail = listOfNotNull(
-            if (item.isExtra) null else mensaName(item.mensaId, language, unknownMensa),
+            if (item.isExtra || (item.dessert && item.mensaId == null)) null else mensaName(item.mensaId, language, unknownMensa),
             item.grams?.let { stringResource(R.string.meal_weight_estimate, it) },
             if (item.isNew) stringResource(R.string.meal_item_new) else null,
         ).joinToString(" · ")
@@ -480,7 +480,7 @@ private fun SuggestionCard(s: Suggestion, range: Boolean, language: String, loca
 /** "UniCampus unten · 2,50 €", "… · 0,80 € /100 g · ca. 470 g", "Betrag angeben" for extras. */
 @Composable
 private fun optionDetail(o: MealOption, rest: Int, range: Boolean, language: String, locale: Locale, unknownMensa: String): String = listOfNotNull(
-    if (o.extra) null else mensaName(o.mensaId, language, unknownMensa),
+    if (o.extra || (o.dessert && o.mensaId == null)) null else mensaName(o.mensaId, language, unknownMensa),
     o.day?.takeIf { range }?.let { shortDate(it, locale) },
     when {
         o.per100 != null -> formatCardAmount(o.per100, locale) + " " + stringResource(R.string.price_per_100g) + " · " +

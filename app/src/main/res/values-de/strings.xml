@@ -491,6 +491,6 @@
     </plurals>
     <plurals name="meal_several">
         <item quantity="one">Mindestens %1$d Zahlung nach dem letzten Scan.</item>
-        <item quantity="other">Mindestens %1$d Zahlungen nach dem letzten Scan. Ordne alles zu, was gekauft wurde; an mehreren Tagen unten verteilen.</item>
+        <item quantity="other">Mindestens %1$d Zahlungen nach dem letzten Scan. Ordne alles zu, was gekauft wurde.</item>
     </plurals>
 </resources>

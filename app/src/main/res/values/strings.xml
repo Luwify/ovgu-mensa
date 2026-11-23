@@ -500,6 +500,6 @@
     </plurals>
     <plurals name="meal_several">
         <item quantity="one">At least %1$d payment since the last scan.</item>
-        <item quantity="other">At least %1$d payments since the last scan. Assign everything that was bought; on several days, spread it below.</item>
+        <item quantity="other">At least %1$d payments since the last scan. Assign everything that was bought.</item>
     </plurals>
 </resources>
