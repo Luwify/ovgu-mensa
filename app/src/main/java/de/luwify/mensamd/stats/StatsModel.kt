@@ -94,7 +94,13 @@ data class CardEvent(
      * (detailed statistics, "mindestens 2 Zahlungen seit dem letzten Scan"). Counts as that many visits.
      */
     val payments: Int = 1,
-)
+) {
+    /** The Pfand paid with this payment (the meal's [Extras.PFAND] items): money that comes back, not spending. */
+    val pfandPaid: Int get() = meal?.extras?.filter { it.key == Extras.PFAND }?.sumOf { it.amount } ?: 0
+
+    /** What this payment spent (a payment's amount without its Pfand; 0 for other kinds). */
+    val spent: Int get() = if (kind == EventKind.PAYMENT) amount - pfandPaid else 0
+}
 
 /**
  * What one payment bought: [dishes] with their price, [extras] each with its own amount (schema 6; before, the extras
@@ -259,6 +265,12 @@ object Extras {
     const val ROTE_GRUETZE = "@rote_gruetze"
     const val DRINK = "@drink"
     const val COFFEE = "@coffee"
+
+    /**
+     * Pfand paid with a drink (schema 9): one item per bottle amount, counted like dishes. Not spending: the statistics
+     * show it apart ([CardEvent.spent], [CardEvent.pfandPaid]).
+     */
+    const val PFAND = "@pfand"
 
     /** "Sonstiges": the part of a payment that isn't worth naming. */
     const val OTHER = "@other"

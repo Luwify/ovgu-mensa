@@ -125,3 +125,10 @@ Resume point for the card statistics feature (started 2026-11-05). Tick items as
 - [x] Phase 2 (2026-11-23): several payments folded into the question screen with detailed statistics (`CardEvent.payments`),
       desserts as dishes (`dessert` flag, by weight at 0,60 €/100 g by default or at a fixed price, Desserts section, old dessert extras migrated), schema 7.
       Schema 8: weighed dishes store their inputs (`EatenDish.per100`, `grams` only when entered), weights shown to the gram.
+- [x] "Was ist passiert?" (2026-11-24, first real case: 1,05 € paid in the evening without a scan, the next day a top-up and a
+      Pfand return, then scanned: the old "Aufladung und Zahlung?" could only offer one top-up plus one payment, all on the
+      scan's day). The question is now a screen of movements (top-up, payment, Pfand return), each with its amount and day,
+      and one-tap suggestions from the last debit, the top-up amounts and Pfand sums (`CreditDraft`); payments then get the
+      meal question. Pfand paid with a drink is a meal item (`Extras.PFAND`) and no spending. Schema 9 (nothing to convert:
+      open `credit` questions keep their shape). Tested on the phone with a throwaway package and made-up data (a schema 8
+      seed with three mixed questions).

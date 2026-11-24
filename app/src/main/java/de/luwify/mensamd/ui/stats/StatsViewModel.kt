@@ -9,7 +9,7 @@ import de.luwify.mensamd.model.MenuPage
 import de.luwify.mensamd.model.Tag
 import de.luwify.mensamd.stats.CardEvent
 import de.luwify.mensamd.stats.EatenDish
-import de.luwify.mensamd.stats.EventKind
+import de.luwify.mensamd.stats.Movement
 import de.luwify.mensamd.stats.MealContext
 import de.luwify.mensamd.stats.MealDraft
 import de.luwify.mensamd.stats.MealItem
@@ -94,13 +94,13 @@ class StatsViewModel(private val container: AppContainer) : ViewModel() {
         recorder.matchPayments(payments)
     }
 
-    /** A top-up plus more than the last debit becomes a "several payments?" question, which then opens. */
-    fun resolveCredit(itemId: Long, credit: Int?, kind: EventKind) = edit {
+    /** "Was ist passiert?": the movements are stored; with detailed statistics the first new payment's meal question opens. */
+    fun resolveMovements(itemId: Long, movements: List<Movement>) = edit {
         var payments = emptyList<CardEvent>()
-        val before = store.load().open.map { it.id }.toSet()
-        val after = store.update { d -> StatsOps.resolveCredit(d, itemId, credit, kind, settings.value?.detailedActive == true).also { payments = it.second }.first }
-        after.open.firstOrNull { it is OpenItem.SeveralPayments && it.id !in before }?.let { _focusQuestion.value = it.id }
+        store.update { d -> StatsOps.resolveMovements(d, itemId, movements).also { payments = it.second }.first }
         recorder.matchPayments(payments)
+        val ids = payments.map { it.id }.toSet()
+        store.load().open.firstOrNull { it is OpenItem.MealQuestion && it.eventId in ids }?.let { _focusQuestion.value = it.id }
     }
 
     /** "Letzte Abbuchung erfassen?": [date] null = not recorded. Recorded, its meal question opens right away (detailed statistics). */

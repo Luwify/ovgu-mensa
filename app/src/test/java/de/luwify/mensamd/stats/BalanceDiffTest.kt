@@ -81,11 +81,6 @@ class BalanceDiffTest {
         assertEquals(Outcome.AskCredit(0, 5_510, null), derive(10_000, 3_100, 10_000, 5_510))
     }
 
-    @Test fun creditOptionsLeaveAPositivePayment() {
-        assertEquals(listOf(20_000 to TOP_UP, 30_000 to TOP_UP, 50_000 to TOP_UP), BalanceDiff.creditOptions(14_400, known))
-        assertEquals(KnownAmounts.DEFAULT_TOP_UPS.map { it to TOP_UP }, BalanceDiff.creditOptions(-3_000, known))
-    }
-
     @Test fun pfandSumsOfAnyBottles() {
         val k = KnownAmounts(KnownAmounts.DEFAULT_TOP_UPS, KnownAmounts.DEFAULT_PFAND)
         // single bottles, several of one kind, mixed
@@ -103,7 +98,6 @@ class BalanceDiffTest {
         val k = KnownAmounts(listOf(5_000, 10_000), KnownAmounts.DEFAULT_PFAND)
         assertEquals(TOP_UP, k.creditKind(5_000)) // 20 x 0.25 €, but also a top-up amount
         assertEquals(PFAND, k.creditKind(4_750))
-        assertEquals(listOf(5_000 to TOP_UP, 10_000 to TOP_UP), k.credits)
     }
 
     @Test fun editedPfandListAndEmptyList() {

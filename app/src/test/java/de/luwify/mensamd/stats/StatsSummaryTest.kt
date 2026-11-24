@@ -76,6 +76,23 @@ class StatsSummaryTest {
         assertEquals(6_000, t.averagePerDay) // 12 € over 2 days
         assertEquals(4, t.payments)
     }
+
+    /** Pfand paid with a drink is shown apart: not spending, not a visit when it is all the payment was. */
+    @Test fun pfandPaidIsNotSpending() {
+        val drink = CardEvent(1, 0, EventKind.PAYMENT, 1_050, thu, true, MealRecord(extras = listOf(ExtraItem(Extras.DRINK, 900), ExtraItem(Extras.PFAND, 150))))
+        val onlyPfand = CardEvent(2, 0, EventKind.PAYMENT, 250, thu.plusDays(1), true, MealRecord(extras = listOf(ExtraItem(Extras.PFAND, 250))))
+        val back = CardEvent(3, 0, EventKind.PFAND, 150, thu, true)
+        val t = StatsSummary.totals(StatsData(events = listOf(drink, onlyPfand, back)), thu)
+        assertEquals(900, t.spentThisMonth)
+        assertEquals(400, t.pfandPaidThisMonth)
+        assertEquals(150, t.pfandThisMonth)
+        assertEquals(1, t.payments)
+        assertEquals(900, t.averagePerVisit)
+        assertEquals(900, t.averagePerDay)
+        assertEquals(900, StatsSummary.weekdays(listOf(drink, onlyPfand)).first { it.day == thu.dayOfWeek }.spent)
+        assertEquals(listOf(900), StatsSummary.periods(listOf(drink, onlyPfand), StatsSummary.Unit.MONTH, thu, 1).map { it.spent })
+    }
+
 }
 
 class NiceMaxTest {
@@ -86,4 +103,5 @@ class NiceMaxTest {
         assertEquals(80_000, de.luwify.mensamd.ui.stats.niceMax(61_000))
         assertEquals(100_000, de.luwify.mensamd.ui.stats.niceMax(80_001))
     }
+
 }

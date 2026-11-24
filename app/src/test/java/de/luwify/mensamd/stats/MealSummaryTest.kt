@@ -135,4 +135,14 @@ class MealSummaryTest {
         assertEquals(listOf("pudding" to 1_100, "rote grütze" to 500), d.list.map { it.key to it.spent })
         assertTrue(MealSummary.withoutMensa(list).none { it.dish.dessert })
     }
+
+    /** Pfand paid with a drink is no spending; a payment of Pfand only is no meal. */
+    @Test fun pfandIsNotSpending() {
+        val drink = pay(1_050, MealRecord(listOf(dish("Saft", "unten", 900)), listOf(ExtraItem(Extras.PFAND, 150))))
+        val onlyPfand = pay(250, MealRecord(extras = listOf(ExtraItem(Extras.PFAND, 250))))
+        val s = MealSummary.summarize(listOf(drink, onlyPfand))
+        assertEquals(1, s.mealPayments)
+        assertEquals(900, s.averagePerMeal)
+    }
+
 }

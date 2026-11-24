@@ -317,7 +317,6 @@
     <string name="stats_spent_in">Ausgaben im %1$s</string>
     <string name="stats_average_visit">Ø pro Besuch</string>
     <string name="stats_topped_up_month">Aufgeladen diesen Monat</string>
-    <string name="stats_pfand_month">Pfand zurück diesen Monat</string>
     <string name="stats_balance_now">Guthaben</string>
     <string name="stats_per_period">Ausgaben und Aufladungen</string>
     <string name="stats_series_spent">Ausgaben</string>
@@ -372,19 +371,7 @@
     <string name="q_save_one">Als eine Ausgabe speichern</string>
     <string name="q_back">Zurück</string>
     <string name="q_split">Aufteilen</string>
-    <string name="q_credit_title">Aufladung und Zahlung?</string>
-    <string name="q_credit_text_up">Dein Guthaben ist um %1$s gestiegen. War es eine Aufladung plus eine Zahlung?</string>
-    <string name="q_credit_text_down">Dein Guthaben ist um %1$s gesunken, weniger als die letzte Abbuchung (%2$s). Es wurde also auch etwas gutgeschrieben. Welcher Betrag?</string>
-    <string name="q_credit_text_zero">Dein Guthaben ist gleich geblieben, aber es gab eine neue Abbuchung von %1$s. Es wurde also derselbe Betrag gutgeschrieben. Welcher?</string>
-    <string name="q_credit_option">Aufladung %1$s + Zahlung %2$s</string>
-    <string name="q_credit_option_pfand">Pfand %1$s + Zahlung %2$s</string>
-    <string name="q_credit_other">Anderer Aufladebetrag …</string>
-    <string name="q_credit_other_title">Aufladebetrag</string>
-    <string name="q_credit_other_text">Der Rest wird als eine Zahlung gespeichert.</string>
-    <string name="q_credit_only_top_up">Nur eine Aufladung von %1$s</string>
-    <string name="q_credit_only_payment">Nur eine Zahlung von %1$s</string>
     <string name="q_save">Speichern</string>
-    <string name="q_skip">Nichts speichern</string>
     <!-- Kartenstatistik: Gerichte (detaillierte Statistik) -->
     <string name="meal_title">Zahlung %1$s</string>
     <string name="meal_unknown_mensa">Unbekannte Mensa</string>
@@ -485,7 +472,6 @@
     </plurals>
     <string name="pfand_reassign">Anders zuordnen</string>
     <string name="pfand_snackbar">Pfandrückgabe %1$s gespeichert</string>
-    <string name="q_credit_only_pfand">Nur eine Pfandrückgabe von %1$s</string>
     <plurals name="event_payments_several">
         <item quantity="one">Mind. %1$d Zahlung</item>
         <item quantity="other">Mind. %1$d Zahlungen</item>
@@ -494,4 +480,15 @@
         <item quantity="one">Mindestens %1$d Zahlung nach dem letzten Scan.</item>
         <item quantity="other">Mindestens %1$d Zahlungen nach dem letzten Scan. Ordne alles zu, was gekauft wurde.</item>
     </plurals>
+    <string name="stats_pfand_month">Pfand diesen Monat</string>
+    <string name="stats_pfand_value">%1$s gezahlt · %2$s zurück</string>
+    <string name="extra_pfand">Pfand</string>
+    <string name="credit_title">Was ist passiert?</string>
+    <string name="credit_change">Guthabenänderung</string>
+    <string name="credit_between">Zwischen den Scans am %1$s und %2$s</string>
+    <string name="credit_last_debit">Letzte Abbuchung laut Karte: %1$s</string>
+    <string name="credit_add">Hinzufügen</string>
+    <string name="credit_pfand_back">Pfand zurück</string>
+    <string name="credit_pfand_hint">Was der Pfandautomat für eine Rückgabe gutgeschrieben hat (bis 5 €).</string>
+    <string name="credit_uses_last_debit">Mit der letzten Abbuchung</string>
 </resources>

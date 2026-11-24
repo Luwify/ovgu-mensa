@@ -124,39 +124,16 @@ object StatsOps {
     }
 
     /**
-     * A change no known amount explained. [credit] (with [kind]) chosen: that credit plus the payments of credit - delta.
-     * Those are one payment when they don't exceed the card's last debit; more than it means several payments (the last
-     * one was the last debit), which becomes a "several payments?" question like a plain decrease ([foldSeveral]: one payment
-     * standing for at least two, see [recordScan]). [credit] null: only
-     * the change itself, as a credit of [kind] (top-up or Pfand; delta > 0) or a payment (delta < 0); a zero change
-     * stores nothing. Returns the new payments.
+     * "Was ist passiert?": the change of question [itemId] becomes [movements] (top-ups, payments, Pfand returns), which must
+     * add up to it ([CreditDraft.complete]). Each is stored on its day, known when the user set it ([Movement.dayChosen])
+     * or the question's day was. Returns the new payments (for the meal questions).
      */
-    fun resolveCredit(
-        data: StatsData, itemId: Long, credit: Int?, kind: EventKind = EventKind.TOP_UP, foldSeveral: Boolean = false,
-    ): Pair<StatsData, List<CardEvent>> {
+    fun resolveMovements(data: StatsData, itemId: Long, movements: List<Movement>): Pair<StatsData, List<CardEvent>> {
         val item = data.open.firstOrNull { it.id == itemId } as? OpenItem.CreditAndPayment ?: return data to emptyList()
+        require(CreditDraft.complete(item.delta, movements)) { "the movements must add up to the change" }
         var nextId = data.nextId
-        val events = when {
-            credit != null -> {
-                val paid = credit - item.delta
-                require(kind != EventKind.PAYMENT && paid > 0) { "the payment must be positive" }
-                val last = item.lastDebit?.takeIf { it > 0 }
-                val several = last != null && paid > last
-                if (several && !foldSeveral) {
-                    val creditEvent = CardEvent(nextId++, item.scanId, kind, credit, item.date, item.dateKnown)
-                    val question = OpenItem.SeveralPayments(nextId++, item.scanId, item.date, item.dateKnown, paid, last)
-                    return data.copy(events = data.events + creditEvent, open = data.open - item + question, nextId = nextId) to emptyList()
-                }
-                listOf(
-                    CardEvent(nextId++, item.scanId, kind, credit, item.date, item.dateKnown),
-                    CardEvent(nextId++, item.scanId, EventKind.PAYMENT, paid, item.date, item.dateKnown, payments = if (several) 2 else 1),
-                )
-            }
-            item.delta > 0 -> listOf(
-                CardEvent(nextId++, item.scanId, if (kind == EventKind.PFAND) EventKind.PFAND else EventKind.TOP_UP, item.delta, item.date, item.dateKnown),
-            )
-            item.delta < 0 -> listOf(CardEvent(nextId++, item.scanId, EventKind.PAYMENT, -item.delta, item.date, item.dateKnown))
-            else -> emptyList()
+        val events = movements.map { m ->
+            CardEvent(nextId++, item.scanId, m.kind, m.amount, m.day, m.dayChosen || item.dateKnown && m.day == item.date)
         }
         return data.copy(events = data.events + events, open = data.open - item, nextId = nextId) to events.filter { it.kind == EventKind.PAYMENT }
     }

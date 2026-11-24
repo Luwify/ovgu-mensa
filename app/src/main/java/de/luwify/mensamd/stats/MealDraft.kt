@@ -106,7 +106,8 @@ object MealDraft {
     fun pick(amount: Int, items: List<MealItem>, option: MealOption, price: Int? = null, per100: Int? = null): List<MealItem> {
         val rest = rest(amount, items)
         if (price == null && rest <= 0) return items
-        val paid = price ?: option.price?.coerceAtMost(rest) ?: rest
+        // Pfand is what the bottle costs, never cut to what is left.
+        val paid = price ?: option.price?.let { if (option.key == Extras.PFAND) it else it.coerceAtMost(rest) } ?: rest
         if (paid <= 0) return items
         val item = MealItem(
             key = option.key,
@@ -136,10 +137,14 @@ object MealDraft {
         )
     }
 
-    /** Adds [item], counting it to an equal one (same dish, Mensa, price and day; never weighed items or extras). */
+    /**
+     * Adds [item], counting it to an equal one (same dish, Mensa, price and day; never weighed items or extras, except Pfand:
+     * "2× Pfand 0,15 €").
+     */
     fun add(items: List<MealItem>, item: MealItem): List<MealItem> {
         val i = items.indexOfFirst {
-            !it.isExtra && !item.isExtra && !it.weighed && !item.weighed && it.key == item.key &&
+            val pfand = it.key == Extras.PFAND && item.key == Extras.PFAND && it.isExtra && item.isExtra
+            (pfand || !it.isExtra && !item.isExtra && !it.weighed && !item.weighed) && it.key == item.key &&
                 it.mensaId == item.mensaId && it.price == item.price && it.day == item.day && it.isNew == item.isNew
         }
         return if (i < 0) items + item else items.mapIndexed { j, it -> if (j == i) it.copy(count = it.count + item.count) else it }
@@ -259,7 +264,8 @@ object MealDraft {
      * Everything the search can add, most likely first (see [MealOption.tier]): the dishes of the payment's [days] (of
      * every Mensa, the default first; with [range] each carries its day), the hand-named dishes ([custom]), the [extras]
      * (key and shown name, in that order), then every other dish the app knows: all cached [menus] and the dishes of
-     * earlier meals ([events]). Each dish once per Mensa (and day).
+     * earlier meals ([events]). Each dish once per Mensa (and day). Pfand comes after the extras, one option per bottle
+     * amount ([pfand], with a fixed price, shown as [pfandLabel]).
      */
     fun options(
         rest: Int,
@@ -271,6 +277,8 @@ object MealDraft {
         extras: List<Pair<String, String>>,
         defaultId: String?,
         group: Int,
+        pfand: List<Int> = emptyList(),
+        pfandLabel: String = "Pfand",
     ): List<MealOption> {
         val onDay = days.sortedByDescending { it.first }.flatMap { (day, dishes) ->
             dishes.filterNot { it.own }.sortedBy { it.mensaId != defaultId }.mapNotNull { d ->
@@ -297,7 +305,8 @@ object MealDraft {
         // An own extra that became a dish (same name) is offered as that dish only.
         val customKeys = custom.map { it.key }.toSet()
         val extraOptions = dessert + extras.filterNot { (key, label) -> !Extras.isBuiltIn(key) && Favorites.normalize(label) in customKeys }
-            .map { (key, label) -> MealOption(key, LocalizedText(label), null, emptyList(), null, tier = 3, extra = true) }
+            .map { (key, label) -> MealOption(key, LocalizedText(label), null, emptyList(), null, tier = 3, extra = true) } +
+            pfand.filter { it > 0 }.distinct().sorted().map { MealOption(Extras.PFAND, LocalizedText(pfandLabel), null, emptyList(), it, tier = 3, extra = true) }
         val shown = dayKeys + own.map { it.key to it.mensaId } + dessert.map { it.key to it.mensaId }
         val fixed = custom.filterNot { it.byWeight }.map { it.key }.toSet()
         val menuOthers = menus.filterNot { it.own }.map { d ->

@@ -24,7 +24,7 @@ object MealSummary {
         val vegetarianShare: Double?,
         /** Servings without tag information: not part of the shares. */
         val unknownTags: Int,
-        /** Payments with a meal (not "Sonstiges"): their average amount; null without any. */
+        /** Payments with a meal (not "Sonstiges", not Pfand only): their average amount without Pfand; null without any. */
         val averagePerMeal: Int?,
         val mealPayments: Int,
     )
@@ -33,7 +33,7 @@ object MealSummary {
     private const val VEGETARIAN = "vegetarisch"
 
     fun summarize(events: List<CardEvent>, topCount: Int = 10): Summary {
-        val meals = events.filter { it.kind == EventKind.PAYMENT && it.meal != null && !it.meal.other && !it.meal.onlyDesserts() }
+        val meals = events.filter { it.kind == EventKind.PAYMENT && it.meal != null && !it.meal.other && !it.meal.onlyDesserts() && it.spent > 0 }
         val eaten = meals.flatMap { it.meal!!.dishes }.filterNot { it.dessert }
         val servings = eaten.sumOf { it.count }
         val top = eaten.groupBy { it.key }.map { (key, list) ->
@@ -51,12 +51,12 @@ object MealSummary {
             veganShare = share { d -> d.tags.any { it.key == VEGAN } },
             vegetarianShare = share { d -> d.tags.any { it.key == VEGAN || it.key == VEGETARIAN } },
             unknownTags = servings - knownServings,
-            averagePerMeal = if (meals.isEmpty()) null else (meals.sumOf { it.amount.toLong() } / meals.size).toInt(),
+            averagePerMeal = if (meals.isEmpty()) null else (meals.sumOf { it.spent.toLong() } / meals.size).toInt(),
             mealPayments = meals.size,
         )
     }
 
-    private fun MealRecord.onlyDesserts() = dishes.isNotEmpty() && dishes.all { it.dessert } && extras.isEmpty()
+    private fun MealRecord.onlyDesserts() = dishes.isNotEmpty() && dishes.all { it.dessert } && extras.all { it.key == Extras.PFAND }
 
     /** One dessert: eaten [count] times for [spent] (mills); [grams] summed where the weight is known ([weighed] of them). */
     data class DessertCount(val key: String, val name: LocalizedText, val count: Int, val spent: Int, val grams: Int, val weighed: Int)

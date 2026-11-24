@@ -96,10 +96,11 @@ class StatsOpsTest {
         val a = baseline(scan(registered, 5_370, 5_600))
         val (b, r) = scan(a, 19_770, 5_600)
         val q = (r as RecordResult.Recorded).newQuestions.single() as OpenItem.CreditAndPayment
-        val (c, payments) = StatsOps.resolveCredit(b, q.id, 20_000)
+        val (c, payments) = StatsOps.resolveMovements(b, q.id, listOf(Movement(EventKind.TOP_UP, 20_000, day), Movement(EventKind.PAYMENT, 5_600, day)))
         assertEquals(listOf(EventKind.TOP_UP to 20_000, EventKind.PAYMENT to 5_600), c.events.map { it.kind to it.amount })
         assertEquals(5_600, payments.single().amount)
-        val (d, _) = StatsOps.resolveCredit(b, q.id, null)
+        assertTrue(c.open.isEmpty())
+        val (d, _) = StatsOps.resolveMovements(b, q.id, listOf(Movement(EventKind.TOP_UP, 14_400, day)))
         assertEquals(listOf(EventKind.TOP_UP to 14_400), d.events.map { it.kind to it.amount })
     }
 
@@ -162,13 +163,15 @@ class StatsOpsTest {
         assertEquals(id, q.id)
         assertEquals(330, q.delta)
         assertEquals(3_100, q.lastDebit)
-        // Answered as a 10 € top-up: 9.67 € paid, more than the last debit of 3.10 €, so several payments are asked.
-        val (d, payments) = StatsOps.resolveCredit(c, q.id, 10_000)
-        assertEquals(listOf(EventKind.TOP_UP to 10_000), d.events.map { it.kind to it.amount })
-        assertTrue(payments.isEmpty())
-        assertEquals(9_670 to 3_100, (d.open.single() as OpenItem.SeveralPayments).let { it.amount to it.lastDebit })
+        // Answered as a 10 € top-up and two payments (the last one the card's last debit).
+        val (d, payments) = StatsOps.resolveMovements(
+            c, q.id, listOf(Movement(EventKind.TOP_UP, 10_000, day), Movement(EventKind.PAYMENT, 6_570, day), Movement(EventKind.PAYMENT, 3_100, day)),
+        )
+        assertEquals(listOf(EventKind.TOP_UP to 10_000, EventKind.PAYMENT to 6_570, EventKind.PAYMENT to 3_100), d.events.map { it.kind to it.amount })
+        assertEquals(2, payments.size)
+        assertTrue(d.open.isEmpty())
         // Or back to a Pfand return after all.
-        val (e, none) = StatsOps.resolveCredit(c, q.id, null, EventKind.PFAND)
+        val (e, none) = StatsOps.resolveMovements(c, q.id, listOf(Movement(EventKind.PFAND, 330, day)))
         assertEquals(listOf(EventKind.PFAND to 330), e.events.map { it.kind to it.amount })
         assertTrue(none.isEmpty())
     }
@@ -315,56 +318,58 @@ class StatsOpsTest {
         assertEquals(1, one.events.size)
     }
 
-    /**
-     * A top-up plus two payments: the balance rose and the last debit changed, so "top-up + payment?" is asked. With the
-     * top-up picked, the payments are more than the last debit: a "several payments?" question follows for them.
-     */
-    @Test fun topUpPlusTwoPaymentsAsksTheSplitAfterTheTopUp() {
+    /** Movements that don't add up to the change are rejected. */
+    @Test(expected = IllegalArgumentException::class)
+    fun movementsMustAddUp() {
         val a = baseline(scan(registered, 5_000, 1_000))
-        val (b, r) = scan(a, 9_400, 2_500) // +10,00, -3,10, -2,50
-        val credit = (r as RecordResult.Recorded).newQuestions.single() as OpenItem.CreditAndPayment
-        assertEquals(4_400, credit.delta)
-        assertNull(credit.suggested) // 4,40 + 2,50 is no top-up amount
-        val (c, payments) = StatsOps.resolveCredit(b, credit.id, 10_000, EventKind.TOP_UP)
-        assertTrue(payments.isEmpty())
-        assertEquals(listOf(EventKind.TOP_UP to 10_000), c.events.map { it.kind to it.amount })
-        val several = c.open.single() as OpenItem.SeveralPayments
-        assertEquals(5_600 to 2_500, several.amount to several.lastDebit)
-        val (d, split) = StatsOps.resolveSeveral(c, several.id, listOf(3_100, 2_500))
-        assertEquals(listOf(3_100, 2_500), split.map { it.amount })
-        assertEquals(listOf(EventKind.TOP_UP, EventKind.PAYMENT, EventKind.PAYMENT), d.events.map { it.kind })
-        assertTrue(d.open.isEmpty())
-    }
-
-    /** A top-up plus exactly the last debit stays one payment, no follow-up question. */
-    @Test fun topUpPlusOnePaymentNeedsNoSplit() {
-        val a = baseline(scan(registered, 5_000, 1_000))
-        val (b, r) = scan(a, 11_900, 3_100) // +10,00, -3,10
-        val credit = (r as RecordResult.Recorded).newQuestions.single() as OpenItem.CreditAndPayment
-        assertEquals(10_000, credit.suggested)
-        val (c, payments) = StatsOps.resolveCredit(b, credit.id, 10_000, EventKind.TOP_UP)
-        assertEquals(listOf(3_100), payments.map { it.amount })
-        assertTrue(c.open.isEmpty())
-    }
-
-    /** Detailed statistics: a drop of more than the last debit is one payment for at least two, asked in the question screen. */
-    @Test fun severalPaymentsFoldIntoOnePaymentOfAtLeastTwo() {
-        val a = baseline(StatsOps.recordScan(registered, fp, 0, day, 10_000, 3_100, known))
-        val (asked, _) = StatsOps.recordScan(a, fp, 0, day, 4_400, 2_500, known)
-        assertTrue(asked.open.single() is OpenItem.SeveralPayments)
-        val (folded, r) = StatsOps.recordScan(a, fp, 0, day, 4_400, 2_500, known, foldSeveral = true)
-        assertTrue(folded.open.isEmpty())
-        assertEquals(listOf(5_600 to 2), folded.events.map { it.amount to it.payments })
-        assertEquals(folded.events, (r as RecordResult.Recorded).newEvents)
-    }
-
-    @Test fun aTopUpPlusSeveralPaymentsFoldsToo() {
-        val a = baseline(StatsOps.recordScan(registered, fp, 0, day, 10_000, 3_100, known))
-        val (b, _) = StatsOps.recordScan(a, fp, 0, day, 14_000, 2_500, known) // +4 €: top-up 10 € and 6 € spent
+        val (b, _) = scan(a, 9_400, 2_500)
         val q = b.open.single() as OpenItem.CreditAndPayment
-        val (c, payments) = StatsOps.resolveCredit(b, q.id, 10_000, EventKind.TOP_UP, foldSeveral = true)
-        assertEquals(listOf(6_000 to 2), payments.map { it.amount to it.payments })
-        assertTrue(c.open.isEmpty())
+        StatsOps.resolveMovements(b, q.id, listOf(Movement(EventKind.TOP_UP, 10_000, day), Movement(EventKind.PAYMENT, 2_500, day)))
+    }
+
+    /**
+     * The case of 2026-11-24: 1,05 € paid in the evening (no scan), the next day 20 € topped up and 0,15 € Pfand back, then
+     * scanned: +19,10 € with a new last debit of 1,05 €. The first suggestion is exactly what happened; the payment moves
+     * to the evening before, and the meal question follows for it on that day.
+     */
+    @Test fun paymentTopUpAndPfandOnTwoDays() {
+        val k = KnownAmounts(KnownAmounts.DEFAULT_TOP_UPS, KnownAmounts.DEFAULT_PFAND)
+        val monday = day.minusDays(3) // Mon 2026-11-02
+        val tuesday = monday.plusDays(1)
+        val a = baseline(StatsOps.recordScan(registered, fp, 0, monday, 4_000, 3_100, k))
+        val (b, r) = StatsOps.recordScan(a, fp, 0, tuesday, 23_100, 1_050, k)
+        val q = (r as RecordResult.Recorded).newQuestions.single() as OpenItem.CreditAndPayment
+        assertEquals(19_100, q.delta)
+        val first = CreditDraft.suggestions(q.delta, q.lastDebit, CreditDraft.debitChanged(b, q.scanId), k, tuesday).first()
+        assertEquals(listOf(EventKind.PAYMENT to 1_050, EventKind.TOP_UP to 20_000, EventKind.PFAND to 150), first.movements.map { it.kind to it.amount })
+        assertEquals(listOf(monday, tuesday), CreditDraft.days(StatsOps.previousScanDate(b, q.scanId), q.date))
+        val answer = first.movements.map { if (it.kind == EventKind.PAYMENT) it.copy(day = monday, dayChosen = true) else it }
+        val (c, payments) = StatsOps.resolveMovements(b, q.id, answer)
+        assertEquals(
+            listOf(Triple(EventKind.PAYMENT, 1_050, monday), Triple(EventKind.TOP_UP, 20_000, tuesday), Triple(EventKind.PFAND, 150, tuesday)),
+            c.events.map { Triple(it.kind, it.amount, it.date) },
+        )
+        assertTrue(c.events.all { it.dateKnown }) // no weekday between the scans; the payment's day was set
+        assertEquals(listOf(1_050 to monday), payments.map { it.amount to it.date })
+        val asked = StatsOps.askMeals(c, payments, emptyList())
+        assertEquals(monday, (asked.open.single() as OpenItem.MealQuestion).date)
+        // Drink 0,90 € + Pfand 0,15 €: only the drink is spending.
+        val meal = MealRecord(extras = listOf(ExtraItem(Extras.DRINK, 900), ExtraItem(Extras.PFAND, 150)))
+        val done = StatsOps.setMeal(asked, payments.single().id, meal)
+        val paid = done.events.first { it.kind == EventKind.PAYMENT }
+        assertEquals(150 to 900, paid.pfandPaid to paid.spent)
+    }
+
+    /** A movement whose day was left alone keeps the question's (un)known day. */
+    @Test fun untouchedDaysKeepTheQuestionsDateKnown() {
+        val a = baseline(scan(registered, 5_000, 1_000, day.minusDays(3))) // Monday
+        val (b, _) = scan(a, 9_400, 2_500) // Thursday: a weekday skipped
+        val q = b.open.single() as OpenItem.CreditAndPayment
+        assertFalse(q.dateKnown)
+        val (c, _) = StatsOps.resolveMovements(
+            b, q.id, listOf(Movement(EventKind.TOP_UP, 10_000, day), Movement(EventKind.PAYMENT, 3_100, day.minusDays(1), dayChosen = true), Movement(EventKind.PAYMENT, 2_500, day)),
+        )
+        assertEquals(listOf(false, true, false), c.events.map { it.dateKnown })
     }
 
     @Test fun spreadingKeepsAtLeastAsManyPayments() {

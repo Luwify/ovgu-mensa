@@ -351,4 +351,27 @@ class MealDraftTest {
         assertEquals(213 to null, stored.grams to stored.per100)
         assertEquals(213, MealDraft.fromRecord(MealRecord(listOf(stored)), 1_000).single().grams)
     }
+
+    // Pfand paid with a drink
+
+    /** Pfand is one fixed-price option per bottle amount; each tap adds a bottle, never cut to what is left. */
+    @Test fun pfandAddsBottlesAndCountsUp() {
+        val opts = MealDraft.options(1_050, listOf(wednesday to day), false, emptyList(), emptyList(), emptyList(), extras, unten, 0, KnownAmounts.DEFAULT_PFAND)
+        val pfand = opts.filter { it.key == Extras.PFAND }
+        assertEquals(listOf(80, 150, 250), pfand.map { it.price })
+        assertTrue(pfand.all { it.extra && it.tier == 3 })
+        assertTrue(MealDraft.search(opts, "").containsAll(pfand))
+        val fifteen = pfand.first { it.price == 150 }
+        var items = MealDraft.pick(1_050, emptyList(), fifteen)
+        items = MealDraft.pick(1_050, items, fifteen)
+        assertEquals(listOf(Triple(Extras.PFAND, 150, 2)), items.map { Triple(it.key, it.price, it.count) })
+        // The drink takes the rest, 0,75 €; the record keeps one Pfand amount.
+        items = MealDraft.pick(1_050, items, opts.first { it.key == Extras.SALAD })
+        assertTrue(MealDraft.complete(1_050, items))
+        assertEquals(listOf(ExtraItem(Extras.PFAND, 300), ExtraItem(Extras.SALAD, 750)), MealDraft.toRecord(items).extras)
+        // 0,10 € left: a 0,15 € bottle is still 0,15 € (then 0,05 € too much).
+        val over = MealDraft.pick(100, emptyList(), fifteen)
+        assertEquals(150, over.single().total)
+    }
+
 }

@@ -166,8 +166,11 @@ internal fun MealQuestionScreen(
         MealDraft.suggestions(rest, dayMenus, defaultId, group, eatenKeys, favorites)
     }
     val extraNames = (Extras.builtIn + data.customExtras + Extras.OTHER).map { it to extraName(it) }
-    val options = remember(rest, dayMenus, range, pages, data.events, data.customDishes, extraNames, defaultId, group) {
-        MealDraft.options(rest, dayMenus, range, MenuDishes.all(pages.orEmpty()), data.events, data.customDishes, extraNames, defaultId, group)
+    val settings by vm.settings.collectAsStateWithLifecycle()
+    val pfand = settings?.known?.pfand.orEmpty()
+    val pfandLabel = extraName(Extras.PFAND)
+    val options = remember(rest, dayMenus, range, pages, data.events, data.customDishes, extraNames, defaultId, group, pfand, pfandLabel) {
+        MealDraft.options(rest, dayMenus, range, MenuDishes.all(pages.orEmpty()), data.events, data.customDishes, extraNames, defaultId, group, pfand, pfandLabel)
     }
     // Without a search, a dish that is already a suggestion on its own isn't listed again.
     val results = remember(options, query, suggestions) {
@@ -264,9 +267,23 @@ internal fun MealQuestionScreen(
                         OptionRow(stringResource(R.string.meal_create, query.trim()), null, primary = true) { naming = query.trim() }
                     }
                     if (query.isNotBlank() && results.isEmpty()) item(key = "none") { Hint(stringResource(R.string.meal_search_none), Modifier.padding(vertical = 8.dp)) }
-                    items(results, key = { "opt-${it.key}|${it.mensaId}|${it.day}|${it.extra}" }) { o ->
+                    val (pfandOptions, others) = results.partition { it.key == Extras.PFAND }
+                    items(others, key = { "opt-${it.key}|${it.mensaId}|${it.day}|${it.extra}" }) { o ->
                         OptionRow(o.name.forLanguage(language), optionDetail(o, rest, range, language, locale, unknownMensa)) {
                             if (o.takesRest) askingAmount = o else applyPick(MealDraft.pick(amount, picked.toList(), o), oneTap = picked.isEmpty())
+                        }
+                    }
+                    // Pfand paid with a drink: one row, a button per bottle amount (each tap adds one bottle).
+                    if (pfandOptions.isNotEmpty()) item(key = "pfand") {
+                        Column(Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
+                            Text(pfandLabel, style = MaterialTheme.typography.bodyLarge)
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                pfandOptions.forEach { o ->
+                                    OutlinedButton(onClick = { applyPick(MealDraft.pick(amount, picked.toList(), o), oneTap = picked.isEmpty()) }) {
+                                        Text("+ " + formatCardAmount(o.price ?: 0, locale))
+                                    }
+                                }
+                            }
                         }
                     }
                 }

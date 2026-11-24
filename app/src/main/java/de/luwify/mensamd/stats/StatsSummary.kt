@@ -4,7 +4,10 @@ import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.temporal.TemporalAdjusters
 
-/** Numbers for the statistics overview, from [StatsData]. Pure; amounts in mills. */
+/**
+ * Numbers for the statistics overview, from [StatsData]. Pure; amounts in mills. Spending is [CardEvent.spent]: Pfand paid
+ * with a drink comes back, so it is shown apart; a payment of Pfand only is no visit.
+ */
 object StatsSummary {
     enum class Unit { WEEK, MONTH }
 
@@ -18,7 +21,10 @@ object StatsSummary {
     data class Totals(
         val spentThisMonth: Int,
         val toppedUpThisMonth: Int,
+        /** Pfand returned this month (Pfand events). */
         val pfandThisMonth: Int,
+        /** Pfand paid with drinks this month ([CardEvent.pfandPaid]): not part of [spentThisMonth]. */
+        val pfandPaidThisMonth: Int,
         /**
          * Spending per visit: a "visit" is one payment, and a payment that stands for at least two ([CardEvent.payments])
          * counts as that many. Null without payments.
@@ -47,7 +53,7 @@ object StatsSummary {
         val byStart = events.groupBy { periodStart(it.date, unit) }
         return starts.map { start ->
             val list = byStart[start].orEmpty()
-            Period(start, list.sumOfKind(EventKind.PAYMENT), list.sumOfKind(EventKind.TOP_UP))
+            Period(start, list.sumOf { it.spent }, list.sumOfKind(EventKind.TOP_UP))
         }
     }
 
@@ -59,7 +65,7 @@ object StatsSummary {
         val payments = events.filter { it.kind == EventKind.PAYMENT && it.dateKnown }
         return DayOfWeek.entries.mapNotNull { day ->
             val list = payments.filter { it.date.dayOfWeek == day }
-            if (list.isEmpty() && day.value >= 6) null else Weekday(day, list.sumOf { it.amount }, list.sumOf { it.payments })
+            if (list.isEmpty() && day.value >= 6) null else Weekday(day, list.sumOf { it.spent }, list.filter { it.spent > 0 }.sumOf { it.payments })
         }
     }
 
@@ -70,15 +76,16 @@ object StatsSummary {
     fun totals(data: StatsData, today: LocalDate): Totals {
         val month = periodStart(today, Unit.MONTH)
         val thisMonth = data.events.filter { periodStart(it.date, Unit.MONTH) == month }
-        val payments = data.events.filter { it.kind == EventKind.PAYMENT }
-        val spent = payments.sumOf { it.amount.toLong() }
+        val payments = data.events.filter { it.kind == EventKind.PAYMENT && it.spent > 0 }
+        val spent = payments.sumOf { it.spent.toLong() }
         // A payment kept as "at least 2" counts as that many visits; a day counts once however many payments it had.
         val visits = payments.sumOf { it.payments }
         val days = payments.map { it.date }.distinct().size
         return Totals(
-            spentThisMonth = thisMonth.sumOfKind(EventKind.PAYMENT),
+            spentThisMonth = thisMonth.sumOf { it.spent },
             toppedUpThisMonth = thisMonth.sumOfKind(EventKind.TOP_UP),
             pfandThisMonth = thisMonth.sumOfKind(EventKind.PFAND),
+            pfandPaidThisMonth = thisMonth.sumOf { it.pfandPaid },
             averagePerVisit = visits.takeIf { it > 0 }?.let { (spent / it).toInt() },
             averagePerDay = days.takeIf { it > 0 }?.let { (spent / it).toInt() },
             payments = visits,

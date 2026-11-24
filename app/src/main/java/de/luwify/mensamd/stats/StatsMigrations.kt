@@ -36,12 +36,16 @@ class StatsTooNewException(val version: Int) : Exception("statistics version $ve
  * ([MealDraft.DESSERT_PER_100]; a hand-named dessert with a fixed price gets none); any other weighed dish gets its
  * hand-named dish's price per 100 g, else the one price that old rounding came from (whole cents, a round one first),
  * the only source left for a menu dish. The amounts paid stay as they are.
+ * Version 9 = Pfand paid with a drink, as the extra [Extras.PFAND] of a meal (not counted as spending), and "Was ist
+ * passiert?" answering the open item `credit` with several movements on their own days: nothing to convert (an open
+ * `credit` question keeps its shape and is answered with the new screen); the version keeps an older app, which would
+ * count the Pfand as spending and show its key, from reading the file.
  */
 object StatsMigrations {
-    const val CURRENT = 8
+    const val CURRENT = 9
 
     /** n -> n + 1. */
-    private val STEPS: Map<Int, (JsonObject) -> JsonObject> = mapOf(1 to { it }, 2 to { it }, 3 to ::markUnknownDishesOwn, 4 to { it }, 5 to ::extrasWithAmounts, 6 to ::dessertsAsDishes, 7 to ::weightInputs)
+    private val STEPS: Map<Int, (JsonObject) -> JsonObject> = mapOf(1 to { it }, 2 to { it }, 3 to ::markUnknownDishesOwn, 4 to { it }, 5 to ::extrasWithAmounts, 6 to ::dessertsAsDishes, 7 to ::weightInputs, 8 to { it })
 
     /** 3 -> 4: see the class comment. Every other part of the document is kept as it is. */
     private fun markUnknownDishesOwn(obj: JsonObject): JsonObject {

@@ -325,7 +325,6 @@
     <string name="stats_spent_in">Spent in %1$s</string>
     <string name="stats_average_visit">Average per visit</string>
     <string name="stats_topped_up_month">Topped up this month</string>
-    <string name="stats_pfand_month">Pfand returned this month</string>
     <string name="stats_balance_now">Balance</string>
     <string name="stats_per_period">Spending and top-ups</string>
     <string name="stats_series_spent">Spent</string>
@@ -380,19 +379,7 @@
     <string name="q_save_one">Save as one payment</string>
     <string name="q_back">Back</string>
     <string name="q_split">Split</string>
-    <string name="q_credit_title">Top-up and payment?</string>
-    <string name="q_credit_text_up">Your balance went up by %1$s. Was it one top-up plus one payment?</string>
-    <string name="q_credit_text_down">Your balance went down by %1$s, less than the last debit (%2$s). So money was also credited. Which amount?</string>
-    <string name="q_credit_text_zero">Your balance didn\'t change, but there was a new debit of %1$s. So the same amount was also credited. Which amount?</string>
-    <string name="q_credit_option">Top-up %1$s + payment %2$s</string>
-    <string name="q_credit_option_pfand">Pfand %1$s + payment %2$s</string>
-    <string name="q_credit_other">Another top-up amount…</string>
-    <string name="q_credit_other_title">Top-up amount</string>
-    <string name="q_credit_other_text">The rest is saved as one payment.</string>
-    <string name="q_credit_only_top_up">Only a top-up of %1$s</string>
-    <string name="q_credit_only_payment">Only a payment of %1$s</string>
     <string name="q_save">Save</string>
-    <string name="q_skip">Save nothing</string>
     <!-- Card statistics: meals (detailed statistics) -->
     <string name="meal_title">Payment %1$s</string>
     <string name="meal_unknown_mensa">Unknown Mensa</string>
@@ -494,7 +481,6 @@
     </plurals>
     <string name="pfand_reassign">Assign differently</string>
     <string name="pfand_snackbar">Pfand return %1$s saved</string>
-    <string name="q_credit_only_pfand">Only a Pfand return of %1$s</string>
     <plurals name="event_payments_several">
         <item quantity="one">At least %1$d payment</item>
         <item quantity="other">At least %1$d payments</item>
@@ -503,4 +489,15 @@
         <item quantity="one">At least %1$d payment since the last scan.</item>
         <item quantity="other">At least %1$d payments since the last scan. Assign everything that was bought.</item>
     </plurals>
+    <string name="stats_pfand_month">Pfand this month</string>
+    <string name="stats_pfand_value">%1$s paid · %2$s back</string>
+    <string name="extra_pfand">Pfand</string>
+    <string name="credit_title">What happened?</string>
+    <string name="credit_change">Balance change</string>
+    <string name="credit_between">Between the scans on %1$s and %2$s</string>
+    <string name="credit_last_debit">Last debit on the card: %1$s</string>
+    <string name="credit_add">Add</string>
+    <string name="credit_pfand_back">Pfand returned</string>
+    <string name="credit_pfand_hint">What the Pfand machine credited for one return (up to 5 €).</string>
+    <string name="credit_uses_last_debit">With the card’s last debit</string>
 </resources>

@@ -120,8 +120,19 @@ git-ignored `CLAUDE.local.md` at the repo root, which Claude Code loads after th
   (`mensamd-backup` v1: every settings key except device state, language, statistics) + `BackupRepository`, settings page.
   Meal statistics website link: `StatsLinks.MEAL_STATS_URL` (hidden while empty). Pfand: a credit up to 5 € that is a
   sum of the per-bottle amounts (default 0.08/0.15/0.25 €) is a Pfand return when the last payment did not change
-  (changed: top-up + payment, asked), with "Anders zuordnen"; a top-up amount wins. A real top-up kept the last payment
-  (docs/STATS.md).
+  (changed: asked), with "Anders zuordnen"; a top-up amount wins. A real top-up kept the last payment
+  (docs/STATS.md). Pfand paid with a drink is the meal extra `Extras.PFAND` (one button per bottle amount in the question
+  screen, schema 9); it is no spending (`CardEvent.spent`/`pfandPaid`; a Pfand-only payment is no visit), shown as
+  "Pfand diesen Monat: x gezahlt · y zurück".
+- **"Was ist passiert?"** (`ui/stats/CreditQuestionScreen`, logic in `stats/CreditDraft`; the open item stays
+  `CreditAndPayment`): a change no single known amount explains (credit + payment(s), unexplained increase, "Anders
+  zuordnen") is answered with movements (Aufladung, Zahlung, Pfand zurück), each with amount and day (the previous scan's
+  day to the scan's: chips up to 3 days, else a menu), "Noch x € offen" until they add up (`StatsOps.resolveMovements`).
+  1-3 one-tap suggestions (`CreditDraft.suggestions`): the card's last debit L as one payment + the credit d + L as a
+  top-up, Pfand sum or both; without a payment only when L didn't change; a top-up T + payments T - d (more than L: split
+  into the rest and L; less than L only when L didn't change). With a changed L those using L come first. A suggestion
+  saves at once when only the scan's day is possible, else it fills the list for the days. New payments then get the meal
+  question (the first one opens). Plain top-ups, payments and Pfand returns are still recorded without a question.
 - **Question screen** (`ui/stats/MealQuestionScreen`, logic in `stats/MealDraft`, both for open questions and for corrections from
   the Verlauf): amount + tappable date line; 1-3 suggestions (`MealDraft.suggestions`: eaten before, favorites, single before
   double before pair, default Mensa, later day) save with one tap; one search (`MealDraft.options`/`search`, text matching in

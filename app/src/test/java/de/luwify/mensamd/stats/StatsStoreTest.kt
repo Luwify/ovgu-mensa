@@ -239,4 +239,35 @@ class StatsStoreTest {
         val items = MealDraft.fromRecord(data.events[0].meal, 1_970, data.customDishes)
         assertEquals(listOf(600 to 167, 600 to 162), items.map { it.per100 to it.grams })
     }
+
+    /**
+     * Version 8 -> 9: nothing to convert. An open "top-up and payment?" question of a version 8 file (the shape 1.3.0 wrote)
+     * loads unchanged and is answered with the movements of "Was ist passiert?"; a meal with Pfand survives a write and read.
+     */
+    @Test fun aVersion8CreditQuestionIsAnsweredWithMovements() {
+        val v8 = """{"version":8,"nextId":4,"card":{"salt":"s","hash":"h","since":0},"scans":[
+            {"id":1,"at":0,"date":"2026-11-23","card":"h","balance":4000,"lastDebit":3100},
+            {"id":2,"at":1,"date":"2026-11-24","card":"h","balance":23100,"lastDebit":1050}],
+            "open":[{"type":"credit","id":3,"scanId":2,"date":"2026-11-24","dateKnown":true,"delta":19100,"lastDebit":1050}]}"""
+        val data = decodeStats(statsJson.parseToJsonElement(v8) as JsonObject)
+        assertEquals(9, StatsMigrations.CURRENT)
+        assertEquals(StatsMigrations.CURRENT, data.version)
+        val q = data.open.single() as OpenItem.CreditAndPayment
+        assertEquals(OpenItem.CreditAndPayment(3, 2, LocalDate.of(2026, 11, 24), true, 19_100, 1_050), q)
+        val monday = LocalDate.of(2026, 11, 23)
+        val (answered, payments) = StatsOps.resolveMovements(
+            data, q.id,
+            listOf(
+                Movement(EventKind.PAYMENT, 1_050, monday, dayChosen = true),
+                Movement(EventKind.TOP_UP, 20_000, q.date),
+                Movement(EventKind.PFAND, 150, q.date),
+            ),
+        )
+        assertTrue(answered.open.isEmpty())
+        assertEquals(monday, payments.single().date)
+        val withMeal = StatsOps.setMeal(answered, payments.single().id, MealRecord(extras = listOf(ExtraItem(Extras.DRINK, 900), ExtraItem(Extras.PFAND, 150))))
+        assertEquals(withMeal, decodeStats(encodeStats(withMeal)))
+        assertTrue(encodeStats(withMeal).toString().contains("\"@pfand\""))
+    }
+
 }

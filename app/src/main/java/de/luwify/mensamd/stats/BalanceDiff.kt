@@ -27,10 +27,6 @@ data class KnownAmounts(val topUps: List<Int>, val pfand: List<Int>) {
         else -> null
     }
 
-    /** The top-up amounts, ascending: what "top-up + payment" offers (Pfand sums are too many to list). */
-    val credits: List<Pair<Int, EventKind>>
-        get() = topUps.distinct().sorted().map { it to EventKind.TOP_UP }
-
     companion object {
         val DEFAULT_TOP_UPS = listOf(10_000, 20_000, 30_000, 50_000)
 
@@ -50,8 +46,8 @@ data class KnownAmounts(val topUps: List<Int>, val pfand: List<Int>) {
  * - d = 0: nothing, unless L changed (then a credit of exactly a payment: asked).
  * - d < 0 and -d = L: one payment. -d > L: several payments (asked: one or split). -d < L: a credit and the payment L;
  *   automatic when the credit L + d is a known amount, else asked. Cards without L (MagnaCarta): one payment.
- * - d > 0 and L changed: a payment happened in between, so it is a top-up plus payments: always asked (the top-up
- *   d + L is preselected when it is a top-up amount). L unchanged: a top-up amount d is a top-up; a Pfand sum d (up to
+ * - d > 0 and L changed: a payment happened in between, so it is a credit plus payments: always asked ("Was ist
+ *   passiert?", [CreditDraft]). L unchanged: a top-up amount d is a top-up; a Pfand sum d (up to
  *   5 €) is a Pfand return (shown with "Anders zuordnen", see [StatsOps.reassignCredit]); anything else is asked.
  *
  * A top-up leaves L as it is: seen on a real card (docs/STATS.md; a reset to 0 would look the same and is not ruled out).
@@ -102,13 +98,6 @@ object BalanceDiff {
             Outcome.AskCredit(d, lastDebit, suggested = null)
         }
     }
-
-    /**
-     * The top-ups that could explain a change of [delta] together with one payment (payment = top-up - delta > 0),
-     * ascending.
-     */
-    fun creditOptions(delta: Int, known: KnownAmounts): List<Pair<Int, EventKind>> =
-        known.credits.filter { (amount, _) -> amount - delta > 0 }
 
     /**
      * Whether an event revealed by a scan on [newDate] happened that day: the previous scan was the same day, or only

@@ -120,7 +120,8 @@ fun StatsScreen(vm: StatsViewModel, mainVm: MainViewModel, onRegister: () -> Uni
     val s = settings
     val mealOverlay = d?.open?.firstOrNull { it.id == openId } as? OpenItem.MealQuestion
     val editEvent = d?.events?.firstOrNull { it.id == editEventId && it.kind == EventKind.PAYMENT }
-    BackHandler(enabled = mealOverlay == null && editEvent == null && !showUnassigned, onBack = onBack)
+    val creditOverlay = d?.open?.firstOrNull { it.id == openId } is OpenItem.CreditAndPayment
+    BackHandler(enabled = mealOverlay == null && !creditOverlay && editEvent == null && !showUnassigned, onBack = onBack)
     // "Anders zuordnen" (here or in the card screen's snackbar) opens the new question as soon as it exists.
     val focus by vm.focusQuestion.collectAsStateWithLifecycle()
     LaunchedEffect(Unit) { vm.matchPending() }
@@ -179,7 +180,12 @@ fun StatsScreen(vm: StatsViewModel, mainVm: MainViewModel, onRegister: () -> Uni
                                     totals.averagePerVisit?.let { StatTile(stringResource(R.string.stats_average_visit), formatCardAmount(it, locale)) }
                                     totals.averagePerDay?.let { StatTile(stringResource(R.string.stats_average_day), formatCardAmount(it, locale)) }
                                     StatTile(stringResource(R.string.stats_topped_up_month), formatCardAmount(totals.toppedUpThisMonth, locale))
-                                    if (totals.pfandThisMonth > 0) StatTile(stringResource(R.string.stats_pfand_month), formatCardAmount(totals.pfandThisMonth, locale))
+                                    if (totals.pfandThisMonth > 0 || totals.pfandPaidThisMonth > 0) {
+                                        StatTile(
+                                            stringResource(R.string.stats_pfand_month),
+                                            stringResource(R.string.stats_pfand_value, formatCardAmount(totals.pfandPaidThisMonth, locale), formatCardAmount(totals.pfandThisMonth, locale)),
+                                        )
+                                    }
                                     totals.currentBalance?.let { StatTile(stringResource(R.string.stats_balance_now), formatCardAmount(it, locale)) }
                                 }
                             }
@@ -290,17 +296,17 @@ fun StatsScreen(vm: StatsViewModel, mainVm: MainViewModel, onRegister: () -> Uni
             openId = null
             vm.resolveSeveral(open.id, parts)
         }, onDismiss = { openId = null })
-        is OpenItem.CreditAndPayment -> if (s != null) CreditDialog(
-            open, s.known,
-            onSave = { credit, kind ->
+        is OpenItem.CreditAndPayment -> if (s != null && d != null) CreditQuestionScreen(
+            open, d, s.known,
+            onSave = { movements ->
                 openId = null
-                vm.resolveCredit(open.id, credit, kind)
+                vm.resolveMovements(open.id, movements)
             },
-            onDismiss = { openId = null },
             onSkip = {
                 openId = null
                 vm.dismiss(open.id)
             },
+            onClose = { openId = null },
         )
         is OpenItem.FirstDebit -> FirstDebitDialog(
             open,
@@ -427,6 +433,7 @@ internal fun extraName(key: String): String = when (key) {
     de.luwify.mensamd.stats.Extras.SALAD -> stringResource(R.string.extra_salad)
     de.luwify.mensamd.stats.Extras.DRINK -> stringResource(R.string.extra_drink)
     de.luwify.mensamd.stats.Extras.COFFEE -> stringResource(R.string.extra_coffee)
+    de.luwify.mensamd.stats.Extras.PFAND -> stringResource(R.string.extra_pfand)
     de.luwify.mensamd.stats.Extras.OTHER -> stringResource(R.string.meal_other)
     else -> key
 }
