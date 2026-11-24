@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import de.luwify.mensamd.favorites.FavoriteInfo
 import de.luwify.mensamd.favorites.FavoriteNotifications
+import de.luwify.mensamd.stats.LastScan
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.builtins.MapSerializer
 import kotlinx.serialization.builtins.serializer
@@ -409,6 +410,15 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
         store.edit { it[pfandAmountsKey] = encodeAmounts(amounts) }
     }
 
+    private val lastCardScanKey = stringPreferencesKey("last_card_scan")
+
+    /** The last balance read from any card (no card id), for the card screen before a scan; in the backup. */
+    val lastCardScan: Flow<LastScan?> = store.data.map { LastScan.decode(it[lastCardScanKey]) }
+
+    suspend fun setLastCardScan(scan: LastScan) {
+        store.edit { it[lastCardScanKey] = scan.encode() }
+    }
+
 }
 
 /** The color the old hue-only setting meant: the swatch tone of that hue (HSL saturation 62 %, lightness 52 %). */
@@ -443,7 +453,7 @@ internal val KEY_TYPES: Map<String, String> = mapOf(
     "custom_theme_accent" to "int", "custom_theme_base" to "string", "custom_theme_glow" to "bool",
     "custom_theme_hue" to "int", "custom_theme_overrides" to "string", "default_mensa_id" to "string",
     "dish_filters" to "string", "excluded_codes" to "string", "favorite_info" to "string", "favorites" to "strings",
-    "filter_order" to "string", "legendary_favorites" to "bool", "mensa_order" to "string",
+    "filter_order" to "string", "last_card_scan" to "string", "legendary_favorites" to "bool", "mensa_order" to "string",
     "notified_favorites" to "strings", "notify_enabled" to "bool", "notify_mensen" to "strings",
     "notify_minute_of_day" to "int", "notify_permission_explained" to "bool", "notify_permission_requested" to "bool",
     "price_group" to "int", "stats_detailed" to "bool", "stats_enabled" to "bool", "stats_high_contrast" to "bool", "stats_pfand_amounts" to "string",

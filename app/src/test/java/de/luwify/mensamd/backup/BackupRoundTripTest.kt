@@ -8,6 +8,7 @@ import de.luwify.mensamd.stats.RegisteredCard
 import de.luwify.mensamd.stats.Scan
 import de.luwify.mensamd.stats.StatsData
 import de.luwify.mensamd.stats.StatsStore
+import de.luwify.mensamd.stats.LastScan
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -40,6 +41,7 @@ class BackupRoundTripTest {
             a.setStatsEnabled(true)
             a.setCardReminderTime(LocalTime.of(14, 30))
             a.setPfandAmounts(listOf(250, 2_000))
+            a.setLastCardScan(LastScan(2_800, 1_764_000_000_000))
             a.setNotificationPermissionExplained() // device state: not in the backup
             val statsA = StatsStore(File(tmp.root, "a-stats.json"), Dispatchers.IO)
             statsA.update { StatsData(card = RegisteredCard("00", "h", 1), scans = listOf(Scan(1, 1, LocalDate.of(2026, 11, 5), "h", 100)), nextId = 2) }
@@ -63,6 +65,7 @@ class BackupRoundTripTest {
             assertTrue(card.enabled)
             assertEquals(LocalTime.of(14, 30), card.reminderTime)
             assertEquals(listOf(250, 2_000), card.pfand)
+            assertEquals(LastScan(2_800, 1_764_000_000_000), b.lastCardScan.first())
             assertEquals(false, b.compactMode.first())
             assertEquals(true, b.notificationPermissionExplained.first())
             assertEquals(statsA.load(), StatsStore(File(tmp.root, "b-stats.json"), Dispatchers.IO).load())

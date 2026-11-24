@@ -79,7 +79,13 @@
     <string name="card_nfc_off">NFC is turned off.</string>
     <string name="card_nfc_settings">Open NFC settings</string>
     <string name="card_no_nfc">This device has no NFC.</string>
-    <string name="card_privacy">Read on this device only. Nothing is stored or sent.</string>
+    <string name="card_privacy">Read on this device only. Only the last balance is kept on this device, nothing is sent.</string>
+    <string name="last_balance_mine">My card</string>
+    <string name="last_balance_any">Last scanned card</string>
+    <string name="last_balance_when">As of %1$s</string>
+    <string name="last_balance_today">today %1$s</string>
+    <string name="last_balance_yesterday">yesterday %1$s</string>
+    <string name="last_balance_a11y">Last known balance %1$s, %2$s. Not the current balance.</string>
     <string name="card_popup_open">Open app</string>
     <string name="card_popup_answer">Answer in the app</string>
     <string name="card_popup_error">Lost the card while reading. Hold it still against the back of your phone and try again.</string>

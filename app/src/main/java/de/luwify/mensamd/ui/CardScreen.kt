@@ -68,11 +68,17 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.res.painterResource
 import de.luwify.mensamd.ui.theme.CardIcon
 import java.util.Locale
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import androidx.compose.ui.semantics.contentDescription
+import de.luwify.mensamd.stats.LastBalance
+import de.luwify.mensamd.stats.LastBalances
 
 /**
  * The "Karte" screen. The scanner runs while the activity is resumed (see `MainActivity`); it opens this screen on a
  * scan. The gear opens the settings on their card tab ([onOpenSettings], an overlay in `MensaRoot` above this screen),
- * the chart button (statistics on) the statistics, an overlay here.
+ * the chart button (statistics on) the statistics, an overlay here. Before a scan the last known balance is shown, muted ([LastKnownBalance]).
  */
 @Composable
 fun CardScreen(scanner: NfcCardScanner, mainVm: MainViewModel, onOpenSettings: () -> Unit, onBack: () -> Unit) {
@@ -92,6 +98,8 @@ fun CardScreen(scanner: NfcCardScanner, mainVm: MainViewModel, onOpenSettings: (
     val snackbar = remember { SnackbarHostState() }
     val record by statsVm.lastRecord.collectAsStateWithLifecycle()
     val stats by statsVm.data.collectAsStateWithLifecycle()
+    val lastScan by statsVm.lastCardScan.collectAsStateWithLifecycle()
+    val lastBalance = LastBalances.pick(statsOn, stats, lastScan)
     var announcedSeq by rememberSaveable { mutableLongStateOf(0L) }
     val pfandText = stringResource(R.string.pfand_snackbar)
     val reassignText = stringResource(R.string.pfand_reassign)
@@ -130,7 +138,7 @@ fun CardScreen(scanner: NfcCardScanner, mainVm: MainViewModel, onOpenSettings: (
                 contentAlignment = Alignment.Center,
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    CardContent(state)
+                    CardContent(state, lastBalance)
                     if (statsOn) ScanStatsNote(statsVm, state as? CardScanState.Success, onOpenStats = { showStats = true })
                 }
             }
@@ -149,8 +157,59 @@ fun CardScreen(scanner: NfcCardScanner, mainVm: MainViewModel, onOpenSettings: (
     if (showStats && statsOn) StatsScreen(statsVm, mainVm, onRegister = onOpenSettings, onBack = { showStats = false })
 }
 
+/** The last known balance before a scan: muted (not primary, not bold), with which card and when, so it never reads as live. */
 @Composable
-private fun CardContent(state: CardScanState) {
+private fun LastKnownBalance(last: LastBalance) {
+    val locale: Locale = LocalConfiguration.current.locales[0]
+    val context = LocalContext.current
+    val amount = formatCardAmount(last.balance, locale)
+    val whenText = lastScanTime(last.at, locale, android.text.format.DateFormat.is24HourFormat(context))
+    val line = stringResource(R.string.last_balance_when, whenText)
+    val a11y = stringResource(R.string.last_balance_a11y, amount, whenText)
+    val muted = MaterialTheme.colorScheme.onSurfaceVariant
+    Column(
+        Modifier.semantics(mergeDescendants = true) { contentDescription = a11y },
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Icon(CardIcon, contentDescription = null, modifier = Modifier.size(48.dp), tint = muted)
+        Spacer(Modifier.height(4.dp))
+        Text(
+            stringResource(if (last.mine) R.string.last_balance_mine else R.string.last_balance_any),
+            style = MaterialTheme.typography.titleMedium,
+            color = muted,
+        )
+        Text(amount, style = MaterialTheme.typography.displayMedium, fontWeight = FontWeight.Normal, color = muted)
+        Text(line, style = MaterialTheme.typography.bodyLarge, color = muted)
+    }
+}
+
+/** "heute 9:19", "gestern 18:02", "Mo. 23.11." (another year: "Mo. 23.11.2025"); English alike. */
+@Composable
+private fun lastScanTime(at: Long, locale: Locale, is24: Boolean): String {
+    val zone = ZoneId.systemDefault()
+    val now = System.currentTimeMillis()
+    val time = Instant.ofEpochMilli(at).atZone(zone).format(DateTimeFormatter.ofPattern(if (is24) "H:mm" else "h:mm a", locale))
+    val de = locale.language == "de"
+    return when (LastBalances.day(at, now, zone)) {
+        LastBalances.Day.TODAY -> stringResource(R.string.last_balance_today, time)
+        LastBalances.Day.YESTERDAY -> stringResource(R.string.last_balance_yesterday, time)
+        LastBalances.Day.EARLIER -> {
+            val date = LastBalances.date(at, zone)
+            val sameYear = date.year == LastBalances.date(now, zone).year
+            val pattern = when {
+                de && sameYear -> "EE d.M."
+                de -> "EE d.M.yyyy"
+                sameYear -> "EEE d MMM"
+                else -> "EEE d MMM yyyy"
+            }
+            date.format(DateTimeFormatter.ofPattern(pattern, locale))
+        }
+    }
+}
+
+@Composable
+private fun CardContent(state: CardScanState, last: LastBalance?) {
     Column(
         Modifier.semantics { liveRegion = LiveRegionMode.Polite },
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -159,12 +218,13 @@ private fun CardContent(state: CardScanState) {
         when (state) {
             CardScanState.NoNfc -> Message(R.string.card_no_nfc)
             CardScanState.NfcOff -> {
+                last?.let { LastKnownBalance(it) }
                 Message(R.string.card_nfc_off)
                 val context = LocalContext.current
                 Button(onClick = { openNfcSettings(context) }) { Text(stringResource(R.string.card_nfc_settings)) }
             }
             CardScanState.Waiting -> {
-                BigCardIcon()
+                if (last != null) LastKnownBalance(last) else BigCardIcon()
                 Message(R.string.card_hold)
             }
             CardScanState.Reading -> {

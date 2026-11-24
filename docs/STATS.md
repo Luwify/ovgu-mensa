@@ -132,3 +132,6 @@ Resume point for the card statistics feature (started 2026-11-05). Tick items as
       meal question. Pfand paid with a drink is a meal item (`Extras.PFAND`) and no spending. Schema 9 (nothing to convert:
       open `credit` questions keep their shape). Tested on the phone with a throwaway package and made-up data (a schema 8
       seed with three mixed questions).
+- [x] Card screen (2026-11-24): the last known balance before a scan (muted, with its time; the registered card's last scan with the
+      statistics on, else the last read balance of any card, settings key `last_card_scan`, no card id, in the backup; no schema change).
+      Tested on the phone with a throwaway package and made-up data.

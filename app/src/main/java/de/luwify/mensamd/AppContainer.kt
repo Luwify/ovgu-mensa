@@ -72,6 +72,7 @@ class AppContainer(context: Context) {
             cachedMenu = ::cachedMenu,
             loadMenu = ::menuSnapshot,
             scope = appScope,
+            saveLastScan = settings::setLastCardScan,
         )
     }
 

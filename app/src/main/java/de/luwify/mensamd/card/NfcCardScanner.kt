@@ -16,9 +16,9 @@ import java.util.concurrent.atomic.AtomicLong
  *
  * Privacy: nothing is logged or sent. The card's UID is looked at only after a successful read and
  * only if [wantsCardId] says so (statistics on); it then only becomes a fingerprint in memory
- * (`CardIdentity.fingerprint`). [onRead] hands the result to the card statistics, which store
- * anything only when the user turned them on and registered this card. [state] is the only other
- * place the result lives, and [stop] clears it.
+ * (`CardIdentity.fingerprint`). [onRead] hands the result to the card statistics, which keep the
+ * last balance and its time (no card id) and store scans only when the user turned them on and
+ * registered this card. [state] holds the live result, and [stop] clears it.
  */
 class NfcCardScanner(private val adapter: NfcAdapter?, private val wantsCardId: () -> Boolean = { false }) {
     /** Called on the NFC thread after every successful read (the card statistics). */

@@ -28,16 +28,37 @@ class StatsRecorderTest {
     private var now = LocalDateTime.of(2026, 11, 5, 13, 0)
     private val menu = listOf(SnapDish("unten", LocalizedText("Seelachs"), listOf(310, 520, 620)))
 
-    private fun recorder(scope: CoroutineScope, dishes: List<SnapDish> = menu, missing: List<String> = emptyList()): StatsRecorder = StatsRecorder(
+    private val saved = mutableListOf<LastScan>()
+
+    private fun recorder(
+        scope: CoroutineScope,
+        dishes: List<SnapDish> = menu,
+        missing: List<String> = emptyList(),
+        enabled: Boolean = true,
+    ): StatsRecorder = StatsRecorder(
         store = StatsStore(File(tmp.root, "stats.json"), Dispatchers.Unconfined),
-        settings = MutableStateFlow(CardStatsSettings(enabled = true, detailed = true)),
+        settings = MutableStateFlow(CardStatsSettings(enabled = enabled, detailed = true)),
         mealContext = { MealContext("unten", 0) },
         cachedMenu = { DayMenu(dishes, missing) },
         loadMenu = { DayMenu(dishes, missing) },
         scope = scope,
         clock = { now.atZone(zone).toInstant().toEpochMilli() },
         zone = { zone },
+        saveLastScan = { synchronized(saved) { saved += it } },
     )
+
+    @Test fun everyReadCardIsKeptAsTheLastBalanceWithStatisticsOnOrOff() = runBlocking {
+        val scope = CoroutineScope(SupervisorJob())
+        try {
+            val at = now.atZone(zone).toInstant().toEpochMilli()
+            assertEquals(RecordResult.Off, recorder(scope, enabled = false).recordAsync(1, 2_800, 3_100, null).await())
+            assertEquals(RecordResult.OtherCard, recorder(scope).recordAsync(2, 1_500, null, null).await()) // not my card: no id
+            withTimeout(5_000) { while (synchronized(saved) { saved.size } < 2) kotlinx.coroutines.delay(10) }
+            assertEquals(setOf(LastScan(2_800, at), LastScan(1_500, at)), synchronized(saved) { saved.toSet() })
+        } finally {
+            scope.cancel()
+        }
+    }
 
     @Test fun singleMatchIsSavedOnlyWhenBothScansAreOnTheSameDay() = runBlocking {
         val scope = CoroutineScope(SupervisorJob())

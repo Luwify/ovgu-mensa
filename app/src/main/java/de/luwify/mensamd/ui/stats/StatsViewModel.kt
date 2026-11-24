@@ -16,6 +16,7 @@ import de.luwify.mensamd.stats.MealItem
 import de.luwify.mensamd.stats.MealRecord
 import de.luwify.mensamd.stats.OpenItem
 import de.luwify.mensamd.stats.StatsData
+import de.luwify.mensamd.stats.LastScan
 import de.luwify.mensamd.stats.StatsOps
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -46,6 +47,8 @@ class StatsViewModel(private val container: AppContainer) : ViewModel() {
     fun setViewing(questionId: Long?) {
         recorder.viewing.value = questionId
     }
+    /** The last balance read from any card (card screen before a scan). */
+    val lastCardScan: StateFlow<LastScan?> = settingsRepo.lastCardScan.stateIn(viewModelScope, SharingStarted.Eagerly, null)
     val favorites: StateFlow<Set<String>> = settingsRepo.favorites.stateIn(viewModelScope, SharingStarted.Eagerly, emptySet())
 
     /** Default Mensa (listed first when matching) and price group, for the meal questions. */

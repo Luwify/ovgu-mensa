@@ -248,8 +248,12 @@ the others, exit 1 only when no Mensa could be fetched (pages without dishes are
     second DataStore for `settings`; `SingleDataStoreTest` guards this). While the app is in the foreground, reader mode takes
     precedence over the popup. Any other app with an IsoDep `TECH_DISCOVERED` filter makes Android show a chooser.
   - Privacy rules: no network, never log card data (not even in debug), never store or log the UID (looked at only after a successful read with the statistics on, and it only becomes a
-    fingerprint in memory, `CardIdentity`). Nothing is stored unless the user turns on the card statistics and registers
-    the card; then only scans of that card (balance, last debit, time) and a salted hash. Test bytes are synthetic.
+    fingerprint in memory, `CardIdentity`). Without the statistics only the last read balance + its time is kept (settings
+    key `last_card_scan`, any card, no id; in the backup); scans of a card are stored only when the user turns on the card
+    statistics and registers it, then only its scans (balance, last debit, time) and a salted hash. Test bytes are synthetic.
+  - Card screen (`ui/CardScreen`): before a scan the last known balance, muted ("Stand: heute 9:19"; `stats/LastBalance`:
+    with the statistics on, "Meine Karte"'s last scan, else `last_card_scan` as "Zuletzt gescannte Karte"; saved for every
+    read card by `StatsRecorder.recordAsync`), a live scan in primary as before.
 
 ## Build / test commands
 Needs JDK 21 (`JAVA_HOME`) and the Android SDK (`sdk.dir` in the git-ignored `local.properties`, or `ANDROID_HOME`).

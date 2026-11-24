@@ -49,6 +49,8 @@ class StatsRecorder(
     private val clock: () -> Long = System::currentTimeMillis,
     private val zone: () -> ZoneId = ZoneId::systemDefault,
     private val newSalt: () -> String = { CardIdentity.newSalt() },
+    /** Keeps the balance of every read card (any card, statistics on or off; no card id) for the card screen. */
+    private val saveLastScan: suspend (LastScan) -> Unit = {},
 ) {
     private val _last = MutableStateFlow<ScanRecord?>(null)
 
@@ -82,10 +84,12 @@ class StatsRecorder(
     val viewing = MutableStateFlow<Long?>(null)
 
     /**
-     * Records a scan in the app scope. The result lands in [last] and the deferred as soon as the scan is stored.
+     * Records a scan in the app scope; every read card's balance is also kept as the last one ([saveLastScan]). The result lands in [last] and the deferred as soon as the scan is stored.
      * [matchNow]: the app is open (reader mode), so its payments are matched right after (the popup passes false).
      */
     fun recordAsync(seq: Long, balance: Int, lastDebit: Int?, fingerprint: String?, matchNow: Boolean = false): Deferred<RecordResult> = scope.async {
+        val at = clock()
+        scope.launch { safely { saveLastScan(LastScan(balance, at)) } } // not a child: the result never waits for it
         val result = storeScan(balance, lastDebit, fingerprint)
         _last.value = ScanRecord(seq, result)
         if (matchNow && result is RecordResult.Recorded) scope.launch { matchPending() }

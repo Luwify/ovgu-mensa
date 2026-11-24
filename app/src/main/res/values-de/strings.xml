@@ -76,7 +76,13 @@
     <string name="card_nfc_off">NFC ist ausgeschaltet.</string>
     <string name="card_nfc_settings">NFC-Einstellungen öffnen</string>
     <string name="card_no_nfc">Dieses Gerät hat kein NFC.</string>
-    <string name="card_privacy">Wird nur auf diesem Gerät gelesen. Nichts wird gespeichert oder gesendet.</string>
+    <string name="card_privacy">Wird nur auf diesem Gerät gelesen. Nur das letzte Guthaben bleibt auf dem Gerät, nichts wird gesendet.</string>
+    <string name="last_balance_mine">Meine Karte</string>
+    <string name="last_balance_any">Zuletzt gescannte Karte</string>
+    <string name="last_balance_when">Stand: %1$s</string>
+    <string name="last_balance_today">heute %1$s</string>
+    <string name="last_balance_yesterday">gestern %1$s</string>
+    <string name="last_balance_a11y">Letztes bekanntes Guthaben %1$s, %2$s. Nicht der aktuelle Stand.</string>
     <string name="card_popup_open">App öffnen</string>
     <string name="card_popup_answer">In der App beantworten</string>
     <string name="card_popup_error">Karte beim Lesen verloren. Halte sie ruhig an die Rückseite des Handys und versuche es erneut.</string>
