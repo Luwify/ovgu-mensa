@@ -62,12 +62,14 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import de.luwify.mensamd.R
 import de.luwify.mensamd.card.formatCardAmount
+import de.luwify.mensamd.data.settings.ThemeMode
 import de.luwify.mensamd.stats.CardEvent
 import de.luwify.mensamd.stats.EventKind
 import de.luwify.mensamd.stats.OpenItem
 import de.luwify.mensamd.stats.StatsLinks
 import de.luwify.mensamd.stats.StatsSummary
 import de.luwify.mensamd.ui.MainViewModel
+import de.luwify.mensamd.ui.theme.LocalThemeMode
 import de.luwify.mensamd.ui.theme.MensaFilterChip
 import de.luwify.mensamd.ui.SheetHeading
 import de.luwify.mensamd.ui.forLanguage
@@ -100,7 +102,10 @@ fun StatsScreen(vm: StatsViewModel, mainVm: MainViewModel, onRegister: () -> Uni
     // Top-ups are off by default: a 50 € top-up would squash the spending columns.
     var showTopUps by rememberSaveable { mutableStateOf(false) }
     val scheme = MaterialTheme.colorScheme
-    val chartStyle = remember(scheme, settings?.highContrast) { ChartStyle.of(scheme, settings?.highContrast == true) }
+    val adaptSeries = LocalThemeMode.current == ThemeMode.SYSTEM
+    val chartStyle = remember(scheme, settings?.highContrast, adaptSeries) {
+        ChartStyle.of(scheme, settings?.highContrast == true, adapt = adaptSeries)
+    }
     var openId by rememberSaveable { mutableStateOf<Long?>(null) }
     var editEventId by rememberSaveable { mutableStateOf<Long?>(null) }
     var showAll by rememberSaveable { mutableStateOf(false) }

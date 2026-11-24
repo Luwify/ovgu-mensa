@@ -12,6 +12,9 @@ import de.luwify.mensamd.ui.theme.withContrast
  * selected column's band) to reach [MIN] contrast (WCAG 1.4.11 for graphics), [MIN_HIGH] with "Hoher Kontrast", which
  * also draws thicker lines and a stronger grid. Top-ups are drawn as outlined columns, so the two series differ by shape,
  * not by color alone. Dynamic (Material You) colors are nudged the same way; `ChartStyleTest` checks the fixed themes.
+ *
+ * With [adapt] (the System theme, whose colors come from the wallpaper) and always with "Hoher Kontrast", the two series
+ * must also differ from each other ([SeriesColors]): [SeriesColors.NORMAL], [SeriesColors.HIGH] in high contrast.
  */
 internal data class ChartStyle(
     val spent: Color,
@@ -29,12 +32,19 @@ internal data class ChartStyle(
         /** The backgrounds a chart mark sits on. */
         fun backgrounds(s: ColorScheme): List<Color> = listOf(s.surface, s.surfaceContainerHighest)
 
-        fun of(s: ColorScheme, high: Boolean): ChartStyle {
+        fun of(s: ColorScheme, high: Boolean, adapt: Boolean = false): ChartStyle {
             val bgs = backgrounds(s)
             val min = if (high) MIN_HIGH else MIN
+            var spent = s.primary.withContrast(min, bgs)
+            var topUp = s.tertiary.withContrast(min, bgs)
+            if (adapt || high) {
+                val pair = SeriesColors.pair(spent, topUp, bgs, min, if (high) SeriesColors.HIGH else SeriesColors.NORMAL)
+                spent = pair.first
+                topUp = pair.second
+            }
             return ChartStyle(
-                spent = s.primary.withContrast(min, bgs),
-                topUp = s.tertiary.withContrast(min, bgs),
+                spent = spent,
+                topUp = topUp,
                 grid = if (high) s.outline.withContrast(MIN, listOf(s.surface)) else s.outlineVariant,
                 line = if (high) 3.dp else 2.dp,
                 outline = if (high) 2.5.dp else 1.5.dp,

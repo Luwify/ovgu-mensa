@@ -17,7 +17,8 @@ import org.junit.Test
 
 /**
  * The chart marks reach 3:1 against the page and the selected column's band in every fixed theme (WCAG 1.4.11), 4.5:1
- * with "Hoher Kontrast"; the grid of the high-contrast style is visible at 3:1 too.
+ * with "Hoher Kontrast"; the grid of the high-contrast style is visible at 3:1 too, and its two series are apart
+ * ([SeriesColors.HIGH]).
  */
 class ChartStyleTest {
     private fun ratio(a: Color, b: Color): Double {
@@ -53,6 +54,9 @@ class ChartStyleTest {
                 if (ratio(style.topUp, bg) < min) failures += "$name high=$high top-up %.2f".format(ratio(style.topUp, bg))
             }
             if (high && ratio(style.grid, s.surface) < ChartStyle.MIN) failures += "$name grid %.2f".format(ratio(style.grid, s.surface))
+            if (high && !SeriesColors.distinct(style.spent, style.topUp, SeriesColors.HIGH)) {
+                failures += "$name series ${SeriesColors.separation(style.spent, style.topUp)}"
+            }
         }
         assertTrue(failures.joinToString("\n"), failures.isEmpty())
     }

@@ -111,7 +111,11 @@ git-ignored `CLAUDE.local.md` at the repo root, which Claude Code loads after th
   (`CardIdentity`), only a salted PBKDF2 hash of it is stored. Amounts are mills (card unit); menu prices are cents x 10.
   Charts are own Canvas code (`ui/stats/Charts.kt`), no library; colors/widths from `ChartStyle` (theme primary/tertiary nudged
   to 3:1 against page and selected band, 4.5:1 + thicker lines with "Hoher Kontrast" `stats_high_contrast`; top-ups outlined,
-  off by default; `ChartStyleTest` checks every fixed theme and custom hues). Periods start at the first one with data. Reminder: `notify/CardReminder.kt` (one-time
+  off by default; `ChartStyleTest` checks every fixed theme and custom hues). The two series must differ (`SeriesColors`:
+  CIELAB L*, CIEDE2000, again under deuteranopia/protanopia simulation; math in `ui/theme/Perceptual.kt`): checked for the
+  System theme (wallpaper colors, e.g. sage vs cream) and, with "Hoher Kontrast", for every theme; a failing pair keeps
+  the first color and gets a new top-up color (tertiary hue if ≥ 60° away, else ~150° turned, clearly other lightness).
+  Soft's normal style is left alone on purpose. `SeriesColorsTest` builds dynamic-like schemes from seeds. Periods start at the first one with data. Reminder: `notify/CardReminder.kt` (one-time
   WorkManager job re-enqueued like the favorites job; tap -> `EXTRA_OPEN_CARD`). Backup: `backup/BackupFormat`
   (`mensamd-backup` v1: every settings key except device state, language, statistics) + `BackupRepository`, settings page.
   Meal statistics website link: `StatsLinks.MEAL_STATS_URL` (hidden while empty). Pfand: a credit up to 5 € that is a

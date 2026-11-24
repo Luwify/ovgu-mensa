@@ -1,0 +1,2 @@
+Behoben:
+- Im Farbschema „System“ (Farben vom Hintergrundbild) waren Ausgaben und Aufladungen im Diagramm „Ausgaben und Aufladungen“ teils kaum zu unterscheiden, etwa Salbeigrün und Creme. Liegen die beiden Farben zu nah beieinander (Helligkeit, Farbabstand, auch bei Rot-Grün-Sehschwäche), bekommen Aufladungen eine deutlich andere, zur Palette passende Farbe. Mit „Hoher Kontrast“ gilt das in jedem Farbschema, mit einem noch größeren Abstand.

@@ -1,0 +1,2 @@
+Fixed:
+- With the "System" color scheme (colors from the wallpaper), spending and top-ups in the "Spending and top-ups" chart could be hard to tell apart, e.g. sage and cream. When the two colors are too close (lightness, color difference, also with red-green color blindness), top-ups get a clearly different color that still fits the palette. With "High contrast" this applies to every color scheme, with an even larger difference.
