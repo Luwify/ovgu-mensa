@@ -86,6 +86,10 @@
     <string name="last_balance_today">today %1$s</string>
     <string name="last_balance_yesterday">yesterday %1$s</string>
     <string name="last_balance_a11y">Last known balance %1$s, %2$s. Not the current balance.</string>
+    <plurals name="stats_button_questions">
+        <item quantity="one">Statistics · %d open question</item>
+        <item quantity="other">Statistics · %d open questions</item>
+    </plurals>
     <string name="card_popup_open">Open app</string>
     <string name="card_popup_answer">Answer in the app</string>
     <string name="card_popup_error">Lost the card while reading. Hold it still against the back of your phone and try again.</string>
@@ -313,10 +317,6 @@
     <string name="scan_payment_meal">Payment %1$s: %2$s</string>
     <string name="scan_top_up">Top-up %1$s</string>
     <string name="scan_pfand">Pfand return %1$s</string>
-    <plurals name="open_questions_button">
-        <item quantity="one">Answer %d question</item>
-        <item quantity="other">Answer %d questions</item>
-    </plurals>
     <string name="popup_stats_saved">Saved in the statistics.</string>
     <string name="popup_stats_question">Saved in the statistics. A question is waiting in the app.</string>
     <string name="popup_stats_meal">Saved in the statistics. Choose the dish in the app.</string>

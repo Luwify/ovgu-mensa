@@ -71,6 +71,12 @@ import java.util.Locale
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.semantics.contentDescription
 import de.luwify.mensamd.stats.LastBalance
 import de.luwify.mensamd.stats.LastBalances
@@ -78,7 +84,8 @@ import de.luwify.mensamd.stats.LastBalances
 /**
  * The "Karte" screen. The scanner runs while the activity is resumed (see `MainActivity`); it opens this screen on a
  * scan. The gear opens the settings on their card tab ([onOpenSettings], an overlay in `MensaRoot` above this screen),
- * the chart button (statistics on) the statistics, an overlay here. Before a scan the last known balance is shown, muted ([LastKnownBalance]).
+ * the "Statistik" button at the bottom (statistics on, in thumb reach, with the open questions' count) the statistics,
+ * an overlay here. Before a scan the last known balance is shown, muted ([LastKnownBalance]).
  */
 @Composable
 fun CardScreen(scanner: NfcCardScanner, mainVm: MainViewModel, onOpenSettings: () -> Unit, onBack: () -> Unit) {
@@ -100,6 +107,7 @@ fun CardScreen(scanner: NfcCardScanner, mainVm: MainViewModel, onOpenSettings: (
     val stats by statsVm.data.collectAsStateWithLifecycle()
     val lastScan by statsVm.lastCardScan.collectAsStateWithLifecycle()
     val lastBalance = LastBalances.pick(statsOn, stats, lastScan)
+    val openCount = if (statsOn) stats?.open?.size ?: 0 else 0
     var announcedSeq by rememberSaveable { mutableLongStateOf(0L) }
     val pfandText = stringResource(R.string.pfand_snackbar)
     val reassignText = stringResource(R.string.pfand_reassign)
@@ -121,9 +129,6 @@ fun CardScreen(scanner: NfcCardScanner, mainVm: MainViewModel, onOpenSettings: (
     Surface(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
             TopBar(stringResource(R.string.card_title), onBack) {
-                if (statsOn) {
-                    IconButton(onClick = { showStats = true }) { Icon(StatsIcon, stringResource(R.string.stats_title)) }
-                }
                 IconButton(onClick = onOpenSettings) {
                     Icon(painterResource(R.drawable.ic_settings), stringResource(R.string.card_settings_title))
                 }
@@ -147,14 +152,43 @@ fun CardScreen(scanner: NfcCardScanner, mainVm: MainViewModel, onOpenSettings: (
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 24.dp, vertical = 12.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .then(if (statsOn) Modifier else Modifier.navigationBarsPadding())
+                    .padding(horizontal = 24.dp, vertical = 12.dp),
             )
+            if (statsOn) StatsButton(openCount, onClick = { showStats = true })
         }
     }
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.BottomCenter) {
-        SnackbarHost(snackbar, Modifier.navigationBarsPadding().padding(bottom = 48.dp))
+        SnackbarHost(snackbar, Modifier.navigationBarsPadding().padding(bottom = if (statsOn) 128.dp else 48.dp))
     }
     if (showStats && statsOn) StatsScreen(statsVm, mainVm, onRegister = onOpenSettings, onBack = { showStats = false })
+}
+
+/**
+ * The way into the statistics, at the bottom in thumb reach: full width, above the navigation bar. Filled (primary) while
+ * questions are open, with their count; tonal otherwise.
+ */
+@Composable
+private fun StatsButton(openCount: Int, onClick: () -> Unit) {
+    val modifier = Modifier
+        .fillMaxWidth()
+        .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal))
+        .navigationBarsPadding()
+        .padding(start = 16.dp, end = 16.dp, bottom = 16.dp)
+        .heightIn(min = 56.dp)
+    val content: @Composable RowScope.() -> Unit = {
+        Icon(StatsIcon, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
+        Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+        Text(
+            if (openCount > 0) pluralStringResource(R.plurals.stats_button_questions, openCount, openCount)
+            else stringResource(R.string.stats_title),
+            style = MaterialTheme.typography.titleMedium,
+        )
+    }
+    if (openCount > 0) Button(onClick = onClick, modifier = modifier, content = content)
+    else FilledTonalButton(onClick = onClick, modifier = modifier, content = content)
 }
 
 /** The last known balance before a scan: muted (not primary, not bold), with which card and when, so it never reads as live. */

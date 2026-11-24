@@ -253,7 +253,8 @@ the others, exit 1 only when no Mensa could be fetched (pages without dishes are
     statistics and registers it, then only its scans (balance, last debit, time) and a salted hash. Test bytes are synthetic.
   - Card screen (`ui/CardScreen`): before a scan the last known balance, muted ("Stand: heute 9:19"; `stats/LastBalance`:
     with the statistics on, "Meine Karte"'s last scan, else `last_card_scan` as "Zuletzt gescannte Karte"; saved for every
-    read card by `StatsRecorder.recordAsync`), a live scan in primary as before.
+    read card by `StatsRecorder.recordAsync`), a live scan in primary as before. Statistics: full-width button at the bottom
+    (statistics on; filled with the open questions' count, tonal without); the gear stays in the top bar.
 
 ## Build / test commands
 Needs JDK 21 (`JAVA_HOME`) and the Android SDK (`sdk.dir` in the git-ignored `local.properties`, or `ANDROID_HOME`).

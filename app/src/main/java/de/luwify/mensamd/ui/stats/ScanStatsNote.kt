@@ -18,7 +18,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -102,9 +101,6 @@ fun ScanStatsNote(vm: StatsViewModel, scan: CardScanState.Success?, onOpenStats:
                     }) { Text(stringResource(R.string.q_first_record)) }
                 }
             }
-        }
-        if (open.isNotEmpty()) {
-            Button(onClick = onOpenStats) { Text(pluralStringResource(R.plurals.open_questions_button, open.size, open.size)) }
         }
     }
 }

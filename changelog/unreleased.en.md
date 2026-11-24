@@ -3,6 +3,7 @@ New:
 - Pfand paid with a drink can be added as an item (0.08 €, 0.15 €, 0.25 €). Pfand paid and Pfand returned no longer count as spending and are shown apart: "Pfand this month: x paid · y back".
 - Open top-up-and-payment questions are kept and answered with the new screen.
 - Before a scan, the card screen shows the last balance read, muted and with its time ("As of today 9:19", "As of Mon 23 Nov"), so it isn't taken for the current value. With statistics on and a registered card it is "My card"'s last scan, otherwise the last balance read from any card ("Last scanned card", without a card ID). It is included in the backup.
+- "Statistics" is now a large button at the bottom of the card screen, within thumb reach, and shows open questions ("Statistics · 1 open question"). The gear stays at the top.
 
 Fixed:
 - With the "System" color scheme (colors from the wallpaper), spending and top-ups in the "Spending and top-ups" chart could be hard to tell apart, e.g. sage and cream. When the two colors are too close (lightness, color difference, also with red-green color blindness), top-ups get a clearly different color that still fits the palette. With "High contrast" this applies to every color scheme, with an even larger difference.
